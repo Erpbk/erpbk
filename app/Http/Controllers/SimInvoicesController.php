@@ -7,6 +7,7 @@ use App\Helpers\Common;
 use App\Http\Controllers\AppBaseController;
 use App\Imports\SimInvoiceImport;
 use App\Models\Accounts;
+use App\Models\Items;
 use App\Models\SimInvoice;
 use App\Models\Sims;
 use App\Models\Transactions;
@@ -16,6 +17,7 @@ use App\Models\Payment;
 use App\Models\SimCompany;
 use App\Repositories\SimInvoicesRepository;
 use App\Traits\GlobalPagination;
+use App\Support\InvoicePdf;
 use Flash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -75,7 +77,11 @@ class SimInvoicesController extends AppBaseController
         ];
 
         $data = $this->applyPagination(
-            (clone $query)->with('company')->withCount('items'),
+            (clone $query)->with('company')->withCount([
+                'items as sims_count' => function ($q) {
+                    $q->select(\DB::raw('count(distinct sim_id)'));
+                },
+            ]),
             $paginationParams
         );
         $companies = SimCompany::where('status', 1)->orderBy('name')->get();
@@ -96,27 +102,33 @@ class SimInvoicesController extends AppBaseController
     public function create($company_slug, $companyId = null)
     {
         $companies = SimCompany::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
-        $sims = Sims::orderBy('number')->get()->mapWithKeys(function ($sim) {
-            return [$sim->id => $sim->number . ' - ' . ($sim->company ?? '')];
-        })->prepend('Select', '')->toArray();
         $company = $companyId ? SimCompany::find($companyId) : null;
+        $sims = $this->simsDropdownForCompany($company ? (int) $company->id : null);
+        $items = Items::dropdown('sim');
+        $defaultVat = (float) (Common::getSetting('vat_percentage') ?? 5);
+        $pivotColumns = collect();
+        $pivotRows = [];
 
-        return view('sim_invoices.create', compact('companies', 'sims', 'company'));
+        return view('sim_invoices.create', compact(
+            'companies',
+            'sims',
+            'company',
+            'items',
+            'defaultVat',
+            'pivotColumns',
+            'pivotRows'
+        ));
     }
 
     public function createFromClone($company_slug, $id)
     {
         $sourceInvoice = $this->simInvoicesRepository->find($id);
         if (empty($sourceInvoice)) {
-            $message = 'Source invoice not found.';
-            if (request()->ajax()) {
-                return response()->view('sim_invoices.modal_error', compact('message'), 200);
-            }
-            Flash::error($message);
+            Flash::error('Source invoice not found.');
             return redirect(route('simInvoices.index'));
         }
 
-        $sourceInvoice->load('items');
+        $sourceInvoice->load(['items.item', 'items.sim']);
         $nextMonth = \Carbon\Carbon::parse($sourceInvoice->billing_month)->addMonth();
         $nextMonthString = $nextMonth->format('Y-m');
 
@@ -126,30 +138,14 @@ class SimInvoicesController extends AppBaseController
             ->first();
 
         if ($existingInvoice) {
-            $message = 'An invoice for this company already exists for ' . $nextMonthString . '.';
-            if (request()->ajax()) {
-                return response()->view('sim_invoices.modal_error', compact('message'), 200);
-            }
-            Flash::error($message);
+            Flash::error('An invoice for this company already exists for ' . $nextMonthString . '.');
             return redirect(route('simInvoices.index'));
         }
 
         $companies = SimCompany::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
-        $sims = Sims::where('vendor', $sourceInvoice->vendor_id)->orderBy('number')->get()->mapWithKeys(function ($sim) {
-            return [$sim->id => $sim->number . ' - ' . ($sim->company ?? '')];
-        })->prepend('Select', '')->toArray();
+        $sims = $this->simsDropdownForCompany((int) $sourceInvoice->vendor_id);
 
-        $cloneItems = [];
-        foreach ($sourceInvoice->items as $item) {
-            $cloneItems[] = [
-                'sim_id' => $item->sim_id,
-                'rental_amount' => (float) $item->rental_amount,
-                'additional_charges' => (float) ($item->additional_charges ?? 0),
-                'international_usage_charges' => (float) ($item->international_usage_charges ?? 0),
-                'tax_rate' => (float) ($item->tax_rate ?? 5),
-            ];
-        }
-
+        $pivot = $sourceInvoice->pivotChargeGrid();
         $cloneFromInvoice = (object) [
             'inv_date' => now()->format('Y-m-d'),
             'billing_month' => $nextMonthString . '-01',
@@ -158,46 +154,34 @@ class SimInvoicesController extends AppBaseController
             'notes' => $sourceInvoice->notes ?? '',
         ];
 
+        $items = Items::dropdown('sim');
+        $defaultVat = (float) (Common::getSetting('vat_percentage') ?? 5);
+        $pivotColumns = $pivot['columns'];
+        $pivotRows = $pivot['rows'];
         $nextBillingMonth = $nextMonthString;
-        return view('sim_invoices.create', compact('companies', 'sims', 'cloneItems', 'cloneFromInvoice', 'nextBillingMonth'));
+
+        return view('sim_invoices.create', compact(
+            'companies',
+            'sims',
+            'items',
+            'defaultVat',
+            'cloneFromInvoice',
+            'nextBillingMonth',
+            'pivotColumns',
+            'pivotRows'
+        ));
     }
 
     public function store(Request $request)
     {
         try {
-            $request->validate([
-                'inv_date' => 'required|date',
-                'billing_month' => 'required',
-                'company_id' => 'required|exists:sim_companies,id',
-                'reference_number' => 'required|string|max:255',
-                'sim_id' => 'required|array|min:1',
-                'sim_id.*' => 'required',
-                'rental_amount' => 'required|array|min:1',
-                'rental_amount.*' => 'numeric|min:0',
-                'additional_charges' => 'nullable|array',
-                'additional_charges.*' => 'nullable|numeric|min:0',
-                'international_usage_charges' => 'nullable|array',
-                'international_usage_charges.*' => 'nullable|numeric|min:0',
-                'descriptions' => 'nullable|string',
-                'notes' => 'nullable|string',
-                'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
-            ]);
+            $this->validatePivotInvoiceRequest($request);
 
             $invoice = $this->simInvoicesRepository->record($request);
-
-            if ($request->ajax()) {
-                return response()->json([
-                    'message' => 'Invoice created successfully.',
-                    'reload' => true,
-                ], 200);
-            }
 
             Flash::success('Invoice created successfully.');
             return redirect(route('simInvoices.show', $invoice->id));
         } catch (\Exception $e) {
-            if ($request->ajax()) {
-                return response()->json(['errors' => ['error' => $e->getMessage()]], 422);
-            }
             Flash::error($e->getMessage());
             return redirect()->back()->withInput();
         }
@@ -211,8 +195,19 @@ class SimInvoicesController extends AppBaseController
 
         $companies = SimCompany::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
         $defaultVat = Common::getSetting('vat_percentage') ?? 0;
+        $items = Items::dropdown('sim')->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'name' => $item->name,
+                'price' => (float) ($item->price ?? 0),
+                'vat' => (float) ($item->vat ?? 0),
+            ];
+        })->values();
 
-        return view('sim_invoices.import', compact('companies', 'defaultVat'));
+        $importMappingsByCompany = app(\App\Services\ExcelImport\ExcelImportMappingService::class)
+            ->formPayloadBySimCompany();
+
+        return view('sim_invoices.import', compact('companies', 'defaultVat', 'items', 'importMappingsByCompany'));
     }
 
     public function import(Request $request, $company_slug)
@@ -227,27 +222,77 @@ class SimInvoicesController extends AppBaseController
             'billing_month' => 'required|date_format:Y-m',
             'inv_date' => 'required|date',
             'reference_number' => 'required|string|max:255',
-            'vat_percent' => 'nullable|numeric|min:0',
+            'vat_percent' => 'required|numeric|min:0',
             'descriptions' => 'nullable|string',
             'notes' => 'nullable|string',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'header_rows_to_skip' => 'required|integer|min:0|max:20',
             'col_sim_number' => 'required|integer|min:1',
-            'col_monthly_charges' => 'required|integer|min:1',
-            'col_intl_usage_charges' => 'nullable|integer|min:1',
-            'col_additional_charges' => 'nullable|integer|min:1',
-            'col_vat' => 'nullable|integer|min:1',
+            'item_map' => 'required|array|min:1',
+            'item_map.*.item_id' => 'required|integer|exists:items,id',
+            'item_map.*.col' => 'required|integer|min:1',
+            'item_map.*.rate' => 'required|numeric',
         ]);
+
+        $headerRowsToSkip = (int) $request->input('header_rows_to_skip', 1);
 
         $columnMap = [
             'sim_number' => (int) $request->col_sim_number,
-            'monthly_charges' => (int) $request->col_monthly_charges,
-            'intl_usage_charges' => $request->filled('col_intl_usage_charges') ? (int) $request->col_intl_usage_charges : null,
-            'additional_charges' => $request->filled('col_additional_charges') ? (int) $request->col_additional_charges : null,
-            'vat' => $request->filled('col_vat') ? (int) $request->col_vat : null,
         ];
 
-        $provided = array_filter($columnMap, fn($v) => $v !== null);
-        if (count($provided) !== count(array_unique($provided))) {
+        $itemDefs = [];
+        $itemIds = [];
+        $itemCols = [];
+        $vatPercent = (float) $request->input('vat_percent', 0);
+
+        foreach ($request->input('item_map', []) as $row) {
+            $itemId = (int) $row['item_id'];
+            $col = (int) $row['col'];
+
+            if (in_array($itemId, $itemIds, true)) {
+                $message = 'Each item can only be mapped once.';
+                if ($request->ajax()) {
+                    return response()->json(['success' => false, 'message' => $message], 422);
+                }
+                Flash::error($message);
+                return redirect()->back();
+            }
+
+            if (in_array($col, $itemCols, true)) {
+                $message = 'Item quantity columns must be unique.';
+                if ($request->ajax()) {
+                    return response()->json(['success' => false, 'message' => $message], 422);
+                }
+                Flash::error($message);
+                return redirect()->back();
+            }
+
+            $itemIds[] = $itemId;
+            $itemCols[] = $col;
+            $itemDefs[] = [
+                'item_id' => $itemId,
+                'col' => $col,
+                'rate' => (float) $row['rate'],
+            ];
+        }
+
+        $simItems = Items::whereIn('id', $itemIds)
+            ->where('status', 1)
+            ->whereJsonContains('owner', 'sim')
+            ->pluck('id')
+            ->all();
+
+        if (count($simItems) !== count($itemIds)) {
+            $message = 'One or more mapped items are invalid or not assigned to the SIM module.';
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            Flash::error($message);
+            return redirect()->back();
+        }
+
+        $allCols = array_merge([(int) $request->col_sim_number], $itemCols);
+        if (count($allCols) !== count(array_unique($allCols))) {
             $message = 'Column numbers must be unique.';
             if ($request->ajax()) {
                 return response()->json(['success' => false, 'message' => $message], 422);
@@ -273,7 +318,9 @@ class SimInvoicesController extends AppBaseController
             $import = new SimInvoiceImport(
                 (int) $request->company_id,
                 $columnMap,
-                $request->vat_percent ?? 0
+                $itemDefs,
+                $vatPercent,
+                $headerRowsToSkip
             );
             Excel::import($import, $request->file('file'));
 
@@ -311,6 +358,7 @@ class SimInvoicesController extends AppBaseController
                 'descriptions' => $request->descriptions,
                 'notes' => $request->notes,
                 'attachment' => $attachmentPath,
+                'vat_percent' => $vatPercent,
             ], $import->items);
 
             $importedCount = $import->importedCount;
@@ -356,7 +404,37 @@ class SimInvoicesController extends AppBaseController
             return redirect(route('simInvoices.index'));
         }
 
-        return view('sim_invoices.show')->with('invoice', $invoice);
+        $invoice->load(['items.item', 'items.sim', 'company']);
+        $pivot = $invoice->pivotChargeGrid();
+
+        return view('sim_invoices.show', [
+            'invoice' => $invoice,
+            'pivotColumns' => $pivot['columns'],
+            'pivotRows' => $pivot['rows'],
+        ]);
+    }
+
+    public function download($company_slug, $id)
+    {
+        $invoice = $this->simInvoicesRepository->find($id);
+        if (empty($invoice)) {
+            abort(404, 'SIM Invoice not found');
+        }
+
+        $invoice->load(['items.item', 'items.sim', 'company']);
+        $pivot = $invoice->pivotChargeGrid();
+        $invoiceNumber = $invoice->invoice_number
+            ?? ('SIM-' . str_pad((string) $invoice->id, 6, '0', STR_PAD_LEFT));
+
+        return InvoicePdf::download(
+            'sim_invoices.show',
+            [
+                'invoice' => $invoice,
+                'pivotColumns' => $pivot['columns'],
+                'pivotRows' => $pivot['rows'],
+            ],
+            'SIM-Invoice-' . $invoiceNumber . '.pdf'
+        );
     }
 
     public function edit($company_slug, $id)
@@ -367,13 +445,24 @@ class SimInvoicesController extends AppBaseController
             return redirect(route('simInvoices.index'));
         }
 
-        $invoice->load('items');
+        $invoice->load(['items.item', 'items.sim']);
         $companies = SimCompany::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
-        $sims = Sims::orderBy('number')->get()->mapWithKeys(function ($sim) {
-            return [$sim->id => $sim->number . ' - ' . ($sim->company ?? '')];
-        })->prepend('Select', '')->toArray();
+        $sims = $this->simsDropdownForCompany((int) $invoice->vendor_id);
+        $items = Items::dropdown('sim');
+        $defaultVat = (float) (Common::getSetting('vat_percentage') ?? 5);
+        $pivot = $invoice->pivotChargeGrid();
+        $pivotColumns = $pivot['columns'];
+        $pivotRows = $pivot['rows'];
 
-        return view('sim_invoices.edit', compact('invoice', 'companies', 'sims'));
+        return view('sim_invoices.edit', compact(
+            'invoice',
+            'companies',
+            'sims',
+            'items',
+            'defaultVat',
+            'pivotColumns',
+            'pivotRows'
+        ));
     }
 
     public function update(Request $request, $company_slug, $id)
@@ -385,47 +474,13 @@ class SimInvoicesController extends AppBaseController
                 return redirect(route('simInvoices.index'));
             }
 
-            $request->validate([
-                'inv_date' => 'required|date',
-                'billing_month' => 'required',
-                'company_id' => 'required|exists:sim_companies,id',
-                'reference_number' => 'required|string|max:255',
-                'sim_id' => 'required|array|min:1',
-                'sim_id.*' => 'required|exists:sims,id',
-                'rental_amount' => 'required|array|min:1',
-                'rental_amount.*' => 'numeric|min:0',
-                'additional_charges' => 'nullable|array',
-                'additional_charges.*' => 'nullable|numeric|min:0',
-                'international_usage_charges' => 'nullable|array',
-                'international_usage_charges.*' => 'nullable|numeric|min:0',
-                'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
-            ]);
-
-            if ($request->hasFile('attachment')) {
-                $fileName = time() . '_' . str_replace(' ', '_', $request->file('attachment')->getClientOriginalName());
-                $attachmentPath = $request->file('attachment')->storeAs('sim_invoices', $fileName, 'public');
-                $request->merge(['attachment' => $attachmentPath]);
-
-                if ($invoice->attachment && Storage::disk('public')->exists($invoice->attachment)) {
-                    Storage::disk('public')->delete($invoice->attachment);
-                }
-            }
+            $this->validatePivotInvoiceRequest($request);
 
             $invoice = $this->simInvoicesRepository->record($request, $id);
-
-            if ($request->ajax()) {
-                return response()->json([
-                    'message' => 'Invoice updated successfully.',
-                    'redirect' => route('simInvoices.show', $invoice->id),
-                ]);
-            }
 
             Flash::success('Invoice updated successfully.');
             return redirect(route('simInvoices.show', $invoice->id));
         } catch (\Exception $e) {
-            if ($request->ajax()) {
-                return response()->json(['errors' => ['error' => $e->getMessage()]], 422);
-            }
             Flash::error($e->getMessage());
             return redirect()->back()->withInput();
         }
@@ -441,9 +496,9 @@ class SimInvoicesController extends AppBaseController
         if (empty($invoice)) {
             return delete_error_response('Invoice not found', route('simInvoices.index'), 404);
         }
-        if ($invoice->status == 1) {
+        if (in_array((int) $invoice->status, [1, 3], true)) {
             return delete_error_response(
-                'Cannot delete paid invoice. Only unpaid invoices can be deleted.',
+                'Cannot delete a paid or partially paid invoice. Only unpaid invoices can be deleted.',
                 route('simInvoices.index')
             );
         }
@@ -527,8 +582,8 @@ class SimInvoicesController extends AppBaseController
             }
 
             $items = \App\Support\CompanyQuery::table('sim_invoice_items')->where('inv_id', $newInvoice->id)->get();
-            $newInvoice->vat = $items->sum('tax_amount');
-            $newInvoice->total_amount = $items->sum('total_amount');
+            $newInvoice->vat = $items->sum('tax');
+            $newInvoice->total_amount = $items->sum('amount');
             $newInvoice->subtotal = $newInvoice->total_amount - $newInvoice->vat;
             $newInvoice->save();
 
@@ -561,8 +616,46 @@ class SimInvoicesController extends AppBaseController
             return response()->json(['error' => 'Company not found'], 404);
         }
 
-        $sims = Sims::where('vendor', $id)->orderBy('number')->get(['id', 'number', 'company']);
+        $sims = Sims::where('company', $id)->orderBy('number')->get(['id', 'number']);
         return response()->json(['sims' => $sims]);
+    }
+
+    /**
+     * @return array<string|int, string>
+     */
+    protected function simsDropdownForCompany(?int $companyId): array
+    {
+        if (! $companyId) {
+            return ['' => 'Select company first'];
+        }
+
+        return Sims::where('company', $companyId)
+            ->orderBy('number')
+            ->pluck('number', 'id')
+            ->prepend('Select SIM', '')
+            ->toArray();
+    }
+
+    protected function validatePivotInvoiceRequest(Request $request): void
+    {
+        $request->validate([
+            'inv_date' => 'required|date',
+            'billing_month' => 'required',
+            'company_id' => 'required|exists:sim_companies,id',
+            'reference_number' => 'required|string|max:255',
+            'charge_item_ids' => 'required|array|min:1',
+            'charge_item_ids.*' => 'required|integer|exists:items,id',
+            'sim_id' => 'required|array|min:1',
+            'sim_id.*' => 'required|exists:sims,id',
+            'vat_percent' => 'nullable|array',
+            'vat_percent.*' => 'nullable|numeric|min:0',
+            'charges' => 'nullable|array',
+            'descriptions' => 'nullable|string',
+            'notes' => 'nullable|string',
+            'customer_note' => 'nullable|string',
+            'terms_and_conditions' => 'nullable|string',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+        ]);
     }
 
     public function payments(Request $request)

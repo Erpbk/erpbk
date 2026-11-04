@@ -20,7 +20,7 @@
       <tr class="text-center">
          <td>{{ $r->inv_id ?? $r->id }}</td>
          <td>{{ $r->inv_date ? \Carbon\Carbon::parse($r->inv_date)->format('d M Y') : '-' }}</td>
-         <td>{{ $r->billing_month ? \Carbon\Carbon::parse($r->billing_month)->format('M Y') : '-' }}</td>
+         <td>{{ $r->billing_month ? \Carbon\Carbon::parse($r->billing_month)->format('M-Y') : '-' }}</td>
          <td>{{ $r->supplier?->name ?? '-' }}</td>
          <td>{{ \App\Helpers\Currency::format($r->total_amount ?? 0, 2) }}</td>
          <td>

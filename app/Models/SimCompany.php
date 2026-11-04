@@ -5,12 +5,15 @@ namespace App\Models;
 use App\Helpers\IConstants;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
+use App\Traits\HasInvoiceNoteLabels;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class SimCompany extends BaseModel
 {
-    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
+    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope, HasInvoiceNoteLabels, TracksUserAttribution;
 
     public $table = 'sim_companies';
 
@@ -24,6 +27,11 @@ class SimCompany extends BaseModel
         'account_id',
         'created_by',
         'updated_by',
+        'terms_and_conditions_label',
+        'terms_and_conditions',
+        'invoice_note_label',
+        'invoice_note',
+        'deleted_by'
     ];
 
     protected $casts = [

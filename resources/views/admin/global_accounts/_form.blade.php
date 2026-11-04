@@ -58,6 +58,12 @@
         <input class="form-check-input link-mode-radio" type="radio" name="link_mode" id="link_mode_create" value="create" {{ $linkMode === 'create' ? 'checked' : '' }}>
         <label class="form-check-label" for="link_mode_create">{{ __('Create new account') }}</label>
     </div>
+    @if($isEdit && $globalAccount->account_id)
+        <div class="form-check form-check-inline">
+            <input class="form-check-input link-mode-radio" type="radio" name="link_mode" id="link_mode_unlink" value="unlink" {{ $linkMode === 'unlink' ? 'checked' : '' }}>
+            <label class="form-check-label" for="link_mode_unlink">{{ __('Delink account') }}</label>
+        </div>
+    @endif
 </div>
 
 @if($isEdit && $globalAccount->account)
@@ -65,6 +71,9 @@
         {{ __('Current linked account:') }}
         <strong>{{ $globalAccount->account->account_code }} — {{ $globalAccount->account->name }}</strong>
         (#{{ $globalAccount->account_id }})
+    </div>
+    <div class="alert alert-warning mb-3" id="unlinkAccountNote" style="display: none;">
+        {{ __('The linked account will be delinked and unmarked as fixed. The account itself will not be deleted.') }}
     </div>
 @endif
 

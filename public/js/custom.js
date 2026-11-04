@@ -1,5 +1,23 @@
 // Right Side Modal Handler - Slide in from right
 $(document).ready(function () {
+  // Phones + foldables (< 1200px): keep overlay sidebar closed by default.
+  closeModuleMenuOnSmallScreens();
+  var __sidebarCloseResizeTimer = null;
+  var __lastSidebarWasSmall = isLayoutSmallScreen();
+  $(window).on('resize.erpCloseSidebar', function () {
+    clearTimeout(__sidebarCloseResizeTimer);
+    __sidebarCloseResizeTimer = setTimeout(function () {
+      var isSmall = isLayoutSmallScreen();
+      // Only force-close when crossing into the small breakpoint (desktop → mobile),
+      // or while voucher panels need the overlay menu shut. Do not close on every
+      // mobile resize (URL bar / keyboard) — that fights the hamburger toggle.
+      if (isSmall && (!__lastSidebarWasSmall || document.body.classList.contains('voucher-panels-open'))) {
+        closeModuleMenuOnSmallScreens();
+      }
+      __lastSidebarWasSmall = isSmall;
+    }, 150);
+  });
+
   // Keep action menus above cards/tables: .table-responsive uses overflow which
   // otherwise clips Bootstrap dropdowns (e.g. one-row Agreements list).
   (function enableFixedDropdownMenus() {
@@ -14,9 +32,10 @@ $(document).ready(function () {
 
     const previous = bootstrap.Dropdown.Default.popperConfig;
     bootstrap.Dropdown.Default.popperConfig = function (defaultBsPopperConfig) {
-      const resolved = typeof previous === 'function'
-        ? previous(defaultBsPopperConfig)
-        : Object.assign({}, defaultBsPopperConfig || {}, previous || {});
+      const resolved =
+        typeof previous === 'function'
+          ? previous(defaultBsPopperConfig)
+          : Object.assign({}, defaultBsPopperConfig || {}, previous || {});
       return withFixedStrategy(resolved);
     };
 
@@ -31,9 +50,10 @@ $(document).ready(function () {
       }
       const existing = instance._config.popperConfig;
       instance._config.popperConfig = function (defaultBsPopperConfig) {
-        const resolved = typeof existing === 'function'
-          ? existing(defaultBsPopperConfig)
-          : Object.assign({}, defaultBsPopperConfig || {}, existing || {});
+        const resolved =
+          typeof existing === 'function'
+            ? existing(defaultBsPopperConfig)
+            : Object.assign({}, defaultBsPopperConfig || {}, existing || {});
         return withFixedStrategy(resolved);
       };
     });
@@ -61,7 +81,7 @@ $(document).ready(function () {
     // Add custom CSS for right side slide animation
     $('head').append(`
             <style>
-                /* Right side modal slide animation */
+                /* Right side modal — full usable width on phones / Fold cover / split */
                 .right-side-modal .modal-dialog.modal-slide-right {
                     position: fixed;
                     margin: 0;
@@ -69,11 +89,26 @@ $(document).ready(function () {
                     right: 0;
                     bottom: 0;
                     left: auto;
-                    width: 70%;
-                    max-width: 900px;
+                    width: min(960px, 100%);
+                    max-width: 100%;
                     height: 100%;
+                    height: 100dvh;
                     transform: translateX(100%);
                     transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+                }
+
+                .right-side-modal .modal-dialog.modal-slide-right.modal-sm {
+                    width: min(420px, 100%);
+                }
+
+                .right-side-modal .modal-dialog.modal-slide-right.modal-md {
+                    width: min(640px, 100%);
+                }
+
+                .right-side-modal .modal-dialog.modal-slide-right.modal-lg,
+                .right-side-modal .modal-dialog.modal-slide-right.modal-xl {
+                    width: min(960px, 100%);
+                    max-width: 100%;
                 }
                 
                 .right-side-modal.show .modal-dialog.modal-slide-right {
@@ -84,11 +119,16 @@ $(document).ready(function () {
                     height: 100%;
                     border-radius: 0;
                     border: none;
+                    overflow-x: hidden;
+                    max-width: 100%;
                 }
                 
                 .right-side-modal .modal-body {
                     overflow-y: auto;
+                    overflow-x: hidden;
                     flex: 1;
+                    max-width: 100%;
+                    -webkit-overflow-scrolling: touch;
                 }
                 
                 .right-side-modal .modal-header {
@@ -119,10 +159,15 @@ $(document).ready(function () {
                     opacity: 0.5;
                 }
                 
-                /* Responsive */
-                @media (max-width: 768px) {
-                    .right-side-modal .modal-dialog.modal-slide-right {
-                        width: 100%;
+                /* Phones, Fold cover, narrow split: edge-to-edge drawer */
+                @media (max-width: 1199.98px) {
+                    .right-side-modal .modal-dialog.modal-slide-right,
+                    .right-side-modal .modal-dialog.modal-slide-right.modal-sm,
+                    .right-side-modal .modal-dialog.modal-slide-right.modal-md,
+                    .right-side-modal .modal-dialog.modal-slide-right.modal-lg,
+                    .right-side-modal .modal-dialog.modal-slide-right.modal-xl {
+                        width: 100% !important;
+                        max-width: 100% !important;
                     }
                 }
                 
@@ -179,6 +224,55 @@ function clearRightSideModalStyles() {
   }
 }
 
+/**
+ * Extract insertable HTML from a full document response.
+ * Never pass a full <!DOCTYPE>/<html> string to .html() — browsers strip <head>
+ * and can dump <style> contents as visible text (broken </style> fragments).
+ * Head <style> tags are prepended so invoice/modal views keep their CSS.
+ */
+function extractAjaxBodyHtml(responseHtml) {
+  var html = String(responseHtml || '');
+  var bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (bodyMatch) {
+    var bodyHtml = bodyMatch[1];
+    var headMatch = html.match(/<head[^>]*>([\s\S]*)<\/head>/i);
+    if (headMatch) {
+      var headStyles = headMatch[1].match(/<style\b[^>]*>[\s\S]*?<\/style>/gi);
+      if (headStyles && headStyles.length) {
+        var bodyStyles = bodyHtml.match(/<style\b[^>]*>[\s\S]*?<\/style>/gi) || [];
+        var toPrepend = headStyles.filter(function (styleTag) {
+          return bodyStyles.indexOf(styleTag) === -1;
+        });
+        if (toPrepend.length) {
+          return toPrepend.join('') + bodyHtml;
+        }
+      }
+    }
+    return bodyHtml;
+  }
+  // Fragment response (no body wrapper) — use as-is
+  return html;
+}
+
+function loadHtmlInto($target, url, done) {
+  $.ajax({
+    url: url,
+    method: 'GET',
+    dataType: 'html'
+  })
+    .done(function (response) {
+      $target.html(extractAjaxBodyHtml(response));
+      if (typeof done === 'function') {
+        done(response, 'success', null);
+      }
+    })
+    .fail(function (xhr) {
+      if (typeof done === 'function') {
+        done(xhr.responseText || '', 'error', xhr);
+      }
+    });
+}
+
 function openRightSideModal(action, title, size = 'lg', callback = null) {
   // Reset modal size classes
   $('#rightSideModal .modal-dialog').removeClass('modal-sm modal-md modal-lg modal-xl');
@@ -204,8 +298,8 @@ function openRightSideModal(action, title, size = 'lg', callback = null) {
         </div>
     `);
 
-  // Load content
-  $('#rightSideModalBody').load(action, function (response, status, xhr) {
+  // Load body-only HTML (full documents break <style> when stuffed into a div)
+  loadHtmlInto($('#rightSideModalBody'), action, function (response, status, xhr) {
     if (status === 'error') {
       var err = parseModalLoadError(response, xhr);
 
@@ -234,7 +328,7 @@ function openRightSideModal(action, title, size = 'lg', callback = null) {
       initializeModalContent();
     }
     if (typeof window.initBikeFormSelect2 === 'function') {
-      window.initBikeFormSelect2(document.getElementById('formajax') || this);
+      window.initBikeFormSelect2(document.getElementById('formajax') || document.getElementById('rightSideModalBody'));
     }
   });
 
@@ -266,9 +360,10 @@ $('body').on('click', '.show-modal-right', function () {
       $('#dataTableBuilder').DataTable().ajax.reload(null, false);
     }
 
-    // Collapse sidebar if specified
-    if (collapseSidebar) {
+    // Collapse sidebar if specified (skip while voucher panels keep the module menu open)
+    if (collapseSidebar && !$('body').hasClass('voucher-panels-open')) {
       $('.layout-wrapper').addClass('layout-menu-collapsed');
+      $('html').addClass('layout-menu-collapsed');
     }
 
     // Execute custom callback if defined in data-callback attribute
@@ -309,85 +404,138 @@ $('#rightSideModal').on('click', '.modal-content', function (e) {
   e.stopPropagation();
 });
 
-// Print invoice/content from right-side modal or standalone invoice pages (global for onclick handlers).
+// Print invoice on the same page — fill one A4 sheet (CSS height fill; no zoom-up).
 window.printModalContent = function printModalContent() {
-  var title = (document.title || 'Print').replace(/</g, '');
-  var bodyHtml = '';
-  var embeddedStyles = '';
+  if (window.__invoicePrinting) {
+    return;
+  }
+  window.__invoicePrinting = true;
 
-  if (window.jQuery && $('#rightSideModalBody').length && $('#rightSideModalBody').find('.invoice-box').length) {
-    bodyHtml = $('#rightSideModalBody').html();
-    var modalTitle = ($('#rightSideModalTitle').text() || '').trim();
-    if (modalTitle) {
-      title = modalTitle.replace(/</g, '');
-    }
-  } else {
-    var invoiceBox = document.querySelector('.invoice-box');
-    if (!invoiceBox) {
-      window.print();
-      return;
-    }
-    document.querySelectorAll('style').forEach(function (node) {
-      embeddedStyles += node.outerHTML;
+  var source = document.querySelector('#rightSideModalBody .invoice-box') || document.querySelector('.invoice-box');
+
+  if (!source) {
+    window.__invoicePrinting = false;
+    window.print();
+    return;
+  }
+
+  var printRoot = document.getElementById('invoice-print-root');
+  if (!printRoot) {
+    printRoot = document.createElement('div');
+    printRoot.id = 'invoice-print-root';
+    printRoot.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(printRoot);
+  }
+
+  printRoot.innerHTML = '';
+  var box = source.cloneNode(true);
+  box.querySelectorAll('.controls, .no-print, script').forEach(function (el) {
+    if (el.parentNode) el.parentNode.removeChild(el);
+  });
+
+  var rowCount = box.querySelectorAll('table tbody tr').length;
+  box.classList.remove('invoice-print-dense', 'invoice-print-ultra', 'invoice-print-tall');
+  if (rowCount > 22) box.classList.add('invoice-print-ultra');
+  else if (rowCount > 12) box.classList.add('invoice-print-dense');
+
+  var fitWrap = document.createElement('div');
+  fitWrap.className = 'invoice-print-fit is-page-frame';
+  fitWrap.appendChild(box);
+  printRoot.appendChild(fitWrap);
+  document.body.classList.add('printing-invoice');
+
+  var runPrint = function () {
+    // A4 content box @ 96dpi — matches @page { margin: 4mm }
+    var mm = 96 / 25.4;
+    var pageW = Math.round(202 * mm);
+    var pageH = Math.round(289 * mm);
+
+    printRoot.style.cssText =
+      'position:fixed;left:0;top:0;width:' +
+      pageW +
+      'px;height:' +
+      pageH +
+      'px;visibility:hidden;pointer-events:none;z-index:-1;overflow:hidden;';
+
+    fitWrap.style.cssText = '';
+    fitWrap.className = 'invoice-print-fit is-page-frame';
+    fitWrap.style.setProperty('width', pageW + 'px', 'important');
+    fitWrap.style.setProperty('height', pageH + 'px', 'important');
+    fitWrap.style.setProperty('max-width', 'none', 'important');
+    fitWrap.style.setProperty('margin', '0', 'important');
+    fitWrap.style.setProperty('overflow', 'hidden', 'important');
+    fitWrap.style.setProperty('box-sizing', 'border-box', 'important');
+
+    box.style.cssText = '';
+    box.style.setProperty('width', pageW + 'px', 'important');
+    box.style.setProperty('max-width', 'none', 'important');
+    box.style.setProperty('height', 'auto', 'important');
+    box.style.setProperty('margin', '0', 'important');
+    box.style.setProperty('transform', 'none', 'important');
+    box.style.setProperty('zoom', '1', 'important');
+    box.style.setProperty('transform-origin', 'top left', 'important');
+
+    // Force full-page width so wide tables don't shrink the whole sheet
+    box.querySelectorAll('.sheet, .tbl-wrap, .parties, .desc, table').forEach(function (el) {
+      el.style.setProperty('width', '100%', 'important');
+      el.style.setProperty('max-width', 'none', 'important');
     });
-    bodyHtml = embeddedStyles + invoiceBox.outerHTML;
-  }
+    box.querySelectorAll('.tbl-wrap, .rider-template-items').forEach(function (el) {
+      el.style.setProperty('overflow', 'hidden', 'important');
+    });
+    void box.offsetHeight;
 
-  if (!bodyHtml || !String(bodyHtml).trim()) {
+    var contentH = Math.max(box.scrollHeight, box.offsetHeight, 1);
+
+    if (contentH > pageH + 2) {
+      // Long invoice: scale by HEIGHT only, keep layout width so print fills page width
+      var scaleDown = Math.max(0.35, Math.min(1, pageH / contentH));
+      box.style.setProperty('width', Math.round(pageW / scaleDown) + 'px', 'important');
+      box.style.setProperty('transform', 'scale(' + scaleDown.toFixed(4) + ')', 'important');
+    } else {
+      // Short invoice: full page width, natural content height (no empty stretch under items)
+      box.classList.remove('invoice-print-dense', 'invoice-print-ultra', 'invoice-print-tall');
+      box.style.setProperty('width', pageW + 'px', 'important');
+      box.style.setProperty('height', 'auto', 'important');
+    }
+
     window.print();
-    return;
-  }
+  };
 
-  var printWindow = window.open('', '_blank');
-  if (!printWindow) {
-    window.print();
-    return;
-  }
+  var cleanup = function () {
+    document.body.classList.remove('printing-invoice');
+    window.__invoicePrinting = false;
+    if (printRoot) {
+      printRoot.innerHTML = '';
+      printRoot.removeAttribute('style');
+    }
+    window.removeEventListener('afterprint', cleanup);
+  };
 
-  printWindow.document.open();
-  printWindow.document.write(
-    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
-      title +
-      '</title><style>' +
-      'body{font-family:Calibri,Arial,sans-serif;margin:0;padding:20px;color:#000;}' +
-      '.no-print{display:none!important;}' +
-      '.invoice-box{max-width:100%;margin:0 auto;}' +
-      'table{width:100%;border-collapse:collapse;margin-bottom:10px;}' +
-      'th,td{border:1px solid #000;padding:8px;text-align:left;}' +
-      'th{background:#004aad;color:#fff;}' +
-      '.text-center{text-align:center;}' +
-      '@media print{body{margin:0;padding:0;}.no-print{display:none!important;}}' +
-      '</style></head><body>' +
-      bodyHtml +
-      '</body></html>'
-  );
-  printWindow.document.close();
-
-  setTimeout(function () {
-    try {
-      printWindow.focus();
-      printWindow.print();
-    } catch (e) {}
-    printWindow.onafterprint = function () {
-      printWindow.close();
-    };
-  }, 400);
+  window.addEventListener('afterprint', cleanup);
+  setTimeout(cleanup, 5000);
+  setTimeout(runPrint, 200);
 };
 
 $('body').on('click', '.js-print-modal-content', function (e) {
   e.preventDefault();
+  e.stopPropagation();
   window.printModalContent();
 });
 
 /**
- * Print only the Visa installment invoice fragment (modal #modalTopbody or standalone .visa-installment-invo-wrap).
- * Avoids printing the full ERP layout when the invoice is opened in modalTop.
+ * Print only the Visa installment invoice fragment
+ * (#rightSideModalBody, #modalTopbody, or standalone .visa-installment-invo-wrap).
  */
 function printVisaInstallmentInvoice() {
   var title = 'Installment Invoice';
   var bodyHtml = '';
 
-  if (window.jQuery && $('#modalTopbody').length && $('#modalTopbody').find('.visa-installment-invo-wrap').length) {
+  if (window.jQuery && $('#rightSideModalBody').length && $('#rightSideModalBody').find('.visa-installment-invo-wrap').length) {
+    bodyHtml = $('#rightSideModalBody').html();
+    var rightTitle = ($('#rightSideModalTitle').text() || '').trim();
+    if (rightTitle) title = rightTitle;
+  } else if (window.jQuery && $('#modalTopbody').length && $('#modalTopbody').find('.visa-installment-invo-wrap').length) {
     bodyHtml = $('#modalTopbody').html();
     var t = ($('#modalTopTitle').text() || '').trim();
     if (t) title = t;
@@ -488,7 +636,7 @@ $('body').on('click', '.show-modal', function () {
     $('.modal-dialog').addClass('modal-' + size);
   }
   $('#modalTopTitle').text(title);
-  $('#modalTopbody').load(action, function (response, status, xhr) {
+  loadHtmlInto($('#modalTopbody'), action, function (response, status, xhr) {
     unblock();
 
     if (status === 'error') {
@@ -515,7 +663,21 @@ $('body').on('click', '.show-modal', function () {
       window.Helpers.initPasswordToggle();
     }
     if (typeof window.initBikeFormSelect2 === 'function') {
-      window.initBikeFormSelect2(document.getElementById('formajax') || this);
+      window.initBikeFormSelect2(document.getElementById('formajax') || document.getElementById('modalTopbody'));
+    }
+    // Fallback Select2 for payment modal fields (Payment Type, etc.) when bike helper is absent.
+    if (window.jQuery && $.fn && $.fn.select2) {
+      $('#modalTopbody select.select2').each(function () {
+        var $select = $(this);
+        if ($select.hasClass('select2-hidden-accessible')) {
+          return;
+        }
+        $select.select2({
+          width: '100%',
+          allowClear: !$select.prop('required'),
+          dropdownParent: $('#modalTopbody')
+        });
+      });
     }
     if (typeof window.initPermissionRoleMatrix === 'function') {
       window.initPermissionRoleMatrix();
@@ -523,14 +685,51 @@ $('body').on('click', '.show-modal', function () {
     if (typeof window.initPaymentFieldsForm === 'function' && $('#modalTopbody [data-payment-fields-init]').length) {
       window.initPaymentFieldsForm(document.getElementById('formajax') || $('#modalTopbody'));
     }
+    if (typeof window.initFundsTransferForm === 'function' && $('#modalTopbody [data-funds-transfer-init]').length) {
+      window.initFundsTransferForm(document.getElementById('formajax') || $('#modalTopbody'));
+    }
+    if ($('#modalTopbody [data-uvf-party-voucher="1"]').length) {
+      var $partyForm = $('#modalTopbody [data-uvf-party-voucher="1"]').first();
+      var partyTitle = $partyForm.data('modal-title') || 'Voucher';
+      var partySubtitle = $partyForm.data('modal-subtitle') || '';
+      $('#modalTopTitle').html(
+        '<span style="color:#1e4b8f;font-weight:700;">' + partyTitle + '</span>' +
+          (partySubtitle
+            ? '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + partySubtitle + '</div>'
+            : '')
+      );
+      $('#modalTopbody [data-rpf-inline-header]').addClass('d-none');
+    } else if ($('#modalTopbody .rider-payment-form').length) {
+      var $rpf = $('#modalTopbody .rider-payment-form').first();
+      var rpfTitle = $rpf.data('modal-title') || 'Record Rider Payment';
+      var rpfSubtitle = $rpf.data('modal-subtitle') || 'Allocate a payment to rider invoices';
+      $('#modalTopTitle').html(
+        '<span style="color:#1e4b8f;font-weight:700;">' + rpfTitle + '</span>' +
+          '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + rpfSubtitle + '</div>'
+      );
+      $('#modalTopbody [data-rpf-inline-header]').addClass('d-none');
+    } else if ($('#modalTopbody [data-uvf-journal="1"]').length) {
+      var $journalForm = $('#modalTopbody [data-uvf-journal="1"]').first();
+      var journalTitle = $journalForm.data('modal-title') || 'Journal Voucher';
+      var journalSubtitle = $journalForm.data('modal-subtitle') || '';
+      $('#modalTopTitle').html(
+        '<span style="color:#1e4b8f;font-weight:700;">' + journalTitle + '</span>' +
+          (journalSubtitle
+            ? '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + journalSubtitle + '</div>'
+            : '')
+      );
+      $('#modalTopbody [data-rpf-inline-header]').addClass('d-none');
+    }
   });
 
   if (table) {
     $('#dataTableBuilder').DataTable().ajax.reload(null, false);
   }
 
-  if (collapseSidebar) {
+  // Do not hide the module menu while All Vouchers + voucher detail are open.
+  if (collapseSidebar && !$('body').hasClass('voucher-panels-open')) {
     $('.layout-wrapper').addClass('layout-menu-collapsed');
+    $('html').addClass('layout-menu-collapsed');
   }
 
   toggleModalTop('show');
@@ -538,43 +737,145 @@ $('body').on('click', '.show-modal', function () {
 });
 
 $('#modalTop').on('hidden.bs.modal', function () {
-  $('.layout-wrapper').removeClass('layout-menu-collapsed');
+  // Keep module menu state while All Vouchers is open.
+  if (!$('body').hasClass('voucher-panels-open')) {
+    $('.layout-wrapper').removeClass('layout-menu-collapsed');
+    $('html').removeClass('layout-menu-collapsed');
+  }
 });
+
+var __voucherMenuState = null;
+
+function isLayoutSmallScreen() {
+  if (window.Helpers && typeof window.Helpers.isSmallScreen === 'function') {
+    return !!window.Helpers.isSmallScreen();
+  }
+  return (window.innerWidth || document.documentElement.clientWidth || 0) < 1200;
+}
+
+function closeModuleMenuOnSmallScreens() {
+  if (!isLayoutSmallScreen()) {
+    return;
+  }
+  // Overlay/offcanvas menu must stay closed on phones + foldables (< 1200px).
+  $('html').removeClass('layout-menu-expanded');
+  if (window.Helpers && typeof window.Helpers.setCollapsed === 'function') {
+    try {
+      window.Helpers.setCollapsed(true, false);
+    } catch (e) {
+      // ignore
+    }
+  }
+  syncVoucherMenuOffset();
+}
+
+function syncVoucherMenuOffset() {
+  var menu = document.getElementById('layout-menu');
+  var offsetPx = 0;
+  if (menu && !$('.layout-wrapper').hasClass('layout-without-menu') && !isLayoutSmallScreen()) {
+    var width = menu.getBoundingClientRect().width;
+    offsetPx = width > 40 ? Math.round(width) : Math.round(16.25 * 16);
+  }
+  document.documentElement.style.setProperty('--voucher-menu-offset', offsetPx + 'px');
+  document.body.style.setProperty('--voucher-menu-offset', offsetPx + 'px');
+}
+
+function ensureModuleMenuVisibleForVouchers() {
+  if (__voucherMenuState === null) {
+    __voucherMenuState = {
+      htmlCollapsed: $('html').hasClass('layout-menu-collapsed'),
+      wrapperCollapsed: $('.layout-wrapper').hasClass('layout-menu-collapsed'),
+      htmlExpanded: $('html').hasClass('layout-menu-expanded'),
+      helpersCollapsed: window.Helpers && typeof window.Helpers.isCollapsed === 'function'
+        ? !!window.Helpers.isCollapsed()
+        : false
+    };
+  }
+
+  // Desktop: keep module menu visible beside vouchers.
+  // Mobile / fold (< 1200): keep overlay menu closed so voucher looks like desktop content.
+  if (isLayoutSmallScreen()) {
+    closeModuleMenuOnSmallScreens();
+    return;
+  }
+
+  $('html, .layout-wrapper').removeClass('layout-menu-collapsed');
+  if (window.Helpers && typeof window.Helpers.setCollapsed === 'function') {
+    try {
+      window.Helpers.setCollapsed(false, false);
+    } catch (e) {
+      $('html').addClass('layout-menu-expanded');
+    }
+  } else {
+    $('html').addClass('layout-menu-expanded');
+  }
+  syncVoucherMenuOffset();
+}
+
+function restoreModuleMenuAfterVouchers() {
+  document.documentElement.style.removeProperty('--voucher-menu-offset');
+  document.body.style.removeProperty('--voucher-menu-offset');
+
+  if (!__voucherMenuState) {
+    return;
+  }
+
+  if (window.Helpers && typeof window.Helpers.setCollapsed === 'function') {
+    try {
+      window.Helpers.setCollapsed(!!__voucherMenuState.helpersCollapsed, false);
+    } catch (e) {
+      // fall through to class restore
+    }
+  }
+
+  $('html').toggleClass('layout-menu-collapsed', !!__voucherMenuState.htmlCollapsed);
+  $('.layout-wrapper').toggleClass('layout-menu-collapsed', !!__voucherMenuState.wrapperCollapsed);
+  if (__voucherMenuState.htmlExpanded) {
+    $('html').addClass('layout-menu-expanded');
+  } else {
+    $('html').removeClass('layout-menu-expanded');
+  }
+  __voucherMenuState = null;
+}
 
 // Voucher slide-in panel (from right) + left sidebar (voucher list)
 $('body').on('click', '.show-voucher-panel', function (e) {
   e.preventDefault();
   var action = $(this).data('action');
   var title = $(this).data('title');
-  var collapseSidebar = $(this).data('collapse-sidebar');
   var customListUrl = $(this).data('list-url');
   if (!action) return;
   var voucherPanelEl = document.getElementById('voucherPanel');
   var voucherOffcanvas = bootstrap.Offcanvas.getOrCreateInstance(voucherPanelEl);
   var panelAlreadyOpen = $(voucherPanelEl).hasClass('show');
+  var listSidebar = $('#voucherListSidebar');
+  var listBody = $('#voucherListSidebarBody');
+  var listUrl =
+    customListUrl ||
+    $('#vouchers_list_sidebar_url').val() ||
+    ($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar';
 
-  if (!panelAlreadyOpen) {
-    // First open: show list sidebar and panel
-    var listSidebar = $('#voucherListSidebar');
-    var listBody = $('#voucherListSidebarBody');
-    if (listSidebar.length && listBody.length) {
-      listSidebar.addClass('visible').attr('aria-hidden', 'false');
-      $('#voucherListSidebarBackdrop').addClass('visible').attr('aria-hidden', 'false');
-      $('body').addClass('voucher-panels-open');
+  // Module nav: open on desktop, closed on mobile/fold.
+  // Voucher numbers list (left): always shown beside the detail panel.
+  ensureModuleMenuVisibleForVouchers();
+  if (listSidebar.length && listBody.length) {
+    listSidebar.addClass('visible').attr('aria-hidden', 'false');
+    $('#voucherListSidebarBackdrop').addClass('visible').attr('aria-hidden', 'false');
+    $('body').addClass('voucher-panels-open');
+    syncVoucherMenuOffset();
+    if (!panelAlreadyOpen || !$.trim(listBody.text()).length || listBody.find('.voucher-list-sidebar').length === 0) {
       listBody.html(
         '<div class="p-3 text-center text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><p class="mb-0 mt-2 small">Loading…</p></div>'
       );
-      var listUrl =
-        customListUrl ||
-        $('#vouchers_list_sidebar_url').val() ||
-        ($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar';
       listBody.load(listUrl);
     }
-    if (collapseSidebar) {
-      $('.layout-wrapper').addClass('layout-menu-collapsed');
-    }
+  }
+  if (!panelAlreadyOpen) {
     voucherOffcanvas.show();
   }
+  // Remeasure after menu expand animation / paint.
+  setTimeout(syncVoucherMenuOffset, 50);
+  setTimeout(syncVoucherMenuOffset, 250);
 
   $('#voucherPanelTitle').text(title || 'Voucher');
   $('#voucherPanelFooter').text('—');
@@ -591,14 +892,21 @@ $('body').on('click', '.show-voucher-panel', function (e) {
     } else {
       $('#voucherPanelFooter').text('—');
     }
+    syncVoucherMenuOffset();
   });
 });
 
 $('#voucherPanel').on('hidden.bs.offcanvas', function () {
-  $('.layout-wrapper').removeClass('layout-menu-collapsed');
   $('body').removeClass('voucher-panels-open');
   $('#voucherListSidebar').removeClass('visible').attr('aria-hidden', 'true');
   $('#voucherListSidebarBackdrop').removeClass('visible').attr('aria-hidden', 'true');
+  restoreModuleMenuAfterVouchers();
+});
+
+$(window).on('resize.voucherPanels', function () {
+  if ($('body').hasClass('voucher-panels-open')) {
+    syncVoucherMenuOffset();
+  }
 });
 
 // Pagination and other links inside voucher list sidebar: load in place instead of navigating
@@ -653,9 +961,23 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
   // filename contains blocked extensions/chars. Re-send files under a safe name.
   (function sanitizeUploadFilenames(fd) {
     var allowedExt = {
-      pdf: 1, jpg: 1, jpeg: 1, png: 1, gif: 1, webp: 1, bmp: 1,
-      heic: 1, heif: 1,
-      doc: 1, docx: 1, xls: 1, xlsx: 1, csv: 1, txt: 1, rar: 1, zip: 1
+      pdf: 1,
+      jpg: 1,
+      jpeg: 1,
+      png: 1,
+      gif: 1,
+      webp: 1,
+      bmp: 1,
+      heic: 1,
+      heif: 1,
+      doc: 1,
+      docx: 1,
+      xls: 1,
+      xlsx: 1,
+      csv: 1,
+      txt: 1,
+      rar: 1,
+      zip: 1
     };
     var pending = [];
     fd.forEach(function (value, key) {
@@ -674,6 +996,10 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
       }
     });
     pending.forEach(function (item, index) {
+      // Skip empty file-input placeholders so optional uploads stay optional on edit.
+      if (!item.file || !item.file.name || item.file.size === 0) {
+        return;
+      }
       var original = item.file.name || 'document';
       var ext = (original.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       if (!allowedExt[ext]) {
@@ -698,6 +1024,25 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
   if (values.length !== values.filter((item, index) => values.indexOf(item) === index).length) {
     console.log('Array has duplicates');
     $('#error_message_duplicate_id').html('Array has duplicates');
+    unblock();
+    return false;
+  }
+
+  // Rider/employee payment form client-side checks (payment type, single invoice, balance cap).
+  if (
+    $form.find('#payment_amount').length
+    && typeof window.validatePaymentForm === 'function'
+    && !window.validatePaymentForm()
+  ) {
+    unblock();
+    return false;
+  }
+
+  if (
+    $form.find('[data-funds-transfer-init]').length
+    && typeof window.validateFundsTransferForm === 'function'
+    && !window.validateFundsTransferForm($form)
+  ) {
     unblock();
     return false;
   }
@@ -812,7 +1157,11 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
             hint =
               'The web server blocked this upload (often due to the file name/extension). Try renaming the file to a simple name like document.pdf and upload again.';
           } else {
-            hint = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
+            hint = raw
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 180);
           }
         }
         toastr.error(hint || 'Access denied (403). Check permission or company access, then try again.');
@@ -1100,6 +1449,10 @@ $(document).ready(function () {
     });
   }
 
+  function uvfLineRowSelector() {
+    return '#rows-container .row, #rows-container tr.uvf-line-row';
+  }
+
   // Add new row by cloning the first row
   $(document).on('click', '#add-new-row', function (event) {
     // SIM invoices use a dedicated add-row handler.
@@ -1107,44 +1460,61 @@ $(document).ready(function () {
       return;
     }
     event.preventDefault();
-    // Clone the first row
-    const newRow = $('#rows-container .row:first').clone();
-
-    // Destroy select2 and clean up in the cloned row
-    if (window.jQuery && $.fn && $.fn.select2 && newRow.find('.select2').data('select2')) {
-      newRow.find('.select2').select2('destroy');
+    // Clone the first row (legacy .row or UVF table tr)
+    const newRow = $(uvfLineRowSelector()).first().clone();
+    if (!newRow.length) {
+      return;
     }
-    newRow
-      .find('select')
-      .removeAttr('data-select2-id')
-      .removeClass('select2-hidden-accessible')
-      .next('.select2')
-      .remove();
+
+    // Strip Select2 artifacts from the clone. Select2 stamps data-select2-id on
+    // options after a choice is made; cloning those IDs breaks the new dropdown
+    // (selection does not show / updates the wrong row).
+    newRow.find('select').each(function () {
+      var $select = $(this);
+      if (window.jQuery && $.fn && $.fn.select2 && $select.data('select2')) {
+        $select.select2('destroy');
+      }
+      $select
+        .removeAttr('data-select2-id')
+        .removeAttr('aria-hidden')
+        .removeAttr('tabindex')
+        .removeClass('select2-hidden-accessible');
+      $select.find('option').removeAttr('data-select2-id').prop('selected', false);
+      $select.find('option:first').prop('selected', true);
+    });
+    newRow.find('.select2-container').remove();
+
     // Clear input, textarea, and select values in the cloned row
     newRow.find('input, textarea').val(''); // Clear inputs and textareas
-    newRow.find('select').val(null).trigger('change'); // Reset the select value and trigger change
+    newRow.find('select').val('');
     // Reset amount field to default value and remove data attribute
     newRow.find('.amount').attr('data-numeric-value', '0');
 
     // Set default values for qty, rate, discount, tax
     newRow.find('.qty').val('1');
     newRow.find('.rate').val('0');
+    newRow.find('.vat').val('0');
+    newRow.find('.vat_amount').val('0');
     newRow.find('.discount').val('0');
     newRow.find('.tax').val('0');
+    newRow.find('.amount').val('0.00');
 
     // Append the new row to the container
     $('#rows-container').append(newRow);
 
     // Reinitialize select2 for the newly added select element
     if (window.jQuery && $.fn && $.fn.select2) {
-      $('.select2').select2({
-        dropdownParent: $('#modalTopbody'),
-        allowClear: true
+      newRow.find('select.select2').select2({
+        dropdownParent: $('#modalTopbody').length ? $('#modalTopbody') : $(document.body),
+        allowClear: true,
+        width: '100%'
       });
     }
 
     // Recalculate total after adding new row
     if (typeof getTotal === 'function') {
+      getTotal();
+    } else if (typeof setTotal === 'function') {
       setTotal();
     }
   });
@@ -1155,10 +1525,12 @@ $(document).ready(function () {
     if ($(this).closest('.invoice-item-row').length) {
       return;
     }
-    if ($('#rows-container .row').length > 1) {
-      $(this).closest('.row').remove();
+    if ($(uvfLineRowSelector()).length > 1) {
+      $(this).closest('.row, tr.uvf-line-row').remove();
       // Recalculate total after removing row
       if (typeof getTotal === 'function') {
+        getTotal();
+      } else if (typeof setTotal === 'function') {
         setTotal();
       }
     } else {
@@ -1205,23 +1577,15 @@ $(document).ready(function () {
     }
   });
 
-  $(document).on('mouseenter', '#openFilterSidebar, .openFilterSidebar', function (e) {
-    e.preventDefault();
-    console.log('Filter button hovered!'); // Debug line
-    $('#filterSidebar').addClass('open');
-    $('#filterOverlay').addClass('show');
-    return false;
-  });
-
   $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function (e) {
     e.preventDefault();
-    console.log('Filter button clicked!'); // Debug line
+    e.stopPropagation();
     $('#filterSidebar').addClass('open');
     $('#filterOverlay').addClass('show');
-    return false;
   });
 
-  $('#closeSidebar, #filterOverlay').on('click', function () {
+  $(document).on('click', '#closeSidebar, #filterOverlay', function (e) {
+    e.preventDefault();
     $('#filterSidebar').removeClass('open');
     $('#filterOverlay').removeClass('show');
   });
@@ -1241,10 +1605,15 @@ $(document).ready(function () {
     }
   });
 
+  // Close filter sidebar when clicking outside (ignore the open button + Select2 menus)
   $(document).on('click', function (e) {
-    if (!$(e.target).closest('#filterSidebar').length) {
-      $('#filterSidebar').removeClass('open');
+    if ($(e.target).closest(
+      '#filterSidebar, #openFilterSidebar, .openFilterSidebar, .select2-container, .select2-dropdown, .select2-results'
+    ).length) {
+      return;
     }
+    $('#filterSidebar').removeClass('open');
+    $('#filterOverlay').removeClass('show');
   });
 
   // Close dropdown when pressing escape
@@ -1252,6 +1621,7 @@ $(document).ready(function () {
     if (e.key === 'Escape') {
       $('#addBikeDropdown').removeClass('show');
       $('#filterSidebar').removeClass('open');
+      $('#filterOverlay').removeClass('show');
     }
   });
 });

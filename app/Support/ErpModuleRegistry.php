@@ -31,7 +31,6 @@ class ErpModuleRegistry
     public static function moduleSettingsWithAlternateTopBarTab(): array
     {
         return [
-            'visa_expense',
             'license_expense',
             'legal_case',
             'passport_handover',
@@ -129,6 +128,27 @@ class ErpModuleRegistry
     }
 
     /**
+     * Module-settings pages that should not show the shared "{Module} Top" tab.
+     *
+     * @return list<string>
+     */
+    public static function modulesWithoutSettingsTopBarTab(): array
+    {
+        return [
+            'customer_invoices',
+            'rider_invoices',
+            'invoices',
+            'employee_invoices',
+            'supplier_invoices',
+            'sim_invoices',
+            'leasing_company_invoices',
+            'leasing_invoices',
+            'leasing_company_billing_invoices',
+            'leasing_billing_invoice',
+        ];
+    }
+
+    /**
      * Show "{Module} Top" tab on module-settings (bike_settings) pages.
      */
     public static function showTopBarTabInModuleSettings(string $moduleKey): bool
@@ -136,6 +156,10 @@ class ErpModuleRegistry
         $moduleKey = self::normalizeKey($moduleKey);
 
         if (in_array($moduleKey, self::moduleSettingsWithAlternateTopBarTab(), true)) {
+            return false;
+        }
+
+        if (in_array($moduleKey, self::modulesWithoutSettingsTopBarTab(), true)) {
             return false;
         }
 

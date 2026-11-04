@@ -21,6 +21,7 @@ use App\Support\CompanyQuery;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
+use App\Support\InvoicePdf;
 use Carbon\Carbon;
 use Flash;
 use Illuminate\Http\Request;
@@ -117,6 +118,7 @@ class LeasingCompaniesController extends AppBaseController
             $account->ref_id = $leasingCompanies->id;
             $account->status = $leasingCompanies->status;
             $account->branch_id = $leasingCompanies->branch_id;
+            $account->is_locked = true;
             $account->save();
 
             $leasingCompanies->account_id = $account->id;
@@ -206,13 +208,8 @@ class LeasingCompaniesController extends AppBaseController
             return delete_error_response('Company not found!', route('leasingCompanies.index'), 404);
         }
 
-        // Check if leasing company has transactions - protect from deletion
-        $transactionCount = $leasingCompanies->transactions()->count();
-        if ($transactionCount > 0) {
-            return delete_error_response(
-                'Cannot delete leasing company. Company has '.$transactionCount.' transaction(s). Please deactivate instead.',
-                route('leasingCompanies.index')
-            );
+        if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($leasingCompanies), 'Leasing company')) {
+            return delete_error_response($blockReason, route('leasingCompanies.index'));
         }
 
         // Check if leasing company has assigned bikes - protect from deletion
@@ -555,6 +552,8 @@ class LeasingCompaniesController extends AppBaseController
                 'days.*' => 'nullable|integer|min:1',
                 'descriptions' => 'nullable|string',
                 'notes' => 'nullable|string',
+                'customer_note' => 'nullable|string',
+                'terms_and_conditions' => 'nullable|string',
                 'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
             ]);
 
@@ -661,7 +660,27 @@ class LeasingCompaniesController extends AppBaseController
             return redirect(route('leasingCompanyInvoices.index'));
         }
 
+        $invoice->load(['items', 'leasingCompany']);
+
         return view('leasing_company_invoices.show')->with('invoice', $invoice);
+    }
+
+    public function downloadInvoice($company_slug, $id)
+    {
+        $invoice = $this->leasingCompanyInvoicesRepository->find($id);
+        if (empty($invoice)) {
+            abort(404, 'Leasing Company Invoice not found');
+        }
+
+        $invoice->load(['items', 'leasingCompany']);
+        $invoiceNumber = $invoice->invoice_number
+            ?? ('LCI-' . str_pad((string) $invoice->id, 6, '0', STR_PAD_LEFT));
+
+        return InvoicePdf::download(
+            'leasing_company_invoices.show',
+            ['invoice' => $invoice],
+            'Leasing-Company-Invoice-' . $invoiceNumber . '.pdf'
+        );
     }
 
     /**
@@ -727,6 +746,8 @@ class LeasingCompaniesController extends AppBaseController
                 'days.*' => 'nullable|integer|min:1',
                 'descriptions' => 'nullable|string',
                 'notes' => 'nullable|string',
+                'customer_note' => 'nullable|string',
+                'terms_and_conditions' => 'nullable|string',
                 'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
             ]);
 

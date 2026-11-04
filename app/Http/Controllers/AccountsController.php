@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\AccountsDataTable;
 use App\Helpers\IConstants;
 use App\Http\Requests\CreateAccountsRequest;
 use App\Http\Requests\UpdateAccountsRequest;
@@ -22,6 +21,7 @@ use App\Traits\TracksCascadingDeletions;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use App\Models\Company;
 use App\Models\GlobalAccount;
 use App\Support\CompanyRouteContext;
@@ -39,77 +39,161 @@ class AccountsController extends AppBaseController
   }
 
   /**
-   * Display a listing of the Accounts (Chart of Accounts view).
+   * Chart of Accounts lives on accounts.tree — redirect so manual/bookmark
+   * access to the resource index cannot open the unused index UI.
    */
   public function index(Request $request)
   {
-    if (!user_can('account_view')) {
+    if (! user_can('account_view')) {
       abort(403, 'Unauthorized action.');
     }
-    $search = trim((string) $request->get('search'));
-    $query = Accounts::query()
+
+    return redirect()->route('accounts.tree', [
+      'company_slug' => CompanyRouteContext::slug(),
+    ]);
+  }
+
+  /**
+   * Build nested children from a parent_id → accounts map (O(n)).
+   */
+  private function buildChildrenFromMap(int $parentId, $byParent)
+  {
+    return ($byParent[$parentId] ?? collect())
+      ->sortBy('account_code')
+      ->values()
+      ->map(function ($child) use ($byParent) {
+        $child->setRelation('children', $this->buildChildrenFromMap((int) $child->id, $byParent));
+
+        return $child;
+      });
+  }
+
+  private function rootAccountsQuery()
+  {
+    return Accounts::with('branch')
+      ->withCount('directChildren')
       ->where(function ($q) {
         $q->whereNull('parent_id')->orWhere('parent_id', 0);
       })
       ->orderBy('account_code');
-    if ($search !== '') {
-      $query->where(function ($q) use ($search) {
-        $q->where('name', 'like', '%' . $search . '%')
-          ->orWhere('account_code', 'like', '%' . $search . '%')
-          ->orWhere('account_type', 'like', '%' . $search . '%');
-      });
+  }
+
+  private function assertCanViewCoa(): void
+  {
+    if (! auth()->user()?->can('accounts_coa_view') && ! user_can('account_view')) {
+      abort(403, 'Unauthorized action.');
     }
-    $accounts = $query->get()->map(fn($account) => (object) ['account' => $account, 'depth' => 0]);
-    $globalLinkedAccountIds = $this->globalLinkedAccountIds();
-
-    return view('accounts.index', compact('accounts', 'globalLinkedAccountIds'));
   }
 
-  /**
-   * Build children collection for a parent from a keyed collection of all accounts.
-   */
-  private function buildChildren($parentId, $all)
+  public function tree($company_slug)
   {
-    return $all->where('parent_id', $parentId)->sortBy('account_code')->values()->map(function ($child) use ($all) {
-      $child->setRelation('children', $this->buildChildren($child->id, $all));
-      return $child;
-    });
-  }
+    $this->assertCanViewCoa();
 
-  /**
-   * Flatten account tree into a list with depth for hierarchical display.
-   *
-   * @param \Illuminate\Support\Collection $nodes
-   * @param string|null $search
-   * @param int $depth
-   * @return \Illuminate\Support\Collection
-   */
-  private function flattenAccountTree($nodes, $search = null, $depth = 0)
-  {
-    $result = collect();
-    foreach ($nodes as $account) {
-      $match = !$search || stripos($account->name, $search) !== false
-        || stripos((string)($account->account_code ?? ''), $search) !== false
-        || stripos((string)($account->account_type ?? ''), $search) !== false;
-      if ($match) {
-        $result->push((object)['account' => $account, 'depth' => $depth]);
-      }
-      $children = $account->relationLoaded('children') ? $account->children : collect();
-      $result = $result->merge($this->flattenAccountTree($children, $search, $depth + 1));
-    }
-    return $result;
-  }
-  public function tree($company_slug, AccountsDataTable $accountsDataTable)
-  {
-    $accounts = Accounts::with('branch')
-      ->where(function ($q) {
-        $q->whereNull('parent_id')->orWhere('parent_id', 0);
-      })
-      ->orderBy('account_code')
-      ->get();
+    // Roots only — children are lazy-loaded on expand (avoids multi-MB HTML).
+    $accounts = $this->rootAccountsQuery()->get();
     $globalLinkedAccountIds = $this->globalLinkedAccountIds();
 
     return view('accounts.tree', compact('accounts', 'globalLinkedAccountIds'));
+  }
+
+  /**
+   * Direct children rows for a parent account (lazy tree expand).
+   */
+  public function treeChildren($company_slug, $id)
+  {
+    $this->assertCanViewCoa();
+
+    $parent = Accounts::query()->findOrFail($id);
+    $depth = max(1, (int) request('depth', 1));
+    $children = Accounts::with('branch')
+      ->withCount('directChildren')
+      ->where('parent_id', $parent->id)
+      ->orderBy('account_code')
+      ->get();
+
+    $globalLinkedAccountIds = $this->globalLinkedAccountIds();
+    $html = '';
+    foreach ($children as $account) {
+      $html .= view('accounts.account_table_row', [
+        'account' => $account,
+        'depth' => $depth,
+        'parentName' => $parent->name,
+        'globalLinkedAccountIds' => $globalLinkedAccountIds,
+        'forceVisible' => true,
+      ])->render();
+    }
+
+    return response()->json(['html' => $html]);
+  }
+
+  /**
+   * Search COA — returns tbody HTML for matches + ancestors only.
+   */
+  public function treeSearch(Request $request, $company_slug)
+  {
+    $this->assertCanViewCoa();
+
+    $q = trim((string) $request->get('q', ''));
+    $globalLinkedAccountIds = $this->globalLinkedAccountIds();
+
+    if ($q === '') {
+      $accounts = $this->rootAccountsQuery()->get();
+
+      return response()->json([
+        'html' => view('accounts.tree_tbody', [
+          'accounts' => $accounts,
+          'globalLinkedAccountIds' => $globalLinkedAccountIds,
+          'includeChildren' => false,
+        ])->render(),
+      ]);
+    }
+
+    $matched = Accounts::query()
+      ->where(function ($query) use ($q) {
+        $query->where('name', 'like', '%' . $q . '%')
+          ->orWhere('account_code', 'like', '%' . $q . '%')
+          ->orWhere('account_type', 'like', '%' . $q . '%');
+      })
+      ->limit(300)
+      ->get(['id', 'parent_id']);
+
+    if ($matched->isEmpty()) {
+      return response()->json([
+        'html' => '<tr><td colspan="9" class="text-center text-muted py-4">No accounts match your search.</td></tr>',
+      ]);
+    }
+
+    $neededIds = [];
+    foreach ($matched as $row) {
+      $neededIds[(int) $row->id] = true;
+    }
+
+    $idParentMap = Accounts::query()->pluck('parent_id', 'id');
+    foreach ($matched as $row) {
+      $pid = $row->parent_id;
+      while (! empty($pid) && (int) $pid !== 0) {
+        $pid = (int) $pid;
+        $neededIds[$pid] = true;
+        $pid = $idParentMap[$pid] ?? null;
+      }
+    }
+
+    $subset = Accounts::with('branch')
+      ->withCount('directChildren')
+      ->whereIn('id', array_keys($neededIds))
+      ->orderBy('account_code')
+      ->get();
+
+    $byParent = $subset->groupBy(fn ($a) => (int) ($a->parent_id ?? 0));
+    $accounts = $this->buildChildrenFromMap(0, $byParent);
+
+    return response()->json([
+      'html' => view('accounts.tree_tbody', [
+        'accounts' => $accounts,
+        'globalLinkedAccountIds' => $globalLinkedAccountIds,
+        'includeChildren' => true,
+      ])->render(),
+    ]);
   }
 
 
@@ -121,15 +205,10 @@ class AccountsController extends AppBaseController
     if (!auth()->user()->hasPermissionTo('accounts_coa_create')) {
       abort(403, 'Unauthorized action.');
     }
-    $parents = Accounts::query()
-      ->where(function ($q) {
-        $q->whereNull('parent_id')->orWhere('parent_id', 0);
-      })
-      ->get(['id', 'name', 'parent_id'])
-      ->groupBy('parent_id');
+    [$parents, $parentEligibleIds] = $this->parentAccountOptions();
     $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
 
-    return view('accounts.create', compact('parents', 'customFields'));
+    return view('accounts.create', compact('parents', 'parentEligibleIds', 'customFields'));
   }
 
   /**
@@ -141,20 +220,28 @@ class AccountsController extends AppBaseController
       abort(403, 'Unauthorized action.');
     }
 
-    $input = $request->except(['custom_field_values']);
+    $input = $request->except(['custom_field_values', 'is_locked', 'is_fixed']);
     $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
-    // Set is_locked=1 if parent_id is not set (root account)
+    $this->assertEligibleParent(
+      isset($input['parent_id']) && $input['parent_id'] !== '' ? (int) $input['parent_id'] : null
+    );
 
-    $accounts = $this->accountsRepository->create($input);
-    $accounts->account_code = str_pad($accounts->id, 4, "0", STR_PAD_LEFT);
-    $accounts->is_locked = 0;
-    $accounts->save();
+    DB::transaction(function () use ($request, $input): void {
+      $accounts = $this->accountsRepository->create($input);
+      $accounts->account_code = str_pad($accounts->id, 4, "0", STR_PAD_LEFT);
+      // Manual COA creates stay unlocked (module-created accounts are locked at source).
+      $accounts->is_locked = 0;
+      $accounts->save();
 
-    $storeCustom = \App\Support\RoleFieldAccess::stripNonEditableInput(
-      ['custom_field_values' => $request->input('custom_field_values', [])],
-      'account'
-    )['custom_field_values'] ?? [];
-    $this->saveCustomFieldValues($accounts, $storeCustom);
+      $storeCustom = \App\Support\RoleFieldAccess::stripNonEditableInput(
+        ['custom_field_values' => $request->input('custom_field_values', [])],
+        'account'
+      )['custom_field_values'] ?? [];
+      $this->saveCustomFieldValues($accounts, $storeCustom);
+
+      app(\App\Services\AccountOpeningBalanceJvService::class)
+        ->postForNewAccount($accounts, $accounts->opening_balance);
+    });
 
     return response()->json(['message' => 'Account added successfully.']);
   }
@@ -204,16 +291,15 @@ class AccountsController extends AppBaseController
       }
       abort(403, 'Accounts linked to global accounts can only be managed from the Admin panel.');
     }
-    //$parents = Accounts::whereNot('id', $id)->whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
-    $parents = Accounts::query()
-      ->where(function ($q) {
-        $q->whereNull('parent_id')->orWhere('parent_id', 0);
-      })
-      ->get(['id', 'name', 'parent_id'])
-      ->groupBy('parent_id');
+
+    if ($lockedResponse = $this->lockedAccountEditResponse($accounts)) {
+      return $lockedResponse;
+    }
+
+    [$parents, $parentEligibleIds] = $this->parentAccountOptions((int) $id);
     $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
 
-    return view('accounts.edit', compact('accounts', 'parents', 'customFields'));
+    return view('accounts.edit', compact('accounts', 'parents', 'parentEligibleIds', 'customFields'));
   }
 
   /**
@@ -238,8 +324,18 @@ class AccountsController extends AppBaseController
       ], 422);
     }
 
-    $input = $request->except(['custom_field_values']);
+    if ($accounts->isLocked()) {
+      return response()->json([
+        'errors' => ['error' => 'This account is locked and cannot be edited.'],
+      ], 422);
+    }
+
+    $input = $request->except(['custom_field_values', 'is_locked', 'is_fixed']);
     $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
+    $this->assertEligibleParent(
+      isset($input['parent_id']) && $input['parent_id'] !== '' ? (int) $input['parent_id'] : null,
+      (int) $id
+    );
     $existingCustom = is_array($accounts->custom_field_values ?? null) ? $accounts->custom_field_values : [];
     $accounts = $this->accountsRepository->update($input, $id);
 
@@ -308,6 +404,13 @@ class AccountsController extends AppBaseController
       );
     }
 
+    if ($accounts->isLocked()) {
+      return delete_error_response(
+        'This account is locked and cannot be deleted.',
+        route('accounts.index')
+      );
+    }
+
     // Check if account is a parent (has child accounts)
     $childAccountsCount = Accounts::where('parent_id', $accounts->id)->count();
     if ($childAccountsCount > 0) {
@@ -315,6 +418,11 @@ class AccountsController extends AppBaseController
         "Cannot delete account. This account has {$childAccountsCount} sub-account(s). Please delete or reassign child accounts first.",
         route('accounts.index')
       );
+    }
+
+    // Block before delete request / soft-delete when this COA account has activity.
+    if ($blockReason = linked_account_delete_block_reason((int) $accounts->id, 'Account')) {
+      return delete_error_response($blockReason, route('accounts.index'));
     }
 
     // Track cascaded deletions for referenced records
@@ -382,33 +490,6 @@ class AccountsController extends AppBaseController
   }
 
   /**
-   * Toggle lock status for an account (AJAX)
-   */
-  public function toggleLock(Request $request, $company_slug, $id)
-  {
-    $account = $this->findAccessibleAccount($id);
-    if (!$account) {
-      abort(404);
-    }
-
-    if ($this->isAccountLinkedToGlobal($account)) {
-      return response()->json([
-        'errors' => ['error' => 'Accounts linked to global accounts can only be managed from the Admin panel.'],
-      ], 422);
-    }
-
-    $account->is_locked = !$account->is_locked;
-    $account->save();
-    return response()->json([
-      'success' => true,
-      'is_locked' => $account->is_locked,
-      'icon' => $account->is_locked ? 'fa-lock' : 'fa-unlock',
-      'icon_class' => $account->is_locked ? 'text-secondary' : 'text-success',
-      'title' => $account->is_locked ? 'Parent account is locked' : 'Unlocked'
-    ]);
-  }
-
-  /**
    * Account detail panel (AJAX): ledger summary, closing balance, full ledger (paginated).
    */
   public function accountDetail(Request $request, $company_slug, $id)
@@ -417,7 +498,15 @@ class AccountsController extends AppBaseController
     if (!$account) {
       abort(404);
     }
-    $currency = $request->get('currency', 'bcy');
+
+    if ($account->isParent()) {
+      $message = 'Parent accounts do not have ledger details. Select a child account instead.';
+      if ($request->wantsJson() || $request->ajax()) {
+        return response()->json(['message' => $message, 'html' => '<div class="text-muted p-4">' . e($message) . '</div>'], 422);
+      }
+
+      return response($message, 422);
+    }
 
     $closingBalance = (float) Transactions::where('account_id', $account->id)->sum(DB::raw('debit - credit'));
 
@@ -432,7 +521,7 @@ class AccountsController extends AppBaseController
 
     $ledgerUrl = route('accounts.ledger', ['company_slug' => CompanyRouteContext::slug()]) . '?account=' . $account->id;
 
-    $html = view('accounts.detail_panel', compact('account', 'closingBalance', 'ledgerPaginator', 'currency', 'ledgerUrl'))->render();
+    $html = view('accounts.detail_panel', compact('account', 'closingBalance', 'ledgerPaginator', 'ledgerUrl'))->render();
 
     if ($request->wantsJson() || $request->ajax()) {
       return response()->json(['html' => $html, 'account_id' => $account->id]);
@@ -452,7 +541,22 @@ class AccountsController extends AppBaseController
     if (!$account) {
       abort(404);
     }
-    $currency = $request->get('currency', 'bcy');
+
+    if ($account->isParent()) {
+      return response()->json([
+        'message' => 'Parent accounts do not have ledger details. Select a child account instead.',
+        'html' => '<tr><td colspan="6" class="text-center text-muted py-3">Parent accounts do not have ledger entries.</td></tr>',
+        'pagination' => [
+          'current_page' => 1,
+          'last_page' => 1,
+          'per_page' => 25,
+          'total' => 0,
+          'from' => null,
+          'to' => null,
+        ],
+      ], 422);
+    }
+
     $perPage = (int) $request->get('per_page', 25);
     $perPage = max(10, min(100, $perPage));
     $page = (int) $request->get('page', 1);
@@ -626,8 +730,178 @@ class AccountsController extends AppBaseController
       ->all();
   }
 
+  private function lockedAccountEditResponse(Accounts $account)
+  {
+    if (!$account->isLocked()) {
+      return null;
+    }
+
+    $message = 'This account is locked and cannot be edited.';
+    if (request()->ajax() || request()->wantsJson()) {
+      return response()->json(['message' => $message], 403);
+    }
+
+    abort(403, $message);
+  }
+
   private function isAccountLinkedToGlobal(Accounts $account): bool
   {
     return GlobalAccount::query()->where('account_id', $account->id)->exists();
+  }
+
+  /**
+   * Eligible COA parents at any depth (not module-linked, no transactions),
+   * plus ancestors for nested dropdown display. On edit, exclude self/descendants.
+   *
+   * @return array{0: \Illuminate\Support\Collection, 1: array<int, true>}
+   */
+  private function parentAccountOptions(?int $excludeId = null): array
+  {
+    $excludeIds = [];
+    if ($excludeId) {
+      $excludeIds = array_merge([$excludeId], $this->descendantAccountIds($excludeId));
+    }
+
+    $eligibleQuery = Accounts::query()
+      ->where(function ($q) {
+        $q->whereNull('ref_name')
+          ->orWhere('ref_name', '')
+          ->orWhereNull('ref_id');
+      })
+      ->where(function ($q) {
+        // Company-owned accounts, or shared fixed/global accounts only (company_id null + is_fixed).
+        $q->whereNotNull('company_id')
+          ->orWhere(function ($shared) {
+            $shared->whereNull('company_id')->where('is_fixed', 1);
+          });
+      })
+      ->whereDoesntHave('transactions')
+      ->when(!empty($excludeIds), fn ($q) => $q->whereNotIn('id', $excludeIds));
+
+    $eligible = $eligibleQuery->get(['id', 'name', 'parent_id']);
+    $eligibleIds = $eligible->pluck('id')->map(fn ($id) => (int) $id)->flip()->all();
+
+    $byId = $eligible->keyBy(fn ($a) => (int) $a->id);
+    $pendingParentIds = $eligible
+      ->pluck('parent_id')
+      ->filter(fn ($pid) => !empty($pid))
+      ->map(fn ($pid) => (int) $pid)
+      ->unique()
+      ->values()
+      ->all();
+
+    while (!empty($pendingParentIds)) {
+      $missing = array_values(array_filter(
+        $pendingParentIds,
+        fn ($pid) => !$byId->has($pid)
+      ));
+      if (empty($missing)) {
+        break;
+      }
+
+      $ancestors = Accounts::query()
+        ->where(function ($q) {
+          $q->whereNotNull('company_id')
+            ->orWhere(function ($shared) {
+              $shared->whereNull('company_id')->where('is_fixed', 1);
+            });
+        })
+        ->whereIn('id', $missing)
+        ->get(['id', 'name', 'parent_id']);
+
+      foreach ($ancestors as $ancestor) {
+        $byId->put((int) $ancestor->id, $ancestor);
+      }
+
+      $pendingParentIds = $ancestors
+        ->pluck('parent_id')
+        ->filter(fn ($pid) => !empty($pid))
+        ->map(fn ($pid) => (int) $pid)
+        ->unique()
+        ->values()
+        ->all();
+    }
+
+    $grouped = $byId->values()->groupBy(function ($account) use ($byId) {
+      $pid = $account->parent_id;
+      if ($pid === null || $pid === '' || (int) $pid === 0) {
+        return '_root_';
+      }
+      $pid = (int) $pid;
+      // Orphaned under missing/soft-deleted parent: show at root for structure
+      return $byId->has($pid) ? $pid : '_root_';
+    });
+
+    return [$grouped, $eligibleIds];
+  }
+
+  /**
+   * @return list<int>
+   */
+  private function descendantAccountIds(int $accountId): array
+  {
+    $ids = [];
+    $frontier = [$accountId];
+
+    while (!empty($frontier)) {
+      $children = Accounts::query()
+        ->whereIn('parent_id', $frontier)
+        ->pluck('id')
+        ->map(fn ($id) => (int) $id)
+        ->all();
+
+      $frontier = array_values(array_diff($children, $ids));
+      $ids = array_merge($ids, $frontier);
+    }
+
+    return $ids;
+  }
+
+  private function assertEligibleParent(?int $parentId, ?int $forAccountId = null): void
+  {
+    if ($parentId === null || $parentId === 0) {
+      return;
+    }
+
+    $parent = Accounts::query()->find($parentId);
+    if (!$parent) {
+      throw ValidationException::withMessages([
+        'parent_id' => 'Selected parent account was not found.',
+      ]);
+    }
+
+    $isSharedNullCompany = $parent->company_id === null || $parent->company_id === '';
+    if ($isSharedNullCompany && !(bool) $parent->is_fixed) {
+      throw ValidationException::withMessages([
+        'parent_id' => 'Selected parent account is not allowed (module-linked or has transactions).',
+      ]);
+    }
+
+    $refName = trim((string) ($parent->ref_name ?? ''));
+    if ($refName !== '' && !empty($parent->ref_id)) {
+      throw ValidationException::withMessages([
+        'parent_id' => 'Selected parent account is not allowed (module-linked or has transactions).',
+      ]);
+    }
+
+    if ($parent->transactions()->exists()) {
+      throw ValidationException::withMessages([
+        'parent_id' => 'Selected parent account is not allowed (module-linked or has transactions).',
+      ]);
+    }
+
+    if ($forAccountId !== null) {
+      if ($parentId === $forAccountId) {
+        throw ValidationException::withMessages([
+          'parent_id' => 'An account cannot be its own parent.',
+        ]);
+      }
+
+      if (in_array($parentId, $this->descendantAccountIds($forAccountId), true)) {
+        throw ValidationException::withMessages([
+          'parent_id' => 'An account cannot be nested under one of its descendants.',
+        ]);
+      }
+    }
   }
 }

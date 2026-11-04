@@ -1,119 +1,19 @@
-<script src="{{ asset('js/modal_custom.js') }}"></script>
 @php
-    $party = $employee ?? $rider ?? null;
-    $partyLabel = isset($employee) ? 'Employee' : 'Rider';
-    $party_account = $party->account ?? null;
+$party = $employee ?? $rider ?? null;
+$partyLabel = isset($employee) ? 'Employee' : 'Rider';
+$counterId = ga_id('PENALTY_REVENUE');
+$counterLabel = $counterId . '-' . ga_name('PENALTY_REVENUE');
 @endphp
-
-<div class="row mt-0 mb-2">
-    <div class="form-group col-md-3">
-        <label for="exampleInputEmail1">Date</label>
-        <input type="date" name="trans_date" class="form-control " placeholder="Transaction Date" value="{{ date('Y-m-d') }}">
-    </div>
-    <div class="form-group col-md-2">
-        <label for="exampleInputEmail1">Billing Month</label>
-        <input type="month" name="billing_month" class="form-control " value="{{ date('Y-m-01') }}" required>
-    </div>
-    <div class="form-group col-md-2">
-        <label for="reference_number">Reference Number</label>
-        <input type="text" name="reference_number" class="form-control" id="reference_number" value="@isset($voucher->reference_number){{$voucher->reference_number}}@endisset" placeholder="Reference Number">
-    </div>
-    @include('vouchers._branch_field')
-</div>
-<div class="scrollbar">
-    <h5>Penalty Voucher</h5>
-
-    <div class="row">
-        <div class="form-group col-md-3">
-            <label for="exampleInputEmail1">{{ $partyLabel }}</label>
-            <input type="hidden" name="account_id[]" value="{{ $party_account->id ?? '' }}" />
-            <input type="text" name="party_name" class="form-control" value="{{ $party->name ?? '' }}" readonly>
-        </div>
-        <div class="form-group col-md-4">
-            <label>Narration</label>
-            <textarea name="narration[]" class="form-control" rows="10" placeholder="Penalty Amount Received" style="height: 40px !important;">Penalty Amount Received</textarea>
-        </div>
-        <div class="form-group col-md-2">
-            <label>Amount (Dr)</label>
-            <input type="number" step="any" name="dr_amount[]" class="form-control dr_amount main_amount" placeholder="Penalty Amount" onchange="getTotal();" required>
-        </div>
-    </div>
-    <div id="rows-container" class="mb-3" style="width: 100%;">
-        <!-- Second row for credit account (Penalty account) -->
-        <div class="row">
-            <div class="form-group col-md-3">
-                <label for="exampleInputEmail1">Account</label>
-                <input type="hidden" name="account_id[]" value="{{ ga_id('PENALTY_REVENUE') }}" />
-                <input type="text" name="credit_account_name" class="form-control" value="{{ ga_id('PENALTY_REVENUE') .'-'. ga_name('PENALTY_REVENUE') }}" readonly>
-            </div>
-            <div class="form-group col-md-4">
-                <label>Narration</label>
-                <textarea name="narration[]" class="form-control" rows="10" placeholder="Penalty Amount Given" style="height: 40px !important;">Penalty Amount Given to {{ $party->name ?? $partyLabel }}</textarea>
-            </div>
-            <div class="form-group col-md-2">
-                <label>Amount (Cr)</label>
-                <input type="number" step="any" name="cr_amount[]" class="form-control cr_amount" placeholder="Penalty Amount" onchange="getTotal();" required readonly>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-5"></div>
-        <div class="col-md-2 content-right mt-1">Total:&nbsp;<a href="javascript:void(0);" onclick="getTotal();" class="btn btn-default btn-sm"><i class="fa fa-refresh"></i></a></div>
-        <div class="form-group col-md-2">
-            <input type="number" class="form-control " id="total_dr" readonly placeholder="Total Dr">
-        </div>
-    </div>
-
-    <script>
-        $(document).ready(function() {
-            var base_url = $('#base_url').val();
-            getTotal();
-
-            // Auto-copy amount from first field to second field
-            $('.main_amount').on('input', function() {
-                var amount = $(this).val();
-                // Copy to the cr_amount field (credit account)
-                $('.cr_amount').val(amount);
-                getTotal();
-            });
-
-            $(".cr_amount").on("focus keyup change", function() {
-                getTotal();
-            });
-            $(".dr_amount").on("focus keyup change", function() {
-                getTotal();
-            });
-            $(".amount").on("focus keyup change", function() {
-                getTotal();
-            });
-
-            function getTotal() {
-                var cr_sum = 0;
-                var dr_sum = 0;
-                //iterate through each textboxes and add the values
-                $(".cr_amount").each(function() {
-                    //add only if the value is number
-                    if (!isNaN(this.value) && this.value.length != 0) {
-                        cr_sum += parseFloat(this.value);
-                    }
-                });
-                //iterate through each textboxes and add the values
-                $(".dr_amount").each(function() {
-                    //add only if the value is number
-                    if (!isNaN(this.value) && this.value.length != 0) {
-                        dr_sum += parseFloat(this.value);
-                    }
-                });
-                $(".amount").each(function() {
-                    //add only if the value is number
-                    if (!isNaN(this.value) && this.value.length != 0) {
-                        cr_sum += parseFloat(this.value);
-                    }
-                });
-                //.toFixed() method will roundoff the final sum to 2 decimal places
-                $("#total_cr").val(cr_sum.toFixed(2));
-                $("#total_dr").val(dr_sum.toFixed(2));
-            }
-        });
-    </script>
+@include('vouchers.partials.party_voucher_form', [
+    'voucherCode' => 'PN',
+    'title' => 'Penalty Voucher',
+    'subtitle' => 'Record a penalty entry for this ' . strtolower($partyLabel),
+    'partyLabel' => $partyLabel,
+    'party' => $party,
+    'counterMode' => 'locked',
+    'counterAccountId' => $counterId,
+    'counterAccountLabel' => $counterLabel,
+    'defaultNarrationParty' => 'Penalty Amount Received',
+    'defaultNarrationCounter' => 'Penalty Amount Given to ' . ($party->name ?? $partyLabel),
+    'showReference' => true,
+])

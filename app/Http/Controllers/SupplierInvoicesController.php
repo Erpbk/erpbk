@@ -34,7 +34,7 @@ class SupplierInvoicesController extends AppBaseController
     public function __construct(SupplierInvoicesRepository $supplierInvoicesRepo)
     {
         $this->supplierInvoicesRepository = $supplierInvoicesRepo;
-        $this->middleware('permission:suppliers_invoices_view')->only('index', 'show');
+        $this->middleware('permission:suppliers_invoices_view')->only('index', 'show', 'download');
         $this->middleware('permission:suppliers_invoices_create|suppliers_purchase_order_create')->only('create', 'store', 'import');
         $this->middleware('permission:suppliers_invoices_edit|suppliers_purchase_order_edit')->only('edit', 'update');
         $this->middleware('permission:suppliers_invoices_delete|suppliers_purchase_order_delete')->only('destroy');
@@ -151,13 +151,32 @@ class SupplierInvoicesController extends AppBaseController
 
             return redirect(route('supplier_invoices.index'));
         }
-        $supplierInvoice->load(['supplier', 'garage', 'createdBy', 'updatedBy']);
+        $supplierInvoice->load(['supplier', 'garage', 'createdBy', 'updatedBy', 'items']);
 
         if (request()->input('order')) {
             return view('supplier_invoices.showOrder')->with('supplierInvoice', $supplierInvoice);
         } else {
             return view('supplier_invoices.show')->with('supplierInvoice', $supplierInvoice);
         }
+    }
+
+    public function download($company_slug, $id)
+    {
+        $supplierInvoice = $this->supplierInvoicesRepository->find($id);
+        if (empty($supplierInvoice)) {
+            abort(404, 'Supplier Invoice not found');
+        }
+
+        $supplierInvoice->load(['supplier', 'garage', 'createdBy', 'updatedBy', 'items']);
+        $invoiceNumber = $supplierInvoice->inv_id
+            ?? $supplierInvoice->invoice_number
+            ?? ('SI-' . str_pad((string) $supplierInvoice->id, 6, '0', STR_PAD_LEFT));
+
+        return \App\Support\InvoicePdf::download(
+            'supplier_invoices.show',
+            ['supplierInvoice' => $supplierInvoice],
+            'Supplier-Invoice-' . $invoiceNumber . '.pdf'
+        );
     }
 
     /**

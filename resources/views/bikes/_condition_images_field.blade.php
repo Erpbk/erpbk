@@ -37,7 +37,7 @@ $cameraBtnId = $cameraBtnId ?? ($inputId . '_camera_btn');
         <button type="button" class="btn btn-outline-primary btn-sm" id="{{ $addBtnId }}">
             <i class="ti ti-photo-plus me-1"></i>Add images
         </button>
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="{{ $cameraBtnId }}">
+        <button type="button" class="btn btn-outline-primary btn-sm" id="{{ $cameraBtnId }}">
             <i class="ti ti-camera me-1"></i>Take photo
         </button>
     </div>

@@ -41,6 +41,20 @@
             $pendingDeletionModel = record_is_pending_deletion($payment)
                 ? $payment
                 : ($payment->voucher ?? $payment);
+            $isRiderPaymentRow = strcasecmp((string) optional($payment->payeeAccount)->ref_name, 'Rider') === 0
+                || (bool) preg_match('/RINV/i', (string) ($payment->reference ?? '').' '.($payment->description ?? ''));
+            $viewVoucherAction = $isRiderPaymentRow
+                ? route('payments.show', array_filter(['payment' => $payment->id, 'company_slug' => $__companySlug]))
+                : ($voucherId ? route('vouchers.show', $voucherShowParams($voucherId)) : null);
+            $riderVoucherLabel = match ((string) ($payment->payment_kind ?? '')) {
+                'salary_payment', 'payment' => 'Salary Payment',
+                'c3' => 'C3',
+                'advance_payment', 'advance_loan' => 'Advance Payment',
+                default => 'Payment Voucher',
+            };
+            $viewVoucherTitle = $isRiderPaymentRow
+                ? ($riderVoucherLabel.' '.($payment->reference ?: $voucherLabel))
+                : ('Payment Voucher '.$voucherLabel);
         @endphp
         <tr class="{{ $paymentPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $payment->id }}">
             <td>
@@ -51,11 +65,11 @@
             </td>
             <td>{{ \App\Helpers\Common::MonthFormat($payment->billing_month) }}</td>
             <td>
-                @if($voucherId)
+                @if($viewVoucherAction)
                 <a href="javascript:void(0);"
-                    data-action="{{ route('vouchers.show', $voucherShowParams($voucherId)) }}"
+                    data-action="{{ $viewVoucherAction }}"
                     class="text-primary show-voucher-panel"
-                    data-title="Payment Voucher {{ $voucherLabel }}"
+                    data-title="{{ $viewVoucherTitle }}"
                     data-collapse-sidebar="1"
                     data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">
                     {{ $voucherLabel }}
@@ -87,19 +101,38 @@
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $payment->id }}">
-                        @if($voucherId)
+                        @if($viewVoucherAction)
                         @can('voucher_view')
                         <a href="javascript:void(0);"
                             class="dropdown-item waves-effect show-voucher-panel"
-                            data-action="{{ route('vouchers.show', $voucherShowParams($voucherId)) }}"
-                            data-title="Payment Voucher {{ $voucherLabel }}"
+                            data-action="{{ $viewVoucherAction }}"
+                            data-title="{{ $viewVoucherTitle }}"
                             data-collapse-sidebar="1"
                             data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">
                             <i class="fa fa-eye my-1"></i> View Voucher
                         </a>
                         @endcan
-                        @canany(['voucher_create', 'voucher_edit'])
-                        @if(!in_array($voucherType, ['PV', 'RV', 'EXP', 'RFV', 'SV', 'VL', 'LV', 'FAV', 'FDV'], true))
+                        @php
+                            $canUploadPaymentDoc = collect(['PAY', 'COD', 'PN', 'INC', 'VC', 'AL'])
+                                ->contains(fn ($code) => \App\Support\RiderVoucherPermissions::canUpload($code))
+                                || user_can('voucher_create')
+                                || user_can('voucher_edit')
+                                || user_can('vouchers_create')
+                                || user_can('vouchers_edit')
+                                || user_can('cash_&_banks_payments_create')
+                                || user_can('cash_&_banks_payments_edit')
+                                || user_can('employees_payments_create')
+                                || user_can('employees_payments_edit')
+                                || user_can('customers_payments_create')
+                                || user_can('customers_payments_edit')
+                                || user_can('sims_payments_create')
+                                || user_can('sims_payments_edit')
+                                || user_can('leasing_companies_payments_create')
+                                || user_can('leasing_companies_payments_edit')
+                                || user_can('suppliers_payments_create')
+                                || user_can('suppliers_payments_edit');
+                        @endphp
+                        @if($voucherId && $canUploadPaymentDoc)
                         <a href="javascript:void(0);"
                             data-size="sm"
                             data-title="Upload Document"
@@ -108,7 +141,6 @@
                             <i class="fa fa-file my-1"></i> Upload Document
                         </a>
                         @endif
-                        @endcanany
                         @endif
                         @canany([
                         'cash_&_banks_payments_create',
@@ -134,9 +166,11 @@
                         'leasing_companies_payments_edit',
                         'suppliers_payments_edit',
                         ])
+                        @if(!\App\Models\Cheques::linkedIdForDocument($payment))
                         <a href="javascript:void(0);" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Update Payment Details" data-action="{{ route('payments.edit', $payment->id) }}">
                             <i class="fa fa-edit my-1"></i> Edit
                         </a>
+                        @endif
                         @endcanany
                         @canany([
                         'cash_&_banks_payments_delete',
@@ -169,7 +203,7 @@
 {!! $data->links('components.global-pagination') !!}
 @endif
 
-@section('page-script')
+@push('page-scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     $(document).ready(function() {
@@ -226,4 +260,4 @@
     });
 </script>
 @include('delete_requests._pending_table_script', ['items' => $data])
-@endsection
+@endpush

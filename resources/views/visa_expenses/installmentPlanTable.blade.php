@@ -1,58 +1,109 @@
-@push('third_party_stylesheets')
+﻿@push('third_party_stylesheets')
 @endpush
 @php
-    $installmentPayRoute = $installmentPayRoute ?? 'Installments.payInstallment';
-    $installmentUpdateFieldRoute = $installmentUpdateFieldRoute ?? 'Installments.updateInstallmentField';
-    $installmentDeleteRoute = $installmentDeleteRoute ?? 'Installments.deleteInstallment';
-    $canEditInstallment = $canEditInstallment ?? user_can('visa_expense_edit');
-    $canDeleteInstallment = $canDeleteInstallment ?? user_can('visa_expense_delete');
-    $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_plan::class;
+$installmentPayRoute = $installmentPayRoute ?? 'Installments.payInstallment';
+$installmentUpdateFieldRoute = $installmentUpdateFieldRoute ?? 'Installments.updateInstallmentField';
+$installmentDeleteRoute = $installmentDeleteRoute ?? 'Installments.deleteInstallment';
+$installmentBulkDeleteRoute = $installmentBulkDeleteRoute ?? 'Installments.bulkDeleteInstallments';
+$installmentPaymentReceivingRoute = $installmentPaymentReceivingRoute ?? 'Installments.paymentReceivingModal';
+$installmentEditPaymentReceivingRoute = $installmentEditPaymentReceivingRoute ?? 'Installments.editPaymentReceiving';
+$canEditInstallment = $canEditInstallment ?? \App\Support\VisaExpenseAccess::canManageInstallments('edit');
+$canDeleteInstallment = $canDeleteInstallment ?? \App\Support\VisaExpenseAccess::canManageInstallments('delete');
+$installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_plan::class;
+$installmentTableScope = $installmentTableScope
+    ?? \Illuminate\Support\Str::kebab(class_basename($installmentPlanModel));
+$linkedReceiptsById = $linkedReceiptsById ?? collect();
 @endphp
-<div id="visa-installments-inline-edit-scope">
-    <table class="table table-striped dataTable no-footer" id="visaInstallmentsDataTable">
+<div class="riders-list-demo" id="{{ $installmentTableScope }}-inline-edit-scope"
+     data-bulk-delete-url="{{ route($installmentBulkDeleteRoute) }}">
+    @if($canDeleteInstallment)
+    <div class="d-flex justify-content-end mb-2 px-1">
+        <button type="button" class="btn btn-sm btn-outline-danger js-installment-delete-selected" id="{{ $installmentTableScope }}-delete-selected" style="display:none;" onclick="deleteSelectedInstallments(this)">
+            <i class="fa fa-trash me-1"></i> Delete Selected
+        </button>
+    </div>
+    @endif
+    <div class="rl-tbox">
+    <table class="table" id="{{ $installmentTableScope }}-data-table">
         <thead class="text-center">
-            <tr role="row">
-                <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>
-                <th title="Voucher IDs" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
-                <th title="Billing Month" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
-                <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
-                <th title="Narration" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Narration: activate to sort column ascending">Narration</th>
-                <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
-                <th title="Created By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>
-                <th title="Updated By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>
-                <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Action</th>
+            <tr id="rlHead" role="row">
+                @if($canDeleteInstallment)
+                <th class="nosort" title="Select All" width="50px">
+                    <input type="checkbox" class="js-installment-select-all" id="{{ $installmentTableScope }}-select-all" onchange="toggleInstallmentSelectAll(this)" style="transform:scale(1.2);cursor:pointer;">
+                </th>
+                @endif
+                <th title="Date" class="sorting" tabindex="0">Date <span class="ar">⇅</span></th>
+                <th title="Voucher ID" class="sorting" tabindex="0">Voucher ID <span class="ar">⇅</span></th>
+                <th title="Receipts" class="sorting" tabindex="0">Receipts <span class="ar">⇅</span></th>
+                <th title="Billing Month" class="sorting" tabindex="0">Billing Month <span class="ar">⇅</span></th>
+                <th title="Narration" class="sorting" tabindex="0">Narration <span class="ar">⇅</span></th>
+                <th title="Amount" class="sorting" tabindex="0">Amount <span class="ar">⇅</span></th>
+                <th title="Created By" class="sorting" tabindex="0">Created By <span class="ar">⇅</span></th>
+                <th title="Updated By" class="sorting" tabindex="0">Updated By <span class="ar">⇅</span></th>
+                <th title="Status" class="sorting" tabindex="0">Status <span class="ar">⇅</span></th>
+                <th title="Action" class="nosort" width="120px">Action</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="rlBody">
             @forelse($data as $installment)
             @php
             $installmentPendingDeletion = record_is_pending_deletion($installment);
             $voucherPendingDeletion = $installment->vouchers->contains(fn ($v) => record_is_pending_deletion($v));
             $rowPendingDeletion = $installmentPendingDeletion || $voucherPendingDeletion;
+            $partialsMap = is_array($installment->partial_paid_amount) ? $installment->partial_paid_amount : [];
+            $rowLinkedReceiptIds = [];
+            $rowLinkedReceipts = [];
+            foreach ($partialsMap as $rid => $amt) {
+                $rid = (int) $rid;
+                if ($rid <= 0 || (float) $amt <= 0) {
+                    continue;
+                }
+                $rowLinkedReceiptIds[] = $rid;
+                if (isset($linkedReceiptsById[$rid])) {
+                    $rowLinkedReceipts[] = $linkedReceiptsById[$rid];
+                } else {
+                    $rowLinkedReceipts[] = (object) [
+                        'id' => $rid,
+                        'voucher_id' => null,
+                    ];
+                }
+            }
+            // Gate edits on partial_paid_amount itself, not only preloaded receipt rows.
+            $hasLinkedReceipts = $rowLinkedReceiptIds !== [];
+            $canInlineEdit = $canEditInstallment && !$rowPendingDeletion && !$hasLinkedReceipts;
             @endphp
             <tr class="text-center {{ $rowPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $installment->id }}" data-status="{{ $installment->status }}">
+                @if($canDeleteInstallment)
+                <td>
+                    @if(!$rowPendingDeletion)
+                    <input type="checkbox" class="installment-checkbox" value="{{ $installment->id }}" onchange="updateInstallmentDeleteButton(this)" style="transform:scale(1.2);cursor:pointer;">
+                    @endif
+                </td>
+                @endif
                 <td>
                     <span id="inst_date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
-                    @if($canEditInstallment)
-                    @if(!$rowPendingDeletion)
-                    <a href="javascript:void(0);" onclick="editDate({{ $installment->id }})" class="ms-2">
+                    @if($canInlineEdit)
+                    <a href="javascript:void(0);" onclick="editDate({{ $installment->id }}, this)" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
-                    @endif
                     @endif
                     <input type="date"
                         id="inst_date_input_{{ $installment->id }}"
                         value="{{ \Carbon\Carbon::parse($installment->date)->format('Y-m-d') }}"
                         class="form-control form-control-sm d-none"
-                        onblur="saveDate({{ $installment->id }})"
-                        onkeypress="if(event.keyCode==13) saveDate({{ $installment->id }})">
+                        onblur="saveDate({{ $installment->id }}, this)"
+                        onkeypress="if(event.keyCode==13) saveDate({{ $installment->id }}, this)">
                 </td>
                 <td>
                     <span id="inst_voucher_ids_display_{{ $installment->id }}">
                         @if($installment->vouchers->isNotEmpty())
                         @foreach($installment->vouchers as $voucher)
                         <span class="d-inline-flex align-items-center gap-1">
-                            <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucher->formatted_id }}</a>
+                            <a href="javascript:void(0);"
+                                class="text-primary show-voucher-panel"
+                                data-action="{{ route('vouchers.show', $voucher->id) }}"
+                                data-title="{{ \App\Helpers\General::VoucherType($voucher->voucher_type) ?? $voucher->voucher_type }} #{{ $voucher->formatted_id }}"
+                                data-collapse-sidebar="1">{{ $voucher->formatted_id }}</a>
                         </span>@if(!$loop->last), @endif
                         @endforeach
                         @else
@@ -61,61 +112,76 @@
                     </span>
                 </td>
                 <td>
-                    <span id="inst_billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
-                    @if($canEditInstallment)
-                    @if(!$rowPendingDeletion)
-                    <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }})" class="ms-2">
+                    @if($rowLinkedReceipts !== [])
+                    <div class="d-flex flex-column gap-1 align-items-center">
+                        @foreach($rowLinkedReceipts as $linkedReceipt)
+                            @if($linkedReceipt->voucher_id)
+                            <a href="javascript:void(0);"
+                                data-action="{{ route('vouchers.show', $linkedReceipt->voucher_id) }}"
+                                class="text-primary show-voucher-panel"
+                                data-title="Receipt Voucher RV-{{ $linkedReceipt->voucher_id }}"
+                                data-collapse-sidebar="1">
+                                RV-{{ $linkedReceipt->voucher_id }}
+                            </a>
+                            @else
+                            <span class="text-muted">Receipt #{{ $linkedReceipt->id }}</span>
+                            @endif
+                        @endforeach
+                    </div>
+                    @else
+                    -
+                    @endif
+                </td>
+                <td>
+                    <span id="inst_billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M-Y') }}</span>
+                    @if($canInlineEdit)
+                    <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }}, this)" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
-                    @endif
                     @endif
                     <input type="month"
                         id="inst_billing_input_{{ $installment->id }}"
                         value="{{ \Carbon\Carbon::parse($installment->billing_month)->format('Y-m') }}"
                         class="form-control form-control-sm d-none"
-                        onblur="saveBillingMonth({{ $installment->id }})"
-                        onkeypress="if(event.keyCode==13) saveBillingMonth({{ $installment->id }})">
+                        onblur="saveBillingMonth({{ $installment->id }}, this)"
+                        onkeypress="if(event.keyCode==13) saveBillingMonth({{ $installment->id }}, this)">
                 </td>
-                <td>
-                    <span id="inst_amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
-                    @if($canEditInstallment)
-                    @if(!$rowPendingDeletion)
-                    <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }})" class="ms-2">
+                <td class="text-start" style="min-width: 260px;">
+                    <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->narration ? $installment->narration : '-' !!}</span>
+                    @if($canInlineEdit)
+                    <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }}, this)" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
                     @endif
+                    <textarea
+                        id="inst_narration_input_{{ $installment->id }}"
+                        rows="2"
+                        data-original="{{ e($installment->narration ?? '') }}"
+                        class="form-control form-control-sm d-none"
+                        onblur="saveNarration({{ $installment->id }}, this)">{{ $installment->narration ?? '' }}</textarea>
+                </td>
+                <td>
+                    <span id="inst_amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
+                    @if($canInlineEdit)
+                    <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }}, this)" class="ms-2">
+                        <i class="fa fa-edit text-primary"></i>
+                    </a>
                     @endif
                     <input type="number"
                         step="0.01"
                         id="inst_amount_input_{{ $installment->id }}"
                         value="{{ $installment->amount }}"
                         class="form-control form-control-sm d-none"
-                        onblur="saveAmount({{ $installment->id }})"
-                        onkeypress="if(event.keyCode==13) saveAmount({{ $installment->id }})">
+                        onblur="saveAmount({{ $installment->id }}, this)"
+                        onkeypress="if(event.keyCode==13) saveAmount({{ $installment->id }}, this)">
                 </td>
-                <td class="text-start" style="min-width: 260px;">
-                    <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
-                    @if($canEditInstallment)
-                    @if(!$rowPendingDeletion)
-                    <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
-                        <i class="fa fa-edit text-primary"></i>
-                    </a>
-                    @endif
-                    @endif
-                    <textarea
-                        id="inst_narration_input_{{ $installment->id }}"
-                        rows="2"
-                        data-original="{{ e($installment->transaction_narration ?? $installment->narration ?? '') }}"
-                        class="form-control form-control-sm d-none"
-                        onblur="saveNarration({{ $installment->id }})">{{ $installment->transaction_narration ?? $installment->narration ?? '' }}</textarea>
-                </td>
-                <td>{!! $installment->status_badge !!}</td>
                 <td>
                     <span id="inst_created_by_display_{{ $installment->id }}">{{ $installment->created_by ? \App\Models\User::find($installment->created_by)->name :''}}</span>
                 </td>
                 <td>
                     <span id="inst_updated_by_display_{{ $installment->id }}">{{ $installment->updated_by ? \App\Models\User::find($installment->updated_by)->name :''}}</span>
                 </td>
+                <td>{!! $installment->status_badge !!}</td>
                 <td>
                     @if($installmentPendingDeletion)
                     @include('delete_requests._locked_cell', ['model' => $installment])
@@ -128,13 +194,46 @@
                         </button>
                         <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $installment->id }}">
                             @if($canEditInstallment)
-                            @if($installment->status === 'pending')
+                            {{-- Payment Receiving --}}
+                            @if($installment->status !== 'paid')
+                            <a href="javascript:void(0);"
+                                class="dropdown-item waves-effect show-modal action-btn"
+                                data-action="{{ route($installmentPaymentReceivingRoute, $installment->rider_id) }}"
+                                data-size="xl"
+                                data-title="Payment Receiving — {{ optional($installment->expenseAccount)->name ?? 'Installments' }}">
+                                <i class="fa fa-money-bill-wave me-2 text-primary"></i> Payment Receiving
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            @endif
+                            @foreach($rowLinkedReceipts as $linkedReceipt)
+                            @php
+                              $linkedRvLabel = $linkedReceipt->voucher_id
+                                ? 'RV-' . $linkedReceipt->voucher_id
+                                : 'Receipt #' . $linkedReceipt->id;
+                            @endphp
+                            <a href="javascript:void(0);"
+                                class="dropdown-item waves-effect show-modal action-btn"
+                                data-action="{{ route($installmentEditPaymentReceivingRoute, $linkedReceipt->id) }}"
+                                data-size="xl"
+                                data-title="Edit {{ $linkedRvLabel }}">
+                                <i class="fa fa-edit me-2"></i> Edit {{ $linkedRvLabel }}
+                            </a>
+                            <a href="javascript:void(0);"
+                                class="dropdown-item waves-effect text-danger"
+                                onclick='confirmDeleteProtected("{{ route('receipts.destroy', $linkedReceipt->id) }}")'>
+                                <i class="fa fa-trash me-2"></i> Delete {{ $linkedRvLabel }}
+                            </a>
+                            @endforeach
+                            @if($rowLinkedReceipts !== [])
+                            <div class="dropdown-divider"></div>
+                            @endif
+                            @if($installment->status === 'pending' || $installment->status === 'partial')
                             <a href="javascript:void(0);"
                                 onclick="markAsPaid({{ $installment->id }})"
                                 class='dropdown-item waves-effect'>
                                 <i class="fa fa-check me-2"></i> Mark as Paid
                             </a>
-                            @else
+                            @elseif(!$hasLinkedReceipts)
                             <a href="javascript:void(0);"
                                 onclick="markAsPending({{ $installment->id }})"
                                 class='dropdown-item waves-effect'>
@@ -157,7 +256,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="9" class="text-center text-muted py-4">
+                <td colspan="11" class="rl-empty text-center text-muted py-4">
                     <i class="fa fa-info-circle me-2"></i>
                     No installment plans found. <br>
                     <small>Click "Create Installment Plan" to get started.</small>
@@ -165,41 +264,36 @@
             </tr>
             @endforelse
         </tbody>
-        @if($data->count() > 0)
-        <tfoot>
-            <tr class="bg-light">
-                <td colspan="3" class="text-end"><strong>Total Amount Reference:</strong></td>
-                <td class="text-center">
-                    <strong>
-                        @php
-                        $totalAmount = $data->first()->total_amount ?? 0;
-                        $currentTotal = $data->sum('amount');
-                        $riderId = $data->first()->rider_id ?? null;
-                        $paidTotal = $riderId ? $installmentPlanModel::where('rider_id', $riderId)->where('status', 'paid')->sum('amount') : 0;
-                        $pendingTotalAll = $riderId ? $installmentPlanModel::where('rider_id', $riderId)->where('status', 'pending')->sum('amount') : 0;
-                        @endphp
-                        <span id="total-amount-reference">{{ number_format($currentTotal, 2) }}</span>
-                        <br>
-                    </strong>
-                </td>
-                <td colspan="5"></td>
-            </tr>
-        </tfoot>
-        @endif
     </table>
+    </div>
     @if(method_exists($data, 'links'))
     {!! $data->links('pagination') !!}
     @endif
 </div>
 
 <script>
-    function installmentInlineScope() {
-        return document.getElementById('visa-installments-inline-edit-scope');
+    // Scope id is dynamic (e.g. visa-installment-plan-inline-edit-scope). A previous
+    // hardcoded "visa-installments-..." id made pencil edits silently no-op.
+    function installmentInlineScope(fromEl) {
+        if (fromEl && fromEl.closest) {
+            const nearest = fromEl.closest('[id$="-inline-edit-scope"]');
+            if (nearest) {
+                return nearest;
+            }
+        }
+        return document.getElementById(@json($installmentTableScope . '-inline-edit-scope'));
     }
 
-    function installmentFieldEl(field, installmentId) {
-        const scope = installmentInlineScope();
-        return scope ? scope.querySelector('#inst_' + field + '_' + installmentId) : null;
+    function installmentFieldEl(field, installmentId, fromEl) {
+        const id = 'inst_' + field + '_' + installmentId;
+        const scope = installmentInlineScope(fromEl);
+        if (scope) {
+            const scoped = scope.querySelector('#' + id);
+            if (scoped) {
+                return scoped;
+            }
+        }
+        return document.getElementById(id);
     }
 
     // Track unsaved amount changes locally until user finalizes
@@ -272,27 +366,27 @@
     }
 
     // Edit functions - show input field
-    function editDate(installmentId) {
-        const dateDisplay = installmentFieldEl('date_display', installmentId);
-        const dateInput = installmentFieldEl('date_input', installmentId);
+    function editDate(installmentId, fromEl) {
+        const dateDisplay = installmentFieldEl('date_display', installmentId, fromEl);
+        const dateInput = installmentFieldEl('date_input', installmentId, fromEl);
         if (!dateDisplay || !dateInput) return;
         dateDisplay.classList.add('d-none');
         dateInput.classList.remove('d-none');
         dateInput.focus();
     }
 
-    function editBillingMonth(installmentId) {
-        const billingDisplay = installmentFieldEl('billing_display', installmentId);
-        const billingInput = installmentFieldEl('billing_input', installmentId);
+    function editBillingMonth(installmentId, fromEl) {
+        const billingDisplay = installmentFieldEl('billing_display', installmentId, fromEl);
+        const billingInput = installmentFieldEl('billing_input', installmentId, fromEl);
         if (!billingDisplay || !billingInput) return;
         billingDisplay.classList.add('d-none');
         billingInput.classList.remove('d-none');
         billingInput.focus();
     }
 
-    function editAmount(installmentId) {
-        const amountDisplay = installmentFieldEl('amount_display', installmentId);
-        const amountInput = installmentFieldEl('amount_input', installmentId);
+    function editAmount(installmentId, fromEl) {
+        const amountDisplay = installmentFieldEl('amount_display', installmentId, fromEl);
+        const amountInput = installmentFieldEl('amount_input', installmentId, fromEl);
         if (!amountDisplay || !amountInput) return;
         amountDisplay.classList.add('d-none');
         amountInput.classList.remove('d-none');
@@ -300,9 +394,9 @@
         amountInput.select();
     }
 
-    function editNarration(installmentId) {
-        const narrationDisplay = installmentFieldEl('narration_display', installmentId);
-        const narrationInput = installmentFieldEl('narration_input', installmentId);
+    function editNarration(installmentId, fromEl) {
+        const narrationDisplay = installmentFieldEl('narration_display', installmentId, fromEl);
+        const narrationInput = installmentFieldEl('narration_input', installmentId, fromEl);
         if (!narrationDisplay || !narrationInput) return;
         narrationDisplay.classList.add('d-none');
         narrationInput.classList.remove('d-none');
@@ -311,9 +405,9 @@
     }
 
     // Save functions - hide input and save data
-    function saveDate(installmentId) {
-        const dateInput = installmentFieldEl('date_input', installmentId);
-        const dateDisplay = installmentFieldEl('date_display', installmentId);
+    function saveDate(installmentId, fromEl) {
+        const dateInput = installmentFieldEl('date_input', installmentId, fromEl);
+        const dateDisplay = installmentFieldEl('date_display', installmentId, fromEl);
         if (!dateInput || !dateDisplay) return;
         const newValue = dateInput.value;
         const originalValue = dateInput.getAttribute('data-original') || '';
@@ -393,9 +487,9 @@
         dateDisplay.classList.remove('d-none');
     }
 
-    function saveBillingMonth(installmentId) {
-        const billingInput = installmentFieldEl('billing_input', installmentId);
-        const billingDisplay = installmentFieldEl('billing_display', installmentId);
+    function saveBillingMonth(installmentId, fromEl) {
+        const billingInput = installmentFieldEl('billing_input', installmentId, fromEl);
+        const billingDisplay = installmentFieldEl('billing_display', installmentId, fromEl);
         if (!billingInput || !billingDisplay) return;
         const newValue = billingInput.value;
         const originalValue = billingInput.getAttribute('data-original') || '';
@@ -434,9 +528,9 @@
         billingDisplay.classList.remove('d-none');
     }
 
-    function saveAmount(installmentId) {
-        const amountInput = installmentFieldEl('amount_input', installmentId);
-        const amountDisplay = installmentFieldEl('amount_display', installmentId);
+    function saveAmount(installmentId, fromEl) {
+        const amountInput = installmentFieldEl('amount_input', installmentId, fromEl);
+        const amountDisplay = installmentFieldEl('amount_display', installmentId, fromEl);
         if (!amountInput || !amountDisplay) return;
         const newValue = amountInput.value;
         const originalValue = amountInput.getAttribute('data-original') || '';
@@ -495,9 +589,9 @@
         amountDisplay.classList.remove('d-none');
     }
 
-    function saveNarration(installmentId) {
-        const narrationInput = installmentFieldEl('narration_input', installmentId);
-        const narrationDisplay = installmentFieldEl('narration_display', installmentId);
+    function saveNarration(installmentId, fromEl) {
+        const narrationInput = installmentFieldEl('narration_input', installmentId, fromEl);
+        const narrationDisplay = installmentFieldEl('narration_display', installmentId, fromEl);
         if (!narrationInput || !narrationDisplay) return;
         const newValue = narrationInput.value.trim();
         const originalValue = (narrationInput.getAttribute('data-original') || narrationInput.defaultValue || '').trim();
@@ -558,15 +652,18 @@
     // Soft delete with cascade tracking confirmation — provided by shared partial below
 </script>
 @include('delete_requests._confirm_delete_script', [
-    'entityName' => 'Installment Plan',
-    'confirmText' => 'This will submit a delete request for the installment plan (and related vouchers/transactions). Until approved, records stay visible and locked.',
-    'method' => 'GET',
-    'functionName' => 'confirmDeleteProtected',
+'entityName' => 'Installment Plan',
+'confirmText' => 'This will submit a delete request for the installment plan (and related vouchers/transactions). Until approved, records stay visible and locked.',
+'method' => 'GET',
+'functionName' => 'confirmDeleteProtected',
 ])
+@once
+@include('visa_expenses.partials.multi_delete_scripts')
+@endonce
 <script>
-    // Store original values when page loads
+    // Store original values when page loads (capture this table's scope id in the listener).
     document.addEventListener('DOMContentLoaded', function() {
-        const scope = installmentInlineScope();
+        const scope = document.getElementById(@json($installmentTableScope . '-inline-edit-scope'));
         if (!scope) return;
 
         const dateInputs = scope.querySelectorAll('[id^="inst_date_input_"]');

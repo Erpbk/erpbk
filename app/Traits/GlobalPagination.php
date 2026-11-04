@@ -2,6 +2,9 @@
 
 namespace App\Traits;
 
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
+
 trait GlobalPagination
 {
     /**
@@ -48,8 +51,22 @@ trait GlobalPagination
     protected function applyPagination($query, $paginationParams)
     {
         if ($paginationParams['is_all']) {
-            // Return all records without pagination
-            return $query->get();
+            // Return all rows wrapped as a paginator so "Showing X–Y of Z" / All select keep working.
+            $items = $query->get();
+            $total = $items->count();
+            $perPage = max($total, 1);
+
+            return new LengthAwarePaginator(
+                $items,
+                $total,
+                $perPage,
+                1,
+                [
+                    'path' => Paginator::resolveCurrentPath(),
+                    'pageName' => 'page',
+                    'query' => request()->query(),
+                ]
+            );
         }
 
         return $query->paginate($paginationParams['per_page_numeric']);

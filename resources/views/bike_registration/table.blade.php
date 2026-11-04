@@ -31,7 +31,7 @@
                   class="form-control form-control-sm d-none">
             </td>
             <td>
-               <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</span>
+               <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M-Y') }}</span>
                @can('bikes_registration_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-br-field" data-id="{{ $r->id }}" data-field="billing">
                   <i class="fa fa-edit text-primary"></i>
@@ -92,7 +92,7 @@
                   <a href="javascript:void(0);"
                      class="show-modal text-body-secondary"
                      data-size="xl"
-                     data-title="Edit payment account — {{ $r->vouchers->first()->voucher_type ?? 'BR' }}-{{ str_pad((string) ($r->vouchers->first()->id ?? 0), 4, '0', STR_PAD_LEFT) }}"
+                     data-title="Edit payment account — {{ $r->vouchers->first()->voucher_type ?? 'VR' }}-{{ str_pad((string) ($r->vouchers->first()->id ?? 0), 4, '0', STR_PAD_LEFT) }}"
                      data-action="{{ route('BikeRegistration.editVoucherCreditForm', $r->id) }}"
                      title="Change credit / payment account only">
                      <i class="fa fa-edit text-primary"></i>

@@ -6,7 +6,7 @@ $isFront = ($isFront ?? '') == true ? 'Front' : '';
 $contentLayout = (isset($container) ? (($container === 'container-xxl') ? "layout-compact" : "layout-wide") : "");
 @endphp
 
-<html lang="{{ session()->get('locale') ?? app()->getLocale() }}" class="{{ $configData['style'] }}-style {{($contentLayout ?? '')}} {{ ($navbarType ?? '') }} {{ ($menuFixed ?? '') }} {{ $menuCollapsed ?? '' }} {{ $footerFixed ?? '' }} {{ $customizerHidden ?? '' }}" dir="{{ $configData['textDirection'] }}" data-theme="{{ $configData['theme'] }}" data-assets-path="{{ asset('/assets') . '/' }}" data-base-url="{{url('/')}}" data-framework="laravel" data-template="{{ $configData['layout'] . '-menu-' . $configData['theme'] . '-' . $configData['style'] }}">
+<html lang="{{ session()->get('locale') ?? app()->getLocale() }}" class="{{ $configData['style'] }}-style {{($contentLayout ?? '')}} {{ ($navbarType ?? '') }} {{ ($menuFixed ?? '') }} {{ $menuCollapsed ?? '' }} {{ $footerFixed ?? '' }} {{ $customizerHidden ?? '' }}" dir="{{ $configData['textDirection'] }}" data-theme="{{ $configData['theme'] }}" data-assets-path="{{ asset('/assets') . '/' }}" data-base-url="{{url('/')}}" data-framework="laravel" data-template="{{ $configData['layout'] . '-menu-' . $configData['theme'] . '-' . $configData['style'] }}" data-app-currency-code="{{ $appCurrencyCode ?? \App\Helpers\Currency::code() }}" data-app-currency-symbol="{{ $appCurrencySymbol ?? \App\Helpers\Currency::symbol() }}">
 
 <head>
   <meta charset="utf-8" />
@@ -41,6 +41,8 @@ $contentLayout = (isset($container) ? (($container === 'container-xxl') ? "layou
 
   @vite('resources/sass/app.scss')
   @vite('resources/js/app.js')
+  {{-- Company font/date prefs must load after vendor + Vite CSS --}}
+  @include('layouts.partials.company_global_preferences')
 </head>
 
 <body>
@@ -53,6 +55,7 @@ $contentLayout = (isset($container) ? (($container === 'container-xxl') ? "layou
   @include('_partials.modal')
   @include('_partials.offcanvas')
   @include('_partials.voucher_panel')
+  @include('partials.document_scan_script')
   <!-- Include Scripts -->
   <!-- $isFront is used to append the front layout scripts only on the front layout otherwise the variable will be blank -->
   @include('layouts/sections/scripts' . $isFront)

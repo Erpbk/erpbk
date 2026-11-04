@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\RiderInvoiceExport;
 use App\Helpers\Account;
 use App\Http\Requests\CreateRiderInvoicesRequest;
 use App\Http\Requests\UpdateRiderInvoicesRequest;
 use App\Imports\ImportPaidRiderInvoice;
 use App\Imports\ImportRiderInvoice;
 use App\Models\Accounts;
+use App\Models\Customers;
 use App\Models\Items;
 use App\Models\Payment;
 use App\Models\RiderInvoiceTemplate;
@@ -24,7 +26,7 @@ use App\Services\TransactionService;
 use App\Support\CompanyQuery;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Support\InvoicePdf;
 use Carbon\Carbon;
 use Flash;
 use Illuminate\Database\QueryException;
@@ -53,31 +55,192 @@ class RiderInvoicesController extends AppBaseController
      */
     public function index(Request $request)
     {
-        // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
-        $query = RiderInvoices::query()
-            ->orderBy('billing_month', 'desc');
-        $query->whereHas('rider');
-        // Filters
-        if ($request->has('id') && ! empty($request->id)) {
-            $query->where('id', 'like', '%' . $request->id . '%');
+        $query = $this->filteredRiderInvoicesQuery($request);
+        $stats = $this->buildIndexStats($request, $query);
+
+        $data = $this->applyPagination(clone $query, $paginationParams);
+        if (method_exists($data, 'withQueryString')) {
+            $data->withQueryString();
         }
-        if ($request->has('rider_id') && ! empty($request->rider_id)) {
+        $data->load(['rider.customer', 'customer', 'items']);
+
+        $invoiceBuilder = app(RiderInvoiceViewDataBuilder::class);
+        // Paginator has items(); "all" used to return a bare Collection — support both.
+        $pageRows = method_exists($data, 'items') ? collect($data->items()) : collect($data);
+        $invoiceBuilder->preloadOutstandingSummaries($pageRows);
+
+        if ($request->ajax()) {
+            $tableHtml = view('rider_invoices.table', ['data' => $data])->render();
+            $paginationHtml = view('components.riders-demo-pagination', [
+                'paginator' => $data,
+                'entityLabel' => 'invoices',
+            ])->render();
+
+            return response()->json([
+                'success' => true,
+                'html' => $tableHtml,
+                'pagination' => $paginationHtml,
+                'stats' => $stats,
+                'tableData' => $tableHtml,
+                'paginationLinks' => $paginationHtml,
+            ]);
+        }
+
+        return view('rider_invoices.index', [
+            'data' => $data,
+            'stats' => $stats,
+            'invoiceTemplates' => app(RiderInvoiceTemplateResolver::class)->activeTemplates(),
+        ]);
+    }
+
+    /**
+     * Export rider invoices for the selected billing month / active filters.
+     * Uses the same filters as the index listing (no pagination).
+     */
+    public function export(Request $request)
+    {
+        $invoices = $this->filteredRiderInvoicesQuery($request)
+            ->with(['rider.customer', 'customer', 'items'])
+            ->get();
+
+        app(RiderInvoiceViewDataBuilder::class)->preloadOutstandingSummaries($invoices);
+
+        $monthSuffix = $request->filled('billing_month')
+            ? Carbon::parse($request->billing_month)->format('Y_m')
+            : 'all';
+        $filename = 'rider_invoices_'.$monthSuffix.'_'.now()->format('Y_m_d_His').'.xlsx';
+
+        return Excel::download(new RiderInvoiceExport($invoices), $filename);
+    }
+
+    /**
+     * Filter-scoped listing stats for summary cards.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\RiderInvoices>  $query
+     * @return array<string, mixed>
+     */
+    protected function buildIndexStats(Request $request, $query): array
+    {
+        $statsQuery = clone $query;
+
+        $invoiceCount = (int) (clone $statsQuery)->count();
+        $paidCount = (int) (clone $statsQuery)->where('status', 1)->count();
+        $partialCount = (int) (clone $statsQuery)->where('status', 3)->count();
+        $unpaidCount = (int) (clone $statsQuery)->where(function ($q) {
+            $q->whereNull('status')->orWhereNotIn('status', [1, 3]);
+        })->count();
+        $totalInvoiceAmount = round((float) (clone $statsQuery)->sum('total_amount'), 2);
+
+        $projectLabel = 'All';
+        if ($request->filled('customer_id')) {
+            $projectLabel = (string) (company_table('customers')
+                ->where('id', $request->customer_id)
+                ->value('name') ?: 'Project');
+        }
+
+        $billingMonthLabel = 'All';
+        if ($request->filled('billing_month')) {
+            $billingMonthLabel = Carbon::parse($request->billing_month)->format('M-Y');
+        }
+
+        $moneyRows = (clone $statsQuery)->with(['rider', 'items'])->get();
+        app(RiderInvoiceViewDataBuilder::class)->preloadOutstandingSummaries($moneyRows);
+
+        $payable = 0.0;
+        $paidAmount = 0.0;
+        $balance = 0.0;
+        foreach ($moneyRows as $invoice) {
+            $payable += (float) $invoice->final_amount;
+            $paidAmount += (float) $invoice->paid_amount;
+            $balance += (float) $invoice->balance;
+        }
+
+        return [
+            'invoice_count' => $invoiceCount,
+            'paid_count' => $paidCount,
+            'partial_count' => $partialCount,
+            'unpaid_count' => $unpaidCount,
+            'total_invoice_amount' => $totalInvoiceAmount,
+            'project_label' => $projectLabel,
+            'billing_month_label' => $billingMonthLabel,
+            'total_payable_salary' => round($payable, 2),
+            'paid_amount' => round($paidAmount, 2),
+            'balance' => round($balance, 2),
+            'money_available' => true,
+        ];
+    }
+
+    /**
+     * AJAX Select2 search for the rider invoices filter (match rider_id or name).
+     */
+    public function searchRiders(Request $request)
+    {
+        $term = trim((string) $request->input('q', $request->input('term', '')));
+        if ($term === '') {
+            return response()->json(['results' => []]);
+        }
+
+        $like = '%'.$term.'%';
+        $riders = Riders::query()
+            ->select('id', 'rider_id', 'name')
+            ->where(function ($q) use ($like) {
+                $q->where('rider_id', 'like', $like)
+                    ->orWhere('name', 'like', $like);
+            })
+            ->orderBy('name')
+            ->limit(30)
+            ->get()
+            ->map(fn (Riders $rider) => [
+                'id' => $rider->id,
+                'text' => trim(($rider->rider_id ?? '').'-'.($rider->name ?? ''), '-'),
+            ])
+            ->values()
+            ->all();
+
+        return response()->json(['results' => $riders]);
+    }
+
+    /**
+     * Shared listing/export query with the same filters as the index page.
+     */
+    protected function filteredRiderInvoicesQuery(Request $request)
+    {
+        $query = RiderInvoices::query()
+            ->orderBy('billing_month', 'desc')
+            ->orderBy('status', 'asc')
+            ->whereHas('rider');
+
+        if ($request->filled('id')) {
+            $rawId = trim((string) $request->input('id'));
+            // Accept "9515", "RINV-9515", "RINV9515" → match numeric invoice id
+            if (preg_match('/^(?:RINV-?)?0*(\d+)$/i', $rawId, $matches)) {
+                $query->where('id', (int) $matches[1]);
+            } elseif (preg_match('/(\d+)/', $rawId, $matches)) {
+                $query->where('id', (int) $matches[1]);
+            } else {
+                $query->where('id', 'like', '%'.$rawId.'%');
+            }
+        }
+        if ($request->filled('rider_id')) {
             $query->where('rider_id', $request->rider_id);
         }
-        if ($request->has('billing_month') && ! empty($request->billing_month)) {
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+        if ($request->filled('billing_month')) {
             $billingMonth = Carbon::parse($request->billing_month);
             $query->whereYear('billing_month', $billingMonth->year)
                 ->whereMonth('billing_month', $billingMonth->month);
         }
-        if ($request->has('zone') && ! empty($request->zone)) {
+        if ($request->filled('zone')) {
             $query->where('zone', $request->zone);
         }
-        if ($request->has('performance') && ! empty($request->performance)) {
+        if ($request->filled('performance')) {
             $query->where('performance', $request->performance);
         }
-        if ($request->has('status') && ! empty($request->status)) {
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
         if ($request->filled('quick_search')) {
@@ -88,9 +251,13 @@ class RiderInvoicesController extends AppBaseController
                     ->orWhere('rider_invoices.zone', 'like', '%'.$search.'%')
                     ->orWhere('rider_invoices.notes', 'like', '%'.$search.'%')
                     ->orWhere('rider_invoices.performance', 'like', '%'.$search.'%')
+                    ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                        $customerQuery->where('name', 'like', '%'.$search.'%');
+                    })
                     ->orWhereHas('rider', function ($riderQuery) use ($search) {
                         $riderQuery->where('name', 'like', '%'.$search.'%')
                             ->orWhere('rider_id', 'like', '%'.$search.'%')
+                            ->orWhere('person_code', 'like', '%'.$search.'%')
                             ->orWhereHas('customer', function ($customerQuery) use ($search) {
                                 $customerQuery->where('name', 'like', '%'.$search.'%');
                             });
@@ -102,40 +269,7 @@ class RiderInvoicesController extends AppBaseController
             });
         }
 
-        // Apply pagination using the trait
-        $data = $this->applyPagination($query, $paginationParams);
-
-        // ✅ Billing month ka check for total calculation
-        $billingMonth = $request->has('billing_month') && ! empty($request->billing_month)
-            ? Carbon::parse($request->billing_month)
-            : now();
-
-        $currentMonthTotal = RiderInvoices::whereYear('billing_month', $billingMonth->year)
-            ->whereMonth('billing_month', $billingMonth->month)
-            ->sum('total_amount');
-
-        // ✅ AJAX Response
-        if ($request->ajax()) {
-            $tableData = view('rider_invoices.table', [
-                'data' => $data,
-                'currentMonthTotal' => $currentMonthTotal,
-            ])->render();
-
-            $paginationLinks = $data->links('components.global-pagination')->render();
-
-            return response()->json([
-                'tableData' => $tableData,
-                'paginationLinks' => $paginationLinks,
-                'currentMonthTotal' => number_format($currentMonthTotal, 1),
-            ]);
-        }
-
-        // ✅ Normal Response
-        return view('rider_invoices.index', [
-            'data' => $data,
-            'currentMonthTotal' => $currentMonthTotal,
-            'invoiceTemplates' => app(RiderInvoiceTemplateResolver::class)->activeTemplates(),
-        ]);
+        return $query;
     }
 
     /**
@@ -144,11 +278,20 @@ class RiderInvoicesController extends AppBaseController
     public function create()
     {
         $riders = Riders::dropdown();
+        $customers = Customers::dropdown();
+        $riderCustomerMap = Riders::query()->pluck('customer_id', 'id');
         $items = Items::dropdown('rider');
         $invoiceTemplates = app(RiderInvoiceTemplateResolver::class)->activeTemplates();
         $defaultTemplate = app(RiderInvoiceTemplateResolver::class)->defaultTemplate();
 
-        return view('rider_invoices.create', compact('riders', 'items', 'invoiceTemplates', 'defaultTemplate'));
+        return view('rider_invoices.create', compact(
+            'riders',
+            'customers',
+            'riderCustomerMap',
+            'items',
+            'invoiceTemplates',
+            'defaultTemplate'
+        ));
     }
 
     /**
@@ -208,8 +351,9 @@ class RiderInvoicesController extends AppBaseController
 
             $riderInvoice->load([
                 'items',
+                'customer',
                 'rider' => function ($query) {
-                    $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes']);
+                    $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes', 'account', 'customer']);
                 },
             ]);
 
@@ -228,13 +372,15 @@ class RiderInvoicesController extends AppBaseController
                 $templateView = RiderInvoiceTemplate::FALLBACK_VIEW;
             }
 
+            $builder = app(RiderInvoiceViewDataBuilder::class);
             $viewData = array_merge(
-                app(RiderInvoiceViewDataBuilder::class)->build($riderInvoice),
+                $builder->build($riderInvoice),
                 [
                     'riderInvoice' => $riderInvoice,
                     'activeTemplate' => $resolver->resolveForInvoice($riderInvoice),
                     'templateView' => $templateView,
                     'templates' => $resolver->activeTemplates(),
+                    'paymentVouchers' => $builder->paymentVouchersForInvoice($riderInvoice),
                 ]
             );
 
@@ -264,8 +410,9 @@ class RiderInvoicesController extends AppBaseController
 
         $riderInvoice->load([
             'items',
+            'customer',
             'rider' => function ($query) {
-                $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes']);
+                $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes', 'account', 'customer']);
             },
         ]);
 
@@ -282,16 +429,21 @@ class RiderInvoicesController extends AppBaseController
             $templateView = RiderInvoiceTemplate::FALLBACK_VIEW;
         }
 
-        $pdf = Pdf::loadView('rider_invoices.pdf', array_merge(
-            app(RiderInvoiceViewDataBuilder::class)->build($riderInvoice),
-            [
-                'riderInvoice' => $riderInvoice,
-                'activeTemplate' => $activeTemplate,
-                'templateView' => $templateView,
-            ]
-        ))->setPaper('a4', 'portrait');
+        $builder = app(RiderInvoiceViewDataBuilder::class);
 
-        return $pdf->download('Rider-Invoice-' . $invoiceNumber . '.pdf');
+        return InvoicePdf::download(
+            'rider_invoices.show',
+            array_merge(
+                $builder->build($riderInvoice),
+                [
+                    'riderInvoice' => $riderInvoice,
+                    'activeTemplate' => $activeTemplate,
+                    'templateView' => $templateView,
+                    'paymentVouchers' => $builder->paymentVouchersForInvoice($riderInvoice),
+                ]
+            ),
+            'Rider-Invoice-' . $invoiceNumber . '.pdf'
+        );
     }
 
     public function updateTemplate(Request $request, $company_slug, $id)
@@ -332,11 +484,21 @@ class RiderInvoicesController extends AppBaseController
             ], 404);
         }
         $riders = Riders::dropdown();
+        $customers = Customers::dropdown();
+        $riderCustomerMap = Riders::query()->pluck('customer_id', 'id');
         $items = Items::dropdown('rider');
         $invoiceTemplates = app(RiderInvoiceTemplateResolver::class)->activeTemplates();
         $defaultTemplate = app(RiderInvoiceTemplateResolver::class)->defaultTemplate();
 
-        return view('rider_invoices.edit', compact('riders', 'items', 'invoice', 'invoiceTemplates', 'defaultTemplate'));
+        return view('rider_invoices.edit', compact(
+            'riders',
+            'customers',
+            'riderCustomerMap',
+            'items',
+            'invoice',
+            'invoiceTemplates',
+            'defaultTemplate'
+        ));
     }
 
     /**
@@ -738,14 +900,16 @@ class RiderInvoicesController extends AppBaseController
         if ($request->isMethod('post')) {
             $rules = [
                 'file' => 'required|max:50000|mimes:xlsx',
+                'customer_id' => 'required',
             ];
             $message = [
                 'file.required' => 'Excel File Required',
+                'customer_id.required' => 'Project is required',
             ];
             $this->validate($request, $rules, $message);
             try {
 
-                Excel::import(new ImportRiderInvoice, $request->file('file'));
+                Excel::import(new ImportRiderInvoice((int) $request->customer_id), $request->file('file'));
 
                 return response()->json([
                     'success' => true,
@@ -774,7 +938,9 @@ class RiderInvoicesController extends AppBaseController
             }
         }
 
-        return view('rider_invoices.import');
+        $customers = Customers::dropdown();
+
+        return view('rider_invoices.import', compact('customers'));
     }
 
     /**
@@ -785,32 +951,37 @@ class RiderInvoicesController extends AppBaseController
         if ($request->isMethod('post')) {
             $this->validate($request, [
                 'file' => 'required|max:50000|mimes:xlsx,csv,xls',
-                'col_rider_id' => 'required|integer|min:1',
-                'col_billing_month' => 'required|integer|min:1',
+                'col_invoice_number' => 'required|integer|min:1',
+                'col_rider_id' => 'nullable|integer|min:1',
+                'col_billing_month' => 'nullable|integer|min:1',
                 'col_account_code' => 'required|integer|min:1',
                 'col_amount' => 'required|integer|min:1',
                 'col_payment_date' => 'required|integer|min:1',
                 'col_description' => 'required|integer|min:1',
             ], [
                 'file.required' => 'Excel File Required',
-                'col_rider_id.required' => 'Map the Rider ID column.',
-                'col_billing_month.required' => 'Map the Billing Month column.',
+                'col_invoice_number.required' => 'Map the Invoice Number column.',
                 'col_account_code.required' => 'Map the paying account code column.',
                 'col_amount.required' => 'Map the Amount column.',
                 'col_payment_date.required' => 'Map the Payment Date column.',
-                'col_description.required' => 'Map the Description column.',
+                'col_description.required' => 'Map the Description / Narration column.',
             ]);
 
             $columnMap = [
-                'rider_id' => (int) $request->col_rider_id,
-                'billing_month' => (int) $request->col_billing_month,
+                'invoice_number' => (int) $request->col_invoice_number,
                 'account_code' => (int) $request->col_account_code,
                 'amount' => (int) $request->col_amount,
                 'payment_date' => (int) $request->col_payment_date,
                 'description' => (int) $request->col_description,
             ];
+            if ($request->filled('col_rider_id')) {
+                $columnMap['rider_id'] = (int) $request->col_rider_id;
+            }
+            if ($request->filled('col_billing_month')) {
+                $columnMap['billing_month'] = (int) $request->col_billing_month;
+            }
 
-            $provided = array_filter($columnMap, fn ($v) => $v !== null);
+            $provided = array_filter($columnMap, fn ($v) => $v !== null && $v !== '');
             if (count($provided) !== count(array_unique($provided))) {
                 $message = 'Column numbers must be unique.';
                 if ($request->ajax()) {
@@ -828,9 +999,9 @@ class RiderInvoicesController extends AppBaseController
                 $skippedLog = $import->skippedLog;
                 $skippedCount = count($skippedLog);
 
-                $message = "Import finished. Payments created: {$importedCount}.";
+                $message = "Import finished. Successfully imported: {$importedCount}.";
                 if ($skippedCount > 0) {
-                    $message .= " Skipped: {$skippedCount}.";
+                    $message .= " Failed: {$skippedCount}.";
                 }
 
                 if ($request->ajax() || $request->wantsJson()) {
@@ -865,7 +1036,58 @@ class RiderInvoicesController extends AppBaseController
     }
 
     /**
-     * Mark a single invoice as paid manually
+     * Mark invoice settled for reporting without recording a cash payment.
+     * Use when advances/penalties already absorb the payable (or policy says do not pay).
+     */
+    public function markAsSettled(Request $request, $company_slug, $id)
+    {
+        $invoice = RiderInvoices::with(['rider', 'items'])->find($id);
+        if (! $invoice) {
+            Flash::error('Invoice not found.');
+
+            return redirect()->route('riderInvoices.index');
+        }
+
+        if ((int) $invoice->status === 1) {
+            Flash::error('Invoice is already marked as paid.');
+
+            return redirect()->back();
+        }
+
+        $outstanding = app(RiderInvoiceViewDataBuilder::class)->outstandingAmounts($invoice);
+        $balance = round((float) ($outstanding['balance'] ?? 0), 2);
+        $needsReason = $balance > 0.01;
+
+        if ($request->isMethod('post')) {
+            $this->validate($request, [
+                'reason' => ($needsReason ? 'required' : 'nullable').'|string|max:255',
+            ], [
+                'reason.required' => 'A reason is required when settling an invoice that still has a positive payable balance.',
+            ]);
+
+            $invoice->status = 1;
+            $invoice->notes = $this->appendSettlementAuditNote(
+                (string) ($invoice->notes ?? ''),
+                $balance,
+                $request->input('reason')
+            );
+            $invoice->save();
+
+            $message = 'Invoice marked as settled. No payment or bank voucher was recorded.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true, 'message' => $message]);
+            }
+
+            Flash::success($message);
+
+            return redirect()->route('riderInvoices.index');
+        }
+
+        return view('rider_invoices.mark_as_settled', compact('invoice', 'outstanding', 'needsReason'));
+    }
+
+    /**
+     * Mark a single invoice as paid manually (cash settlement via bank voucher).
      */
     public function markAsPaid(Request $request, $company_slug, $id)
     {
@@ -935,7 +1157,7 @@ class RiderInvoicesController extends AppBaseController
         }
 
         // GET request - show payment form
-        $invoice = RiderInvoices::with('rider')->find($id);
+        $invoice = RiderInvoices::with(['rider', 'items'])->find($id);
         if (! $invoice) {
             Flash::error('Invoice not found.');
 
@@ -948,10 +1170,41 @@ class RiderInvoicesController extends AppBaseController
             return redirect()->back();
         }
 
+        $outstanding = app(RiderInvoiceViewDataBuilder::class)->outstandingAmounts($invoice);
+        $netBalance = round((float) ($outstanding['balance'] ?? 0), 2);
+        if ($netBalance <= 0.01) {
+            Flash::warning('Net payable is zero or negative after deductions. Use Mark Settled (no payment) from the invoice list instead of recording a bank payment.');
+
+            return redirect()->route('riderInvoices.index');
+        }
+
         // Get bank accounts for dropdown
         $bankAccounts = Accounts::bankAccountsDropdown();
 
         return view('rider_invoices.mark_as_paid', compact('invoice', 'bankAccounts'));
+    }
+
+    /**
+     * Append a short settlement audit line to invoice notes (max 500 chars).
+     */
+    private function appendSettlementAuditNote(string $existingNotes, float $balance, ?string $reason): string
+    {
+        $user = Auth::user()->name ?? (string) Auth::id();
+        $ts = now()->format('Y-m-d H:i');
+        $line = sprintf(
+            '[Settled %s by %s; balance %s%s]',
+            $ts,
+            $user,
+            number_format($balance, 2, '.', ''),
+            $reason !== null && $reason !== '' ? '; reason: '.$reason : ''
+        );
+
+        $combined = trim($existingNotes === '' ? $line : $existingNotes."\n".$line);
+        if (strlen($combined) > 500) {
+            $combined = substr($combined, -500);
+        }
+
+        return $combined;
     }
 
     /**
@@ -997,7 +1250,7 @@ class RiderInvoicesController extends AppBaseController
             throw new \Exception('Rider Invoice voucher type (RI) is not assigned to the Riders List module. Please assign it in Voucher Settings.');
         }
 
-        // Create voucher record
+        // Create voucher record — link to related rider so it appears under the rider
         $voucherData = [
             'trans_date' => $invoiceDate,
             'voucher_type' => 'RI', // Rider Invoice Payment Voucher
@@ -1008,6 +1261,13 @@ class RiderInvoicesController extends AppBaseController
             'trans_code' => $trans_code,
             'Created_By' => \Auth::user()->id,
             'remarks' => 'Manual payment for Rider Invoice #' . $invoice->id,
+            'reference_number' => $invoice->invoice_number
+                ?? ('RINV-'.str_pad((string) $invoice->id, 4, '0', STR_PAD_LEFT)),
+            'ref_id' => $rider->id,
+            'rider_id' => $rider->id,
+            'status' => 1,
+            'branch_id' => $rider->branch_id ?? $invoice->branch_id ?? null,
+            'company_id' => $invoice->company_id ?? $rider->company_id ?? null,
         ];
 
         CompanyQuery::insert('vouchers', $voucherData);
@@ -1050,8 +1310,9 @@ class RiderInvoicesController extends AppBaseController
 
             $invoice->load([
                 'items',
+                'customer',
                 'rider' => function ($query) {
-                    $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes']);
+                    $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes', 'account', 'customer']);
                 },
             ]);
 
@@ -1068,14 +1329,19 @@ class RiderInvoicesController extends AppBaseController
                 $templateView = RiderInvoiceTemplate::FALLBACK_VIEW;
             }
 
-            $pdf = Pdf::loadView('rider_invoices.pdf', array_merge(
-                app(RiderInvoiceViewDataBuilder::class)->build($invoice),
-                [
-                    'riderInvoice' => $invoice,
-                    'activeTemplate' => $activeTemplate,
-                    'templateView' => $templateView,
-                ]
-            ))->setPaper('a4', 'portrait');
+            $builder = app(RiderInvoiceViewDataBuilder::class);
+            $pdf = InvoicePdf::make(
+                'rider_invoices.show',
+                array_merge(
+                    $builder->build($invoice),
+                    [
+                        'riderInvoice' => $invoice,
+                        'activeTemplate' => $activeTemplate,
+                        'templateView' => $templateView,
+                        'paymentVouchers' => $builder->paymentVouchersForInvoice($invoice),
+                    ]
+                )
+            );
 
             $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject, $invoiceNumber) {
                 $message->to([$toEmail]);

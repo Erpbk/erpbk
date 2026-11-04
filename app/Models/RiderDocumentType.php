@@ -23,6 +23,20 @@ class RiderDocumentType extends BaseModel
         'is_active' => 'boolean',
     ];
 
+    public function subtypes()
+    {
+        return $this->hasMany(RiderDocumentTypeSubtype::class, 'document_type_id')
+            ->orderBy('display_order')
+            ->orderBy('id');
+    }
+
+    public function fields()
+    {
+        return $this->hasMany(RiderDocumentTypeField::class, 'document_type_id')
+            ->orderBy('display_order')
+            ->orderBy('id');
+    }
+
     /**
      * Scope: active types ordered by display_order.
      */
@@ -48,11 +62,13 @@ class RiderDocumentType extends BaseModel
         $single = [];
         $dual = [];
         foreach ($types as $t) {
-            if ($t->type === 'single' && $t->label) {
+            if (\App\Support\RiderDocumentChecklist::isDualType($t)) {
+                $dual[$t->key] = [
+                    'front' => $t->front_label ?: 'Front',
+                    'back' => $t->back_label ?: 'Back',
+                ];
+            } elseif ($t->label) {
                 $single[$t->key] = $t->label;
-            }
-            if ($t->type === 'dual' && $t->front_label && $t->back_label) {
-                $dual[$t->key] = ['front' => $t->front_label, 'back' => $t->back_label];
             }
         }
         return ['single' => $single, 'dual' => $dual];

@@ -70,13 +70,30 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
                 <button type="button" class="btn btn-sm btn-outline-primary" data-filter="create">Create</button>
                 <button type="button" class="btn btn-sm btn-outline-primary" data-filter="edit">Edit</button>
                 <button type="button" class="btn btn-sm btn-outline-primary" data-filter="delete">Delete</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-filter="upload">Upload</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-filter="approve">Approve</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-filter="reject">Reject</button>
             </div>
         </div>
     </div>
 
     @php
     $dynamicPermissionRows = $dynamicPermissionRows ?? [];
-    $actions = ['view', 'create', 'edit', 'delete'];
+    $voucherApprovalCard = $voucherApprovalCard ?? ['type_rows' => [], 'override_rows' => [], 'leaf_total' => 0, 'leaf_enabled' => 0];
+    // Module Permissions card: CRUD + upload only. Approve/Reject live on the Voucher Approval card.
+    $actions = $moduleActions ?? ['view', 'create', 'edit', 'delete', 'upload'];
+    $actionLabels = [
+        'view' => 'View',
+        'create' => 'Create',
+        'edit' => 'Edit',
+        'delete' => 'Delete',
+        'upload' => 'Upload',
+        'approve' => 'Approve',
+        'reject' => 'Reject',
+        'force_approve' => 'Force Approve',
+        'reopen' => 'Reopen',
+        'revise' => 'Revise',
+    ];
     @endphp
 
     @if (!empty($dynamicPermissionRows))
@@ -238,6 +255,92 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
     </div>
     @endif
 
+    @if (!empty($voucherApprovalCard['type_rows']) || !empty($voucherApprovalCard['override_rows']))
+    {{-- Separate Voucher Approval Permissions card (not mixed into Module Permissions) --}}
+    <div class="card border-0 shadow-sm mb-4 rfp-voucher-approval-section rfp-counter-scope"
+         data-total="{{ (int) ($voucherApprovalCard['leaf_total'] ?? 0) }}">
+        <div class="card-header border-bottom">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                <div>
+                    <h5 class="mb-0 fw-bold">Voucher Approval Permissions</h5>
+                    <small class="text-muted">Assign approve / reject rights per voucher type for this role (company-scoped). Override actions require a mandatory remark when used.</small>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="badge bg-label-secondary rfp-mod-counter" data-total="{{ (int) ($voucherApprovalCard['leaf_total'] ?? 0) }}">
+                        <span class="rfp-mod-enabled">{{ (int) ($voucherApprovalCard['leaf_enabled'] ?? 0) }}</span>/{{ (int) ($voucherApprovalCard['leaf_total'] ?? 0) }}
+                    </span>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="rfpVoucherApprovalSelectAll">Select all</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="rfpVoucherApprovalClearAll">Clear all</button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            @if (!empty($voucherApprovalCard['override_rows']))
+            <div class="mb-4">
+                <h6 class="fw-semibold mb-2">Overrides &amp; dashboard</h6>
+                <div class="row g-2">
+                    @foreach ($voucherApprovalCard['override_rows'] as $ovr)
+                    <div class="col-md-6 col-xl-4">
+                        <div class="d-flex align-items-center justify-content-between border rounded px-3 py-2 h-100">
+                            <div>
+                                <div class="fw-medium">{{ $ovr['label'] }}</div>
+                                <code class="small text-muted">{{ $ovr['permission'] }}</code>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input type="checkbox" role="switch" class="form-check-input rfp-perm-toggle"
+                                    data-action="{{ $ovr['key'] }}" data-perm-id="{{ $ovr['id'] }}"
+                                    {{ !empty($ovr['enabled']) ? 'checked' : '' }}>
+                            </div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
+            @if (!empty($voucherApprovalCard['type_rows']))
+            <h6 class="fw-semibold mb-2">Per voucher type</h6>
+            <div class="table-responsive border rounded">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="min-width: 4rem;">Code</th>
+                            <th>Type</th>
+                            <th>Module</th>
+                            <th class="text-center" style="width: 7rem;">Approve</th>
+                            <th class="text-center" style="width: 7rem;">Reject</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($voucherApprovalCard['type_rows'] as $row)
+                        <tr class="rfp-voucher-approval-row" data-search="{{ \Illuminate\Support\Str::lower(($row['code'] ?? '').' '.($row['label'] ?? '').' '.($row['module'] ?? '')) }}">
+                            <td><span class="badge bg-label-primary">{{ $row['code'] }}</span></td>
+                            <td class="fw-medium">{{ $row['label'] }}</td>
+                            <td class="text-muted small">{{ $row['module'] ?: '—' }}</td>
+                            @foreach (['approve', 'reject'] as $vaAction)
+                            @php $act = $row['actions'][$vaAction] ?? null; @endphp
+                            <td class="text-center">
+                                @if ($act)
+                                <div class="form-check form-switch d-inline-flex justify-content-center m-0">
+                                    <input type="checkbox" role="switch" class="form-check-input rfp-perm-toggle"
+                                        data-action="{{ $vaAction }}" data-perm-id="{{ $act['id'] }}"
+                                        {{ !empty($act['enabled']) ? 'checked' : '' }}>
+                                </div>
+                                @else
+                                <span class="text-muted">—</span>
+                                @endif
+                            </td>
+                            @endforeach
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @endif
+        </div>
+    </div>
+    @endif
+
     <div class="row g-4">
         {{-- LEFT: Module permissions --}}
         <div class="col-lg-6">
@@ -258,10 +361,9 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
                     {{-- Column header --}}
                     <div class="rfp-cols-head d-flex align-items-center px-3 py-2 border-bottom">
                         <div class="rfp-col-name">Module</div>
-                        <div class="rfp-col-act">View</div>
-                        <div class="rfp-col-act">Create</div>
-                        <div class="rfp-col-act">Edit</div>
-                        <div class="rfp-col-act">Delete</div>
+                        @foreach ($actions as $action)
+                        <div class="rfp-col-act">{{ $actionLabels[$action] ?? ucfirst($action) }}</div>
+                        @endforeach
                     </div>
 
                     <div id="rfpModulesBody" class="rfp-modules-scroll">
@@ -275,10 +377,9 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
                         <div class="rfp-module-block is-grouped rfp-flat-card rfp-page-item">
                             <div class="rfp-module-head d-flex align-items-center px-3 py-2">
                                 <div class="rfp-col-name fw-semibold text-uppercase small text-muted">General Modules</div>
-                                <div class="rfp-col-act small text-muted">View</div>
-                                <div class="rfp-col-act small text-muted">Create</div>
-                                <div class="rfp-col-act small text-muted">Edit</div>
-                                <div class="rfp-col-act small text-muted">Delete</div>
+                                @foreach ($actions as $action)
+                                <div class="rfp-col-act small text-muted">{{ $actionLabels[$action] ?? ucfirst($action) }}</div>
+                                @endforeach
                             </div>
                             <div class="border-top">
                                 @foreach ($flatModules as $m)
@@ -341,19 +442,17 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
                                     <i class="ti ti-list-details text-muted" title="{{ $m['field_count'] }} fields"></i>
                                     @endif
                                 </div>
+                                @foreach ($actions as $action)
                                 <div class="rfp-col-act"></div>
-                                <div class="rfp-col-act"></div>
-                                <div class="rfp-col-act"></div>
-                                <div class="rfp-col-act"></div>
+                                @endforeach
                             </div>
 
                             <div class="rfp-submodules border-top">
                                 <div class="rfp-sub-head d-flex align-items-center px-3 py-1">
                                     <div class="rfp-col-name">Submodule</div>
-                                    <div class="rfp-col-act">View</div>
-                                    <div class="rfp-col-act">Create</div>
-                                    <div class="rfp-col-act">Edit</div>
-                                    <div class="rfp-col-act">Delete</div>
+                                    @foreach ($actions as $action)
+                                    <div class="rfp-col-act">{{ $actionLabels[$action] ?? ucfirst($action) }}</div>
+                                    @endforeach
                                 </div>
                                 @foreach ($m['submodules'] as $sub)
                                 <div class="rfp-sub-row d-flex align-items-center px-3 py-2 {{ $sub['has_fields'] ? 'rfp-selectable' : '' }}"
@@ -480,8 +579,8 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
     }
 
     .rfp-page .rfp-col-act {
-        flex: 0 0 84px;
-        width: 84px;
+        flex: 0 0 72px;
+        width: 72px;
         text-align: center;
     }
 
@@ -811,6 +910,22 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
         });
         $('#rfpDynamicClearAll').on('click', function() {
             setAllDynamicToggles(false);
+        });
+
+        function setAllVoucherApprovalToggles(enabled) {
+            $('.rfp-voucher-approval-section .rfp-perm-toggle').each(function() {
+                var $t = $(this);
+                if ($t.prop('checked') === enabled) {
+                    return;
+                }
+                $t.prop('checked', enabled).trigger('change');
+            });
+        }
+        $('#rfpVoucherApprovalSelectAll').on('click', function() {
+            setAllVoucherApprovalToggles(true);
+        });
+        $('#rfpVoucherApprovalClearAll').on('click', function() {
+            setAllVoucherApprovalToggles(false);
         });
 
         function syncRiderStatusEnforceUi() {

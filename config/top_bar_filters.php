@@ -110,7 +110,24 @@ return [
             'column_attribute' => 'bike_column',
             'filter_strategy' => 'option_fk',
             'fk_column' => 'bike_top_option_id',
-            'listing_default_statuses' => ['active', 'inactive'],
+            // Match bike status column / page totals: warehouse On Road / Off Road (not numeric status).
+            'listing_default_statuses' => ['on_road', 'off_road'],
+            'listing_stats' => [
+                'on_road' => ['label' => 'On Road', 'icon' => 'ti-road'],
+                'off_road' => ['label' => 'Off Road', 'icon' => 'ti-ban'],
+            ],
+            'status_filters' => [
+                'on_road' => [
+                    'column' => 'warehouse',
+                    'operator' => 'in',
+                    'value' => ['Active', 'Absconded'],
+                ],
+                'off_road' => [
+                    'column' => 'warehouse',
+                    'operator' => 'in',
+                    'value' => ['Return', 'Vacation', 'Express Garage', 'Inactive'],
+                ],
+            ],
             'request' => [
                 'option_id' => 'bike_top_option_id',
                 'status' => 'bike_top_wh',
@@ -147,12 +164,22 @@ return [
 
         'visa_expense' => [
             'storage' => 'generic',
+            'source_table' => 'visa_expenses',
             'filter_strategy' => 'column',
+            'listing_default_statuses' => ['paid', 'unpaid'],
             'request' => [
                 'option_id' => 'top_option_id',
                 'filter_mode' => 'top_filter_mode',
                 'date_from' => 'top_date_from',
                 'date_to' => 'top_date_to',
+            ],
+            'status_filters' => [
+                'paid' => ['column' => 'payment_status', 'operator' => '=', 'value' => 'paid'],
+                'unpaid' => ['column' => 'payment_status', 'operator' => '=', 'value' => 'unpaid'],
+            ],
+            'listing_stats' => [
+                ['key' => 'paid', 'label' => 'Paid', 'css' => 'active'],
+                ['key' => 'unpaid', 'label' => 'Unpaid', 'css' => 'inactive'],
             ],
         ],
 

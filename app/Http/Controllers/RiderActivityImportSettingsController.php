@@ -65,6 +65,17 @@ class RiderActivityImportSettingsController extends Controller
             ? array_merge(array_fill_keys(array_keys($staticRequired), false), $storedRequired)
             : $staticRequired;
 
+        $fieldLabels = RiderActivityImportMappingService::fieldLabels();
+        $orderedFieldKeys = $resolved['ordered_field_keys']
+            ?? array_keys($resolved['column_mappings']);
+        $orderedFieldKeys = array_values(array_filter(
+            $orderedFieldKeys,
+            static fn ($key) => array_key_exists($key, $fieldLabels)
+        ));
+        if ($orderedFieldKeys === []) {
+            $orderedFieldKeys = array_keys($fieldLabels);
+        }
+
         return view('settings.rider_activity_import.index', [
             'customers' => $customers,
             'selectedCustomerId' => $selectedCustomerId,
@@ -72,7 +83,8 @@ class RiderActivityImportSettingsController extends Controller
             'importTypeLabels' => RiderActivityImportMappingService::importTypeLabels(),
             'headerRowsToSkip' => $resolved['header_rows_to_skip'],
             'columnMappings' => $resolved['column_mappings'],
-            'fieldLabels' => RiderActivityImportMappingService::fieldLabels(),
+            'orderedFieldKeys' => $orderedFieldKeys,
+            'fieldLabels' => $fieldLabels,
             'requiredFields' => $requiredFields,
             'defaultMappings' => RiderActivityImportMappingService::defaultColumnMappings($importType),
             'defaultCustomerId' => RiderActivityImportMappingService::DEFAULT_CUSTOMER_ID,
@@ -88,35 +100,75 @@ class RiderActivityImportSettingsController extends Controller
 
         $importType = RiderActivityImportMappingService::normalizeImportType($request->input('import_type'));
 
-        $validated = $request->validate([
+        $allowedFields = array_keys(RiderActivityImportMappingService::fieldLabels());
+        $rules = [
             'customer_id' => 'required|integer|exists:customers,id',
             'import_type' => 'required|in:rider,live',
             'header_rows_to_skip' => 'required|integer|min:0|max:20',
-            'column_mappings' => 'required|array',
-            'column_mappings.date' => 'required|integer|min:0',
-            'column_mappings.rider_id' => 'required|integer|min:0',
-            'column_mappings.payout_type' => 'nullable|integer|min:0',
-            'column_mappings.delivery_rating' => 'nullable|integer|min:0',
-            'column_mappings.login_hr' => 'nullable|integer|min:0',
-            'column_mappings.delivered_orders' => 'nullable|integer|min:0',
-            'column_mappings.cancelled_orders' => 'nullable|integer|min:0',
-            'column_mappings.rejected_orders' => 'nullable|integer|min:0',
-            'column_mappings.ontime_orders_percentage' => 'nullable|integer|min:0',
+            'column_mappings' => 'required|array|min:2',
+            'field_order' => 'sometimes|array',
+            'field_order.*' => 'string',
             'required_fields' => 'sometimes|array',
             'required_fields.*' => 'string',
             'is_active' => 'sometimes|boolean',
-        ]);
+        ];
+
+        foreach ($allowedFields as $fieldKey) {
+            $isAlwaysRequired = in_array(
+                $fieldKey,
+                RiderActivityImportMappingService::alwaysRequiredFieldKeys(),
+                true
+            );
+            $rules["column_mappings.{$fieldKey}"] = $isAlwaysRequired
+                ? 'required|integer|min:0'
+                : 'nullable|integer|min:0';
+        }
+
+        $validated = $request->validate($rules);
 
         $customerId = (int) $validated['customer_id'];
-        $columnMappings = $this->mappingService->sanitizeColumnMappings($validated['column_mappings'], $importType);
 
-        // Build a boolean map: date and rider_id are always required regardless of toggle
-        $alwaysRequired = ['date', 'rider_id'];
+        // Prefer explicit field_order (from drag-sort) so mapping key order is preserved.
+        $orderedInput = [];
+        $rawMappings = (array) ($validated['column_mappings'] ?? []);
+        $fieldOrder = array_values(array_unique(array_filter(
+            (array) ($validated['field_order'] ?? array_keys($rawMappings)),
+            static fn ($key) => is_string($key) && $key !== ''
+        )));
+
+        foreach ($fieldOrder as $fieldKey) {
+            if (! array_key_exists($fieldKey, $rawMappings)) {
+                continue;
+            }
+            $orderedInput[$fieldKey] = $rawMappings[$fieldKey];
+        }
+        foreach ($rawMappings as $fieldKey => $value) {
+            if (! array_key_exists($fieldKey, $orderedInput)) {
+                $orderedInput[$fieldKey] = $value;
+            }
+        }
+
+        $columnMappings = $this->mappingService->sanitizeColumnMappings(
+            $orderedInput,
+            $importType,
+            false,
+            $fieldOrder
+        );
+
+        // Required map excludes meta keys and removed fields.
+        $alwaysRequired = RiderActivityImportMappingService::alwaysRequiredFieldKeys();
         $submittedRequired = array_flip((array) ($validated['required_fields'] ?? []));
+        $mappingKeys = array_keys(array_filter(
+            $columnMappings,
+            static fn ($value, $key) => $key !== RiderActivityImportMappingService::ORDER_META_KEY,
+            ARRAY_FILTER_USE_BOTH
+        ));
         $requiredFieldsMap = [];
-        foreach (array_keys(RiderActivityImportMappingService::fieldLabels()) as $fieldKey) {
+        foreach ($allowedFields as $fieldKey) {
             if (in_array($fieldKey, $alwaysRequired, true)) {
                 $requiredFieldsMap[$fieldKey] = true;
+            } elseif (! in_array($fieldKey, $mappingKeys, true)) {
+                $requiredFieldsMap[$fieldKey] = false;
             } else {
                 $requiredFieldsMap[$fieldKey] = isset($submittedRequired[$fieldKey]);
             }
@@ -178,10 +230,11 @@ class RiderActivityImportSettingsController extends Controller
         $customerId = (int) ($request->input('customer_id', $request->get('customer_id')) ?: RiderActivityImportMappingService::DEFAULT_CUSTOMER_ID);
 
         if ($request->filled('column_mappings')) {
-            $columnMappings = $this->mappingService->sanitizeColumnMappings(
+            $normalized = $this->mappingService->normalizeStoredMappings(
                 (array) $request->input('column_mappings'),
                 $importType
             );
+            $columnMappings = $normalized['column_mappings'];
             $headerRowsToSkip = max(0, (int) $request->input('header_rows_to_skip', RiderActivityImportMappingService::defaultHeaderRowsToSkip()));
         } else {
             $resolved = $this->mappingService->resolve($customerId, $importType);

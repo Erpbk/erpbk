@@ -115,7 +115,7 @@ return [
             'children' => [
                 ['key' => 'bike_rent_companies', 'settings' => 'bike_on_rent'],
                 ['key' => 'bike_rent_individuals', 'settings' => 'bike_on_rent'],
-                ['key' => 'leasing_billing_invoice', 'permission' => 'billing_invoice_view', 'settings' => 'bike_on_rent'],
+                ['key' => 'leasing_billing_invoice', 'permission' => 'billing_invoice_view', 'settings' => 'leasing_billing_invoice', 'label' => 'Billing Invoice'],
                 ['key' => 'bike_rent_customer_receipts', 'settings' => 'bike_on_rent'],
             ],
         ],
@@ -151,13 +151,16 @@ return [
         [
             'key' => 'visa_expense',
             'visibility' => 'visa expense',
-            'permission' => 'visa_expense_view',
+            'permission' => [
+                'visa_expense_account_creation_view',
+                'visa_expense_entries_view',
+            ],
             'icon' => 'ti-credit-card',
         ],
         [
             'key' => 'installments',
             'visibility' => 'installments',
-            'permission' => 'visa_expense_view',
+            'permission' => 'visa_expense_installments_view',
             'icon' => 'ti-calendar-dollar',
         ],
         [
@@ -201,7 +204,7 @@ return [
             'icon' => 'ti-building',
             'children' => [
                 ['key' => 'leasing_companies_list', 'settings' => 'leasing_companies'],
-                ['key' => 'leasing_invoices', 'permission' => 'leasing_companies_invoices_view', 'settings' => 'leasing_companies'],
+                ['key' => 'leasing_invoices', 'permission' => 'leasing_companies_invoices_view', 'settings' => 'leasing_invoices', 'label' => 'Leasing Invoices'],
                 ['key' => 'leasing_receipt', 'permission' => 'leasing_companies_payments_view', 'settings' => 'leasing_companies'],
                 ['key' => 'leasing_payment', 'permission' => 'leasing_companies_payments_view', 'settings' => 'leasing_companies'],
             ],
@@ -224,7 +227,7 @@ return [
             'children' => [
                 ['key' => 'suppliers', 'settings' => 'supplier', 'permission' => 'suppliers_supplier_view'],
                 ['key' => 'supplier_orders', 'settings' => 'supplier', 'permission' => 'suppliers_purchase_order_view'],
-                ['key' => 'supplier_invoices', 'settings' => 'supplier', 'permission' => 'suppliers_invoices_view'],
+                ['key' => 'supplier_invoices', 'settings' => 'supplier_invoices', 'permission' => 'suppliers_invoices_view', 'label' => 'Supplier Invoices'],
                 ['key' => 'supplier_payments', 'settings' => 'supplier', 'permission' => 'suppliers_payments_view'],
             ],
         ],
@@ -253,6 +256,18 @@ return [
             'visibility' => 'vouchers',
             'permission' => 'vouchers_view',
             'icon' => 'ti-ticket',
+        ],
+        [
+            'key' => 'voucher_signature_assignment',
+            'visibility' => 'vouchers',
+            'permission' => [
+                'voucher_signature_assignment_view',
+                'voucher_signature_assignment_edit',
+                'vouchers_view',
+                'vouchers_edit',
+            ],
+            'icon' => 'ti-writing-sign',
+            'settings' => 'voucher_signature_assignment',
         ],
         [
             'key' => 'accounts',

@@ -6,6 +6,7 @@ use App\Models\Bikes;
 use App\Models\Riders;
 use App\Models\LeasingCompanies;
 use App\Models\Customers;
+use App\Support\ExcelDate;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -13,8 +14,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
-use Carbon\Carbon;
 
 class ImportBikes implements ToCollection, WithHeadingRow
 {
@@ -184,26 +183,7 @@ class ImportBikes implements ToCollection, WithHeadingRow
 
     protected function parseDate($value)
     {
-        if (empty($value)) {
-            return null;
-        }
-
-        // Handle Excel date format
-        if (is_numeric($value)) {
-            try {
-                return Carbon::instance(Date::excelToDateTimeObject($value))->format('Y-m-d');
-            } catch (\Exception $e) {
-                // If Excel date parsing fails, try regular date parsing
-                return Carbon::parse($value)->format('Y-m-d');
-            }
-        }
-
-        // Try parsing as regular date string
-        try {
-            return Carbon::parse($value)->format('Y-m-d');
-        } catch (\Exception $e) {
-            return null;
-        }
+        return ExcelDate::format($value);
     }
 
     /**

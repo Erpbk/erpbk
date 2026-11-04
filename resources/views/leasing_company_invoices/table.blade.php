@@ -21,9 +21,9 @@
       @forelse($data as $invoice)
       <tr class="text-center" data-id="{{ $invoice->id }}">
          <td>{{ $invoice->id }}</td>
-         <td><a href="javascript:void(0);" data-action="{{ route('leasingCompanyInvoices.show', $invoice->id) }}" class="show-modal-right">{{ $invoice->invoice_number ?? 'LCI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT) }}</a></td>
+         <td><a href="javascript:void(0);" data-action="{{ route('leasingCompanyInvoices.show', $invoice->id) }}" data-size="xl" class="show-modal-right">{{ $invoice->invoice_number ?? 'LCI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT) }}</a></td>
          <td>{{ \Carbon\Carbon::parse($invoice->inv_date)->format('d M Y') }}</td>
-         <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}</td>
+         <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M-Y') }}</td>
          <td>{{ $invoice->leasingCompany->name ?? '-' }}</td>
          <td>
             @php
@@ -43,12 +43,12 @@
          </td>
          <td>
             @if($invoice->status == 1)
-            <span class="badge bg-success">Paid</span>
+            @include('invoices.partials.status_badge', ['status' => 'paid'])
             @elseif($invoice->status == 3)
-            <span class="badge bg-warning">Partially Paid</span>
+            @include('invoices.partials.status_badge', ['status' => 'partial'])
             <small>{{ \App\Helpers\Currency::symbol() }} {{ $invoice->balance }} Due</small>
             @else
-            <span class="badge bg-danger">Unpaid</span>
+            @include('invoices.partials.status_badge', ['status' => 'unpaid'])
             @endif
          </td>
          <td>
@@ -62,11 +62,29 @@
                      <i class="fa fa-eye mx-1"></i> View
                   </a>
                   @endcan
+                  @php
+                     $lciStatus = (int) ($invoice->status ?? 0);
+                     $lciLocked = in_array($lciStatus, [1, 3], true);
+                     $lciPaymentId = $lciLocked
+                        ? \App\Support\InvoicePaymentLink::latestId(
+                            $invoice,
+                            $invoice->leasingCompany?->account_id ? (int) $invoice->leasingCompany->account_id : null
+                        )
+                        : null;
+                  @endphp
+                  @if(! $lciLocked)
                   @can('leasing_companies_invoices_edit')
                   <a href="javascript:void(0);" data-action="{{ route('leasingCompanyInvoices.edit', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Edit Invoice">
                      <i class="fa fa-edit mx-1"></i> Edit
                   </a>
                   @endcan
+                  @elseif($lciPaymentId)
+                  @canany(['leasing_companies_payments_edit', 'cash_&_banks_payments_edit'])
+                  <a href="javascript:void(0);" data-action="{{ route('payments.edit', $lciPaymentId) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Edit Payment">
+                     <i class="fa fa-money-bill mx-1 text-success"></i> Edit Payment
+                  </a>
+                  @endcanany
+                  @endif
                   @can('leasing_companies_invoices_create')
                   <a href="javascript:void(0);" data-action="{{ route('leasingCompanyInvoices.createFromClone', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Clone Invoice (Next Month)">
                      <i class="fa fa-copy mx-1 text-primary"></i> Clone (Next Month)

@@ -45,3 +45,6 @@
         <label for="status" class="pt-0">Is Active</label>
     </div>
 </div>
+
+@include('invoices.partials.party_invoice_note_fields', ['party' => $supplier ?? null, 'defaultsModule' => 'supplier_invoices'])
+

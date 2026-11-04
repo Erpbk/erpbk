@@ -56,7 +56,7 @@
 
                         <option value="">Select Account</option>
 
-                        @foreach(\App\Models\Accounts::all() as $account)
+                        @foreach(\App\Models\Accounts::query()->leafOnly()->orderBy('account_code')->get() as $account)
                             <option value="{{ $account->id }}"
                                 {{ request('account') == $account->id ? 'selected' : '' }}>
                                 {{ $account->account_code . '-' . $account->name }}

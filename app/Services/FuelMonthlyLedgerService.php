@@ -82,16 +82,19 @@ class FuelMonthlyLedgerService
         )));
 
         if ($referenceIds !== []) {
-            Transactions::where('reference_type', 'fuel')
-                ->whereIn('reference_id', $referenceIds)
-                ->delete();
+            // Hard-delete: rebuild replaces postings; soft-delete orphans must not accumulate.
+            Transactions::hardDeleteMatching(function ($query) use ($referenceIds) {
+                $query->where('reference_type', 'fuel')
+                    ->whereIn('reference_id', $referenceIds);
+            });
         }
 
         // Safety: clear any rider-side fuel ledger left for this billing month.
-        Transactions::where('reference_type', 'fuel')
-            ->where('account_id', $rider->account_id)
-            ->whereDate('billing_month', $billingMonthDate)
-            ->delete();
+        Transactions::hardDeleteMatching(function ($query) use ($rider, $billingMonthDate) {
+            $query->where('reference_type', 'fuel')
+                ->where('account_id', $rider->account_id)
+                ->whereDate('billing_month', $billingMonthDate);
+        });
 
         if ($activeRows->isEmpty()) {
             return;
@@ -115,7 +118,7 @@ class FuelMonthlyLedgerService
         $transDate = Carbon::parse($activeRows->max('trans_date'))->format('Y-m-d');
         $branchId = $rider->branch_id;
         $riderName = $rider->name ?? ('Rider #' . $rider->id);
-        $monthLabel = Carbon::parse($billingMonthDate)->format('M Y');
+        $monthLabel = Carbon::parse($billingMonthDate)->format('M-Y');
 
         $totalAmount = (float) $activeRows->sum('total');
         $totalVat = (float) $activeRows->sum('vat_amount');
@@ -130,7 +133,7 @@ class FuelMonthlyLedgerService
                 'reference_type' => 'fuel',
                 'trans_code' => $transCode,
                 'trans_date' => $transDate,
-                'narration' => 'Fuel Charges - ' . Carbon::parse($billingMonthDate)->format('M Y'),
+                'narration' => 'Fuel Charges - ' . Carbon::parse($billingMonthDate)->format('M-Y'),
                 'debit' => $riderDebit,
                 'credit' => 0,
                 'billing_month' => $billingMonthDate,

@@ -17,10 +17,11 @@ class AttendanceController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('permission:employees_attendance_view|riders_attendance_view')->only('index', 'summary');
-        $this->middleware('permission:employees_attendance_create|riders_attendance_create')->only('create', 'store');
+        $this->middleware('permission:employees_attendance_view|riders_attendance_view')->only('index', 'summary', 'export', 'exportSummary');
+        $this->middleware('permission:employees_attendance_create|riders_attendance_create|employees_attendance_edit|riders_attendance_edit')->only('upsertMark');
+        $this->middleware('permission:employees_attendance_create|riders_attendance_create')->only('create', 'store', 'bulkMark', 'import', 'importTemplate');
         $this->middleware('permission:employees_attendance_edit|riders_attendance_edit')->only('edit', 'update');
-        $this->middleware('permission:employees_attendance_delete|riders_attendance_delete')->only('destroy');
+        $this->middleware('permission:employees_attendance_delete|riders_attendance_delete')->only('destroy', 'clearMark');
     }
     /**
      * Display a listing of attendance records.
@@ -30,6 +31,11 @@ class AttendanceController extends Controller
         if (! \App\Support\RoleFieldAccess::canAccessModule('attendance')) {
             abort(403, 'Unauthorized action.');
         }
+
+        $refType = $request->get('ref_type', $request->get('user_type', 'employee')) ?: 'employee';
+        $request->merge(['ref_type' => $refType]);
+
+        $billingMonth = $this->applyBillingMonthFilter($request);
 
         $query = Attendance::with('user');
         $this->applyAttendanceListFilters($query, $request);
@@ -44,7 +50,104 @@ class AttendanceController extends Controller
 
         ['projects' => $projects, 'fleetSupervisors' => $fleetSupervisors] = $this->riderFilterOptions();
 
-        return view('attendance.index', compact('attendances', 'projects', 'fleetSupervisors'));
+        $reportKpis = [
+            'total' => $attendances->count(),
+            'present' => $attendances->where('status', 'present')->count(),
+            'late' => $attendances->where('status', 'late')->count(),
+            'absent' => $attendances->where('status', 'absent')->count(),
+            'leave' => $attendances->where('status', 'on leave')->count(),
+            'half' => $attendances->where('status', 'half day')->count(),
+            'weekend' => $attendances->where('status', 'weekend')->count(),
+        ];
+
+        $monthStart = $request->filled('from_date')
+            ? Carbon::parse($request->get('from_date'))->startOfDay()
+            : Carbon::createFromFormat('Y-m', $billingMonth)->startOfMonth();
+        $monthEnd = $request->filled('to_date')
+            ? Carbon::parse($request->get('to_date'))->endOfDay()
+            : Carbon::createFromFormat('Y-m', $billingMonth)->endOfMonth();
+        if ($request->filled('date') && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->get('date'))) {
+            $monthStart = Carbon::parse($request->get('date'))->startOfMonth();
+            $monthEnd = Carbon::parse($request->get('date'))->endOfMonth();
+        }
+
+        $refIdFilter = $request->get('ref_id', $request->get('user_id', 'all')) ?: 'all';
+        $projectId = $request->get('project_id');
+        $fleetSupervisor = $request->get('fleet_supervisor');
+        $users = $this->getUsersForSummary($refType, $refIdFilter, $projectId, $fleetSupervisor);
+
+        $attendancesByUser = $attendances
+            ->where('ref_type', $refType)
+            ->groupBy('ref_id');
+
+        $personSheets = [];
+        foreach ($users as $user) {
+            $group = collect($attendancesByUser->get($user->id, []));
+            $byDate = [];
+            foreach ($group as $row) {
+                $key = $row->date instanceof Carbon
+                    ? $row->date->format('Y-m-d')
+                    : Carbon::parse($row->date)->format('Y-m-d');
+                $byDate[$key] = $row->status;
+            }
+            $presentCount = $group->where('status', 'present')->count();
+            $lateCount = $group->where('status', 'late')->count();
+            $halfCount = $group->where('status', 'half day')->count();
+            $absentCount = $group->where('status', 'absent')->count();
+            $leaveCount = $group->where('status', 'on leave')->count();
+            $weekendCount = $group->where('status', 'weekend')->count();
+            $totalDays = $presentCount + $lateCount + $halfCount + $absentCount + $leaveCount + $weekendCount;
+            if ($totalDays < 1) {
+                continue;
+            }
+            $credited = $presentCount + $lateCount + ($halfCount * 0.5);
+            $workingDays = max(0, $totalDays - $weekendCount);
+            $pct = $workingDays > 0 ? (int) round(($credited / $workingDays) * 100) : 0;
+            $photo = null;
+            if ($refType === 'employee' && method_exists($user, 'getProfileImageUrlAttribute')) {
+                $photo = $user->profile_image_url;
+            } elseif (! empty($user->profile_image)) {
+                $photo = url('/storage/' . ltrim(str_replace('\\', '/', (string) $user->profile_image), '/'));
+            }
+
+            $personSheets[] = [
+                'ref_type' => $refType,
+                'ref_id' => $user->id,
+                'name' => $user->name,
+                'code' => $user->employee_id ?? $user->rider_id ?? '',
+                'designation' => $user->designation ?? '',
+                'photo' => $photo,
+                'present' => $presentCount,
+                'late' => $lateCount,
+                'absent' => $absentCount,
+                'leave' => $leaveCount,
+                'half' => $halfCount,
+                'weekend' => $weekendCount,
+                'total' => $totalDays,
+                'pct' => $pct,
+                'by_date' => $byDate,
+            ];
+        }
+
+        // Keep name order stable for the report table
+        usort($personSheets, fn ($a, $b) => strcasecmp((string) $a['name'], (string) $b['name']));
+
+        $importPeople = $users;
+        $openImport = $request->boolean('import');
+
+        return view('attendance.index', compact(
+            'attendances',
+            'projects',
+            'fleetSupervisors',
+            'reportKpis',
+            'personSheets',
+            'monthStart',
+            'monthEnd',
+            'billingMonth',
+            'refType',
+            'importPeople',
+            'openImport'
+        ));
     }
 
     /**
@@ -259,11 +362,24 @@ class AttendanceController extends Controller
      */
     public function getUsers($company_slug, $refType)
     {
-        $users = null;
         if ($refType === 'employee') {
-            $users = Employee::select('id', 'name')->get();
+            $users = Employee::query()
+                ->select('id', 'name', 'employee_id')
+                ->orderBy('name')
+                ->get()
+                ->map(fn ($u) => [
+                    'id' => $u->id,
+                    'name' => trim($u->name . (! empty($u->employee_id) ? ' (' . $u->employee_id . ')' : '')),
+                ]);
         } else {
-            $users = Riders::select('id', 'name')->get();
+            $users = Riders::query()
+                ->select('id', 'name', 'rider_id')
+                ->orderBy('name')
+                ->get()
+                ->map(fn ($u) => [
+                    'id' => $u->id,
+                    'name' => trim($u->name . (! empty($u->rider_id) ? ' (' . $u->rider_id . ')' : '')),
+                ]);
         }
 
         return response()->json($users);
@@ -404,9 +520,159 @@ class AttendanceController extends Controller
 
 
     /**
-     * Export attendance to CSV
-     */ public function export(Request $request)
+     * Show / process CSV attendance import (Employee Name, Date, Status, Check In, Check Out).
+     */
+    public function import(Request $request)
     {
+        $refType = $request->input('ref_type', $request->input('user_type', 'employee'));
+        if (! in_array($refType, ['employee', 'rider'], true)) {
+            $refType = 'employee';
+        }
+
+        if ($request->isMethod('post')) {
+            $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:10240',
+                'ref_type' => 'required|in:employee,rider',
+            ]);
+
+            $refType = $request->input('ref_type');
+            $handle = fopen($request->file('file')->getRealPath(), 'r');
+            if ($handle === false) {
+                return back()->with('error', 'Unable to read uploaded file.');
+            }
+
+            $header = fgetcsv($handle);
+            $imported = 0;
+            $skipped = 0;
+
+            while (($row = fgetcsv($handle)) !== false) {
+                if (count(array_filter($row, fn ($v) => trim((string) $v) !== '')) === 0) {
+                    continue;
+                }
+
+                $name = trim((string) ($row[0] ?? ''));
+                $date = trim((string) ($row[1] ?? ''));
+                $statusRaw = strtolower(trim((string) ($row[2] ?? 'present')));
+                $checkIn = trim((string) ($row[3] ?? ''));
+                $checkOut = trim((string) ($row[4] ?? ''));
+
+                if ($name === '' || $date === '') {
+                    $skipped++;
+                    continue;
+                }
+
+                try {
+                    $dateVal = Carbon::parse($date)->format('Y-m-d');
+                } catch (\Throwable $e) {
+                    $skipped++;
+                    continue;
+                }
+
+                $person = $refType === 'employee'
+                    ? Employee::query()->where(function ($q) use ($name) {
+                        $q->where('name', $name)->orWhere('employee_id', $name);
+                    })->first()
+                    : Riders::query()->where(function ($q) use ($name) {
+                        $q->where('name', $name)->orWhere('rider_id', $name);
+                    })->first();
+
+                if (! $person) {
+                    $skipped++;
+                    continue;
+                }
+
+                $status = $this->normalizeImportedAttendanceStatus($statusRaw);
+                $payload = [
+                    'ref_id' => $person->id,
+                    'ref_type' => $refType,
+                    'date' => $dateVal,
+                    'status' => $status,
+                    'branch_id' => $this->resolveBranchIdForAttendance($refType, $person->id),
+                ];
+                if ($checkIn !== '') {
+                    $payload['check_in'] = $dateVal . ' ' . $checkIn;
+                }
+                if ($checkOut !== '') {
+                    $payload['check_out'] = $dateVal . ' ' . $checkOut;
+                }
+
+                Attendance::updateOrCreate(
+                    [
+                        'ref_id' => $person->id,
+                        'ref_type' => $refType,
+                        'date' => $dateVal,
+                    ],
+                    $payload
+                );
+                $imported++;
+            }
+            fclose($handle);
+
+            $message = "Imported {$imported} attendance row(s). Skipped {$skipped}.";
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'imported' => $imported,
+                    'skipped' => $skipped,
+                    'redirect' => route('attendance.summary', ['user_type' => $refType]),
+                ]);
+            }
+
+            return redirect()
+                ->route('attendance.summary', ['user_type' => $refType])
+                ->with('success', $message);
+        }
+
+        // GET: open Attendance with import modal (HTML demo parity)
+        return redirect()->route('attendance.summary', [
+            'user_type' => $refType,
+            'import' => 1,
+        ]);
+    }
+
+    public function importTemplate(Request $request)
+    {
+        $refType = $request->get('ref_type', $request->get('user_type', 'employee')) ?: 'employee';
+        if (! in_array($refType, ['employee', 'rider'], true)) {
+            $refType = 'employee';
+        }
+        $people = $this->getUsersForSummary($refType, 'all');
+        $today = now()->format('Y-m-d');
+        $nameHeader = $refType === 'rider' ? 'Rider Name' : 'Employee Name';
+        $filename = 'attendance-import-template-' . $refType . '-' . $today . '.csv';
+
+        return response()->streamDownload(function () use ($people, $today, $nameHeader) {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fputcsv($handle, [$nameHeader, 'Date', 'Status', 'Check In', 'Check Out']);
+            // Match HTML demo: name + today filled; Status / Check In / Check Out left blank
+            if ($people->isEmpty()) {
+                fputcsv($handle, ['Example Name', $today, '', '', '']);
+            } else {
+                foreach ($people as $person) {
+                    fputcsv($handle, [
+                        $person->name,
+                        $today,
+                        '',
+                        '',
+                        '',
+                    ]);
+                }
+            }
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    /**
+     * Export attendance to CSV
+     */
+    public function export(Request $request)
+    {
+        $this->applyBillingMonthFilter($request);
+
         $query = Attendance::with('user');
         $this->applyAttendanceListFilters($query, $request, false);
 
@@ -460,15 +726,31 @@ class AttendanceController extends Controller
     public function summary(Request $request)
     {
         $userType = $request->get('user_type', $request->get('ref_type', 'employee')) ?: 'employee';
-        $usersId = $request->get('user_id', $request->get('ref_id', 'all')) ?: 'all';
+        if (! in_array($userType, ['employee', 'rider'], true)) {
+            $userType = 'employee';
+        }
+        $usersId = $request->input('user_id', $request->input('ref_id', 'all'));
+        if ($usersId === null || $usersId === '' || $usersId === 'all') {
+            $usersId = 'all';
+        }
         $projectId = $request->get('project_id');
         $fleetSupervisor = $request->get('fleet_supervisor');
-        $viewMode = $request->get('view_mode', 'ten_days');
+        $viewMode = $request->get('view_mode', 'ten_days') ?: 'ten_days';
         $viewStart = max(1, (int) $request->get('view_start', 1));
         $statusFilter = $this->normalizeAttendanceStatus($request->get('status'));
         $fromDate = $request->filled('from_date') ? $request->get('from_date') : null;
         $toDate = $request->filled('to_date') ? $request->get('to_date') : null;
         $filterDate = $request->filled('filter_date') ? $request->get('filter_date') : null;
+
+        // Full Month / Week / 10 Days links omit From/To. If those dates are still present,
+        // treat as custom range — unless force_calendar=1 is passed with a window mode.
+        $calendarModes = ['week', 'ten_days', 'month'];
+        $forceCalendar = $request->boolean('force_calendar') && in_array($viewMode, $calendarModes, true);
+        if ($forceCalendar) {
+            $fromDate = null;
+            $toDate = null;
+            $filterDate = null;
+        }
 
         $rawDate = trim((string) $request->get('date', ''));
         if ($rawDate === '') {
@@ -492,6 +774,9 @@ class AttendanceController extends Controller
         }
 
         $isCustomRange = filled($fromDate) || filled($toDate);
+        if ($isCustomRange) {
+            $viewMode = 'range';
+        }
         $rangeStart = $isCustomRange
             ? Carbon::parse($fromDate ?: $startOfMonth)
             : $startOfMonth;
@@ -507,10 +792,14 @@ class AttendanceController extends Controller
 
         // Get all users based on type
         $users = $this->getUsersForSummary($userType, $usersId, $projectId, $fleetSupervisor);
+        $filterUsers = $usersId === 'all'
+            ? $users
+            : $this->getUsersForSummary($userType, 'all', $projectId, $fleetSupervisor);
         ['projects' => $projects, 'fleetSupervisors' => $fleetSupervisors] = $this->riderFilterOptions();
 
-        // Get attendance for the visible range
-        $attendances = Attendance::whereBetween('date', [$rangeStart->format('Y-m-d'), $rangeEnd->format('Y-m-d')])
+        // Get attendance for the visible range (scoped to user type)
+        $attendances = Attendance::where('ref_type', $userType)
+            ->whereBetween('date', [$rangeStart->format('Y-m-d'), $rangeEnd->format('Y-m-d')])
             ->get();
 
         // Group attendances by ref_id for easier access
@@ -624,6 +913,10 @@ class AttendanceController extends Controller
                         'check_in' => $attendance->check_in ? Carbon::parse($attendance->check_in)->format('h:i A') : null,
                         'check_out' => $attendance->check_out ? Carbon::parse($attendance->check_out)->format('h:i A') : null,
                         'notes' => $attendance->notes,
+                        'total_orders' => $attendance->total_orders,
+                        'working_hours' => $attendance->working_hours,
+                        'cancelled_orders' => $attendance->cancelled_orders,
+                        'rejected_orders' => $attendance->rejected_orders,
                         'ontime_orders_percentage' => $user->type === 'rider'
                             ? ($riderActivitiesByUser[$user->id][$dateString] ?? null)
                             : null,
@@ -663,7 +956,18 @@ class AttendanceController extends Controller
             $user->attendance_data = $attendance_data;
         }
 
-        if ($statusFilter) {
+        $rawStatus = trim((string) $request->get('status', ''));
+        if ($rawStatus === 'unmarked') {
+            $users = $users->filter(function ($user) {
+                foreach ($user->attendance_data ?? [] as $row) {
+                    if (empty($row['exists'])) {
+                        return true;
+                    }
+                }
+                return false;
+            })->values();
+            $statusFilter = 'unmarked';
+        } elseif ($statusFilter) {
             $users = $users->filter(function ($user) use ($statusFilter) {
                 foreach ($user->attendance_data ?? [] as $row) {
                     if (($row['status'] ?? null) === $statusFilter) {
@@ -701,8 +1005,66 @@ class AttendanceController extends Controller
         $prevMonth = $date->copy()->subMonth()->format('Y-m-d');
         $nextMonth = $date->copy()->addMonth()->format('Y-m-d');
 
+        $branchTabs = collect();
+        if ($userType === 'employee') {
+            $branchTabs = $users
+                ->groupBy(fn ($u) => $u->branch_id ?: 0)
+                ->map(function ($group, $branchId) {
+                    $first = $group->first();
+
+                    return [
+                        'id' => (int) $branchId,
+                        'name' => $branchId
+                            ? (string) ($first->branch->name ?? 'Branch')
+                            : 'No branch',
+                        'count' => $group->count(),
+                    ];
+                })
+                ->sortBy('name')
+                ->values();
+        }
+        $selectedBranchId = $request->filled('branch_id') ? (int) $request->get('branch_id') : null;
+        if ($selectedBranchId !== null) {
+            $users = $users->filter(function ($user) use ($selectedBranchId) {
+                return (int) ($user->branch_id ?: 0) === $selectedBranchId;
+            })->values();
+            $totalUsers = $users->count();
+        }
+
+        $todayKey = now()->format('Y-m-d');
+        $todayPresent = 0;
+        $todayLate = 0;
+        $todayAbsent = 0;
+        $todayUnmarked = 0;
+        foreach ($users as $user) {
+            $row = $user->attendance_data[$todayKey] ?? null;
+            if (! $row || empty($row['exists'])) {
+                $todayUnmarked++;
+                continue;
+            }
+            match ($row['status'] ?? '') {
+                'present' => $todayPresent++,
+                'late' => $todayLate++,
+                'absent' => $todayAbsent++,
+                default => null,
+            };
+        }
+        $todayKpis = [
+            'total' => $totalUsers,
+            'present' => $todayPresent,
+            'late' => $todayLate,
+            'absent' => $todayAbsent,
+            'unmarked' => $todayUnmarked,
+        ];
+
+        $importPeople = $filterUsers ?? $users;
+        $openImport = $request->boolean('import');
+
         return view('attendance.summary', compact(
             'users',
+            'filterUsers',
+            'importPeople',
+            'openImport',
             'days',
             'date',
             'userType',
@@ -731,8 +1093,125 @@ class AttendanceController extends Controller
             'fromDate',
             'toDate',
             'isCustomRange',
-            'filterDate'
+            'filterDate',
+            'todayKpis',
+            'branchTabs',
+            'selectedBranchId'
         ));
+    }
+
+    /**
+     * Create or update a single day attendance mark (HTML-demo mark modal).
+     */
+    public function upsertMark(Request $request)
+    {
+        $rules = [
+            'ref_type' => 'required|in:employee,rider',
+            'ref_id' => 'required|integer',
+            'date' => 'required|date',
+            'status' => 'required|in:present,absent,late,half day,weekend,on leave',
+            'check_in' => 'nullable|string',
+            'check_out' => 'nullable|string',
+            'notes' => 'nullable|string|max:500',
+        ];
+        if ($request->input('ref_type') === 'rider') {
+            $rules = array_merge($rules, $this->riderAttendanceMetricRules());
+        }
+
+        $validated = $request->validate($rules);
+        if (($validated['ref_type'] ?? '') === 'rider') {
+            $validated = $this->applyRiderMetricDefaults($validated);
+        }
+
+        if ($validated['ref_type'] === 'employee') {
+            abort_unless(Employee::where('id', $validated['ref_id'])->exists(), 404);
+        } else {
+            abort_unless(Riders::where('id', $validated['ref_id'])->exists(), 404);
+        }
+
+        $date = Carbon::parse($validated['date'])->format('Y-m-d');
+        $checkIn = null;
+        $checkOut = null;
+        if (! empty($validated['check_in'])) {
+            $checkIn = Carbon::parse($date . ' ' . $validated['check_in'])->format('Y-m-d H:i:s');
+        }
+        if (! empty($validated['check_out'])) {
+            $checkOut = Carbon::parse($date . ' ' . $validated['check_out'])->format('Y-m-d H:i:s');
+        }
+
+        $payload = [
+            'status' => $validated['status'],
+            'check_in' => $checkIn,
+            'check_out' => $checkOut,
+            'notes' => $validated['notes'] ?? null,
+            'branch_id' => $this->resolveBranchIdForAttendance($validated['ref_type'], (int) $validated['ref_id']),
+        ];
+
+        if ($validated['ref_type'] === 'rider') {
+            $payload['total_orders'] = (int) ($validated['total_orders'] ?? 0);
+            $payload['working_hours'] = (float) ($validated['working_hours'] ?? 0);
+            $payload['cancelled_orders'] = (int) ($validated['cancelled_orders'] ?? 0);
+            $payload['rejected_orders'] = (int) ($validated['rejected_orders'] ?? 0);
+        }
+
+        $attendance = Attendance::updateOrCreate(
+            [
+                'ref_id' => (int) $validated['ref_id'],
+                'ref_type' => $validated['ref_type'],
+                'date' => $date,
+            ],
+            $payload
+        );
+
+        $activitySync = $payload;
+        if ($validated['ref_type'] === 'rider' && $request->filled('ontime_orders_percentage')) {
+            $activitySync['ontime_orders_percentage'] = (float) $request->input('ontime_orders_percentage');
+        }
+
+        if ($validated['ref_type'] === 'rider') {
+            RiderAttendanceActivitySync::syncActivityFromAttendance(
+                (int) $validated['ref_id'],
+                $date,
+                RiderAttendanceActivitySync::syncDataFromAttendance($attendance, $activitySync)
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Attendance saved.',
+            'attendance' => [
+                'id' => $attendance->id,
+                'status' => $attendance->status,
+                'check_in' => $attendance->check_in ? Carbon::parse($attendance->check_in)->format('H:i') : null,
+                'check_out' => $attendance->check_out ? Carbon::parse($attendance->check_out)->format('H:i') : null,
+                'total_orders' => $attendance->total_orders,
+                'working_hours' => $attendance->working_hours,
+                'cancelled_orders' => $attendance->cancelled_orders,
+                'rejected_orders' => $attendance->rejected_orders,
+                'ontime_orders_percentage' => $activitySync['ontime_orders_percentage'] ?? null,
+            ],
+        ]);
+    }
+
+    public function clearMark(Request $request)
+    {
+        $validated = $request->validate([
+            'ref_type' => 'required|in:employee,rider',
+            'ref_id' => 'required|integer',
+            'date' => 'required|date',
+        ]);
+
+        $date = Carbon::parse($validated['date'])->format('Y-m-d');
+        $deleted = Attendance::where('ref_id', (int) $validated['ref_id'])
+            ->where('ref_type', $validated['ref_type'])
+            ->whereDate('date', $date)
+            ->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => $deleted ? 'Attendance cleared.' : 'Nothing to clear.',
+            'cleared' => (bool) $deleted,
+        ]);
     }
 
     /**
@@ -955,6 +1434,34 @@ class AttendanceController extends Controller
     }
 
     /**
+     * Resolve billing month (YYYY-MM) and fill From/To when they are empty.
+     */
+    private function applyBillingMonthFilter(Request $request): string
+    {
+        $billingMonth = trim((string) $request->get('billing_month', ''));
+        if ($billingMonth === '' || ! preg_match('/^\d{4}-\d{2}$/', $billingMonth)) {
+            if ($request->filled('from_date')) {
+                $billingMonth = Carbon::parse($request->get('from_date'))->format('Y-m');
+            } elseif ($request->filled('date') && preg_match('/^\d{4}-\d{2}/', (string) $request->get('date'))) {
+                $billingMonth = substr((string) $request->get('date'), 0, 7);
+            } else {
+                $billingMonth = now()->format('Y-m');
+            }
+        }
+
+        if (! $request->filled('from_date') && ! $request->filled('to_date')) {
+            $billingStart = Carbon::createFromFormat('Y-m', $billingMonth)->startOfMonth();
+            $billingEnd = $billingStart->copy()->endOfMonth();
+            $request->merge([
+                'from_date' => $billingStart->format('Y-m-d'),
+                'to_date' => $billingEnd->format('Y-m-d'),
+            ]);
+        }
+
+        return $billingMonth;
+    }
+
+    /**
      * Shared list/export filters for the attendance report.
      */
     private function applyAttendanceListFilters($query, Request $request, bool $defaultToCurrentMonth = true): void
@@ -1012,6 +1519,32 @@ class AttendanceController extends Controller
         }
 
         return $status;
+    }
+
+    private function normalizeImportedAttendanceStatus(?string $status): string
+    {
+        $raw = strtolower(trim((string) $status));
+        $map = [
+            'p' => 'present',
+            'present' => 'present',
+            'l' => 'late',
+            'late' => 'late',
+            'late in' => 'late',
+            'a' => 'absent',
+            'absent' => 'absent',
+            'v' => 'on leave',
+            'leave' => 'on leave',
+            'on leave' => 'on leave',
+            'h' => 'half day',
+            'half' => 'half day',
+            'half day' => 'half day',
+            'half-day' => 'half day',
+            'w' => 'weekend',
+            'weekend' => 'weekend',
+            'off' => 'weekend',
+        ];
+
+        return $map[$raw] ?? 'present';
     }
 
     /**

@@ -1,488 +1,432 @@
 <!DOCTYPE html>
+
 <html lang="en">
 
+
+
 <head>
+
     <meta charset="UTF-8">
+
     <title>Customer Invoice #{{ $invoice->invoice_number ?? $invoice->id }} Month: {{ date('M-Y', strtotime($invoice->billing_month)) }}</title>
-    <style>
-        /* Scoped to invoice content — do not leak into app when loaded in right-side modal */
-        .invoice-box,
-        .invoice-box * {
-            box-sizing: border-box;
-        }
-        /* Standalone full-page only */
-        body:has(> .invoice-box),
-        body:has(> .controls) {
-            font-family: Calibri, Arial, sans-serif;
-            font-size: 12px;
-            color: #000;
-            background: #eef2f5;
-            margin: 0;
-            padding: 20px;
-        }
-        #rightSideModalBody:has(.invoice-box) {
-            font-family: Calibri, Arial, sans-serif;
-            font-size: 12px;
-            color: #000;
-            background: #eef2f5;
-            padding: 20px;
-        }
-        .invoice-box {
-            max-width: 1200px;
-            width: 100%;
-            margin: 0 auto;
-            background: white;
-            padding: 20px 25px;
-            border-radius: 12px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-            display: flex;
-            flex-direction: column;
-        }
 
-        /* ----- TABLES CLEAN BORDER ----- */
-        .invoice-box table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 12px;
-        }
-        .invoice-box th,
-        .invoice-box td {
-            border: 1px solid #ddd;
-            padding: 8px 10px;
-            font-size: 12px;
-            vertical-align: top;
-        }
-        .invoice-box th {
-            background: #004aad;
-            color: white;
-            font-weight: 600;
-            text-align: center;
-        }
-        .invoice-box td {
-            text-align: left;
-        }
-        .invoice-box td.num {
-            text-align: right;
-        }
-        .invoice-box .no-border td {
-            border: none;
-            padding: 4px 6px;
-        }
 
-        /* ----- HEADER STYLES (premium palette) ----- */
-        .invoice-box .primary-header { background: #211c1d; color: white; font-weight: bold; }
-        .invoice-box .secondary-header { background: #004aad; color: white; font-weight: bold; }
-        .invoice-box .accent-total { background: #5271ff; color: white; font-weight: bold; }
-        .invoice-box .light-header { background: #e6f1ff; color: #004aad; font-weight: bold; }
-        .invoice-box .amount-highlight { background: #2A62FF; color: white; font-weight: bold; }
-        .invoice-box .success-highlight { background: #004aad; color: white; font-weight: bold; }
-        .invoice-box .yellow { background: #ffff00; font-weight: bold; padding: 3px 6px; display: inline-block; }
-
-        /* ----- CARD LAYOUT ----- */
-        .invoice-box .customer-card, .invoice-box .details-card {
-            padding: 16px 18px;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-        }
-        .invoice-box .card-header {
-            margin-bottom: 14px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #004aad;
-            background-color: white !important;
-        }
-        .invoice-box .card-header strong {
-            color: #004aad;
-            font-size: 15px;
-            letter-spacing: 0.3px;
-        }
-        .details-grid {
-            display: grid;
-            grid-template-columns: 140px 1fr;
-            gap: 12px 8px;
-            align-items: baseline;
-        }
-        .detail-label {
-            font-weight: 700;
-            color: #2c3e66;
-            font-size: 12px;
-        }
-        .detail-value {
-            color: #1e293b;
-            font-weight: 500;
-        }
-        .flex-row-cards {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-        }
-        .flex-row-cards > div {
-            flex: 1;
-            min-width: 280px;
-        }
-
-        /* description block */
-        .description-block {
-            background: #f8fafc;
-            border-left: 4px solid #004aad;
-            padding: 12px 18px;
-            margin: 16px 0;
-            border-radius: 10px;
-        }
-        .notes-section {
-            margin: 20px 0;
-            padding: 12px 16px;
-            background: #fef9e6;
-            border-left: 4px solid #ffb347;
-            border-radius: 8px;
-        }
-
-        /* financial summary & grand total */
-        .financial-summary {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 10px;
-            margin-bottom: 15px;
-        }
-        .financial-summary table {
-            width: 45%;
-            min-width: 270px;
-            border: 1px solid #e2e8f0;
-        }
-        .grand-total-wrapper {
-            margin-top: 24px;
-            text-align: right;
-        }
-        .grand-total-card {
-            display: inline-block;
-            padding: 12px 28px;
-            background: #004aad;
-            color: white;
-            border-radius: 30px;
-            text-align: center;
-            box-shadow: 0 4px 12px rgba(0,74,173,0.2);
-        }
-        .grand-total-card div:first-child {
-            font-size: 14px;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
-        }
-        .grand-total-card div:last-child {
-            font-size: 26px;
-            font-weight: 800;
-        }
-
-        /* ----- PRINT BUTTONS & CONTROLS (supplier style) ----- */
-        #rightSideModalBody .print-btn,        body > .controls .print-btn {
-            background: #004aad;
-            color: #fff;
-            border: none;
-            padding: 8px 16px;
-            font-size: 13px;
-            cursor: pointer;
-            border-radius: 6px;
-            text-decoration: none;
-            display: inline-block;
-            font-weight: 500;
-            transition: 0.2s;
-        }
-        #rightSideModalBody .print-btn:hover,        body > .controls .print-btn:hover {
-            background: #2A62FF;
-        }
-        #rightSideModalBody > .controls,        body > .controls {
-            position: sticky;
-            top: 10px;
-            z-index: 100;
-            display: flex;
-            gap: 12px;
-            background: white;
-            padding: 10px 20px;
-            border-radius: 40px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            width: 95%;
-            justify-self: center;
-            margin-left: auto;
-            margin-right: auto;
-            justify-content: flex-end;
-        }
-
-        .footer-note {
-            margin-top: 28px;
-            text-align: center;
-            font-size: 11px;
-            color: #5b6e8c;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 16px;
-            margin-top: auto;
-        }
-
-        @media print {
-            body {
-                background: white;
-                padding: 0;
-                margin: 0;
-            }
-            .invoice-box {
-                box-shadow: none;
-                padding: 12px;
-                border-radius: 0;
-            }
-            .action-buttons, .no-print {
-                display: none !important;
-            }
-            .customer-card, .details-card {
-                box-shadow: none;
-                border: 1px solid #ccc;
-                break-inside: avoid;
-            }
-            th, .secondary-header, .card-header strong, .grand-total-card {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-        }
-
-        @media (max-width: 700px) {
-            .flex-row-cards {
-                flex-direction: column;
-            }
-            .invoice-box {
-                padding: 15px;
-            }
-            .financial-summary table {
-                width: 100%;
-            }
-        }
-    </style>
 </head>
+
+
+
+
 
 <body>
 
-    <div class="controls no-print">
-        <button type="button" class="print-btn js-print-modal-content">Print Invoice</button>
-    </div>
 
-    <div class="invoice-box">
+    @include('invoices.partials.tax_invoice_styles')
+
+
+    @include('invoices.partials.tax_invoice_pdf_styles')
+
+    @php
+
+    $settings = company_table('settings')->pluck('value', 'name')->toArray();
+
+    $running_total = 0;
+
+    $subtotal_from_items = 0;
+
+    $currency = \App\Helpers\Currency::code();
+
+    $defaults = \App\Support\CustomerInvoiceDefaults::all();
+
+    $invoiceTitle = $defaults['title'] ?: 'CUSTOMER INVOICE';
+
+    $customerNote = $invoice->customer_note
+
+    ?: ($invoice->customer->customer_note ?? null)
+
+    ?: ($defaults['customer_notes'] ?: null);
+
+    $termsAndConditions = $invoice->terms_and_conditions
+
+    ?: ($invoice->customer->terms_and_conditions ?? null)
+
+    ?: ($defaults['terms_and_conditions'] ?: null);
+
+    $customerNoteLabel = $invoice->customer
+
+    ? $invoice->customer->resolvedCustomerNoteLabel()
+
+    : \App\Models\Customers::DEFAULT_CUSTOMER_NOTE_LABEL;
+
+    $termsAndConditionsLabel = $invoice->customer
+
+    ? $invoice->customer->resolvedTermsAndConditionsLabel()
+
+    : \App\Models\Customers::DEFAULT_TERMS_AND_CONDITIONS_LABEL;
+
+    $invoiceNumber = $invoice->invoice_number ?? ('CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT));
+
+    $customerDisplay = $invoice->customer->company_name
+
+    ?: ($invoice->customer->name ?? 'N/A');
+
+    $projectName = $invoice->customer->name ?? 'N/A';
+
+    $noteCards = collect([
+
+    $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
+
+    $invoice->notes ? ['title' => 'Internal Notes', 'body' => $invoice->notes] : null,
+
+    ])->filter()->values();
+
+    $noteGridClass = match ($noteCards->count()) {
+
+    1 => 'one',
+
+    3 => 'three',
+
+    default => '',
+
+    };
+
+    @endphp
+
+
+
+    @if(empty($isPdf))
+
+    <div class="controls no-print">
+
         @php
-        $settings = company_table('settings')->pluck('value', 'name')->toArray();
-        $running_total = 0;
-        $subtotal_from_items = 0;
+
+            $ciStatus = $invoice->status ?? null;
+
+            $ciIsPaid = $ciStatus === 'paid' || (int) $ciStatus === 1;
+
+            $ciIsPartial = $ciStatus === 'partially_paid' || (int) $ciStatus === 3;
+
+            $ciPaymentId = \App\Support\InvoicePaymentLink::latestId(
+
+                $invoice,
+
+                $invoice->customer?->account_id ? (int) $invoice->customer->account_id : null
+
+            );
+
         @endphp
 
-        <!-- HEADER: Logo + Company + Title -->
-        <table style="margin-bottom: 20px; border: none; background: transparent;">
-            <tr style="border: none;">
-                <td style="width: 33%; border: none !important; vertical-align: middle;">
-                    @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
-                        <img src="{{ storage_url($settings['company_logo']) }}" width="150" alt="logo" />
-                    @endif
-                </td>
-                <td style="width: 34%; text-align: center; align-content: center; border: none !important;">
-                    <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ ucwords($settings['company_name']) ?? '' }}</h4>
-                    <p style="margin: 3px 0; font-size: 12px;">{{ ucwords($settings['company_address']) ?? '' }}</p>
-                    <p style="margin: 3px 0; font-size: 12px;">TEL: {{ $settings['company_phone'] ?? '' }}</p>
-                    <p style="margin: 3px 0; font-size: 12px;">TRN: {{ $settings['vat_number'] ?? '' }}</p>
-                </td>
-                <td style="width: 33%; text-align: center; align-content: center; border: none !important;">
-                    <h3 style="margin: 0; font-weight: 800; color: #004aad; font-size: 24px;">CUSTOMER INVOICE</h3>
-                </td>
-            </table>
-        </table>
+        @include('invoices.partials.action_toolbar', [
 
-        <!-- Two card layout: Customer Details + Invoice Info -->
-        <div class="flex-row-cards">
-            <!-- Customer Details Card -->
-            <div class="customer-card">
-                <div class="card-header">
-                    <strong>👤 Customer Details</strong>
-                </div>
-                <div class="details-grid">
-                    <span class="detail-label">Customer Name:</span>
-                    <span class="detail-value">{{ $invoice->customer->name ?? 'N/A' }}</span>
-                    <span class="detail-label">TRN Number:</span>
-                    <span class="detail-value">{{ $invoice->customer->tax_number ?? 'N/A' }}</span>
-                    <span class="detail-label">Contact Number:</span>
-                    <span class="detail-value">{{ $invoice->customer->contact_number ?? 'N/A' }}</span>
-                    <span class="detail-label">Email:</span>
-                    <span class="detail-value">{{ $invoice->customer->email ?? 'N/A' }}</span>
-                </div>
-            </div>
+            'isPaid' => $ciIsPaid,
 
-            <!-- Invoice Details Card -->
-            <div class="details-card">
-                <div class="card-header">
-                    <strong>📄 Invoice Details</strong>
-                </div>
-                <div class="details-grid">
-                    <span class="detail-label">Invoice No:</span>
-                    <span class="detail-value">{{ $invoice->invoice_number ?? 'CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) }}</span>
-                    <span class="detail-label">Invoice Date:</span>
-                    <span class="detail-value">{{ date('d M Y', strtotime($invoice->inv_date)) }}</span>
-                    <span class="detail-label">Billing Month:</span>
-                    <span class="detail-value">{{ date('F Y', strtotime($invoice->billing_month)) }}</span>
-                    <span class="detail-label">Service Period:</span>
-                    <span class="detail-value">{{ date('d M Y', strtotime($invoice->date_from)) }} - {{ date('d M Y', strtotime($invoice->date_to)) }}</span>
-                </div>
-            </div>
-        </div>
+            'isPartial' => $ciIsPartial && ! $ciIsPaid,
 
-        <!-- Description Section (if any) -->
-        @if($invoice->description)
-        <div class="description-block">
-            <strong>📝 Description</strong><br>
-            <span style="color: #334155;">{{ $invoice->description }}</span>
-        </div>
-        @endif
+            'editUrl' => route('customer_invoice.edit', $invoice->id),
 
-        <!-- Main Items Table (modern clean table) -->
-        @if($invoice->items && $invoice->items->count() > 0)
-        <div style="overflow-x: auto;">
-            <table class="items-table" style="width: 100%;">
-                <thead>
-                    <tr>
-                        <th style="width: 5%;">Sr.</th>
-                        <th style="width: 35%;">Product / Service Description</th>
-                        <th style="width: 8%;">Qty</th>
-                        <th style="width: 12%;">Rate ({{ \App\Helpers\Currency::code() }})</th>
-                        <th style="width: 12%;">Amount</th>
-                        <th style="width: 10%;">VAT (%)</th>
-                        <th style="width: 12%;">VAT Amount</th>
-                        <th style="width: 13%;">Total ({{ \App\Helpers\Currency::code() }})</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($invoice->items as $key => $item)
-                    @php
-                    $quantity = $item->quantity ?? 1;
-                    $rate = $item->rate ?? 0;
-                    $vatPercent = $item->vat ?? 0;
-                    $subtotal = $quantity * $rate;
-                    $vatAmount = $subtotal * ($vatPercent / 100);
-                    $rowTotal = $subtotal + $vatAmount;
-                    $running_total += $rowTotal;
-                    $subtotal_from_items += $subtotal;
-                    @endphp
-                    <tr>
-                        <td class="num">{{ $key + 1 }}</td>
-                        <td>{{ $item->item_name ?? 'N/A' }}</td>
-                        <td class="num">{{ number_format($quantity, 2) }}</td>
-                        <td class="num">{{ number_format($rate, 2) }}</td>
-                        <td class="num">{{ number_format($subtotal, 2) }}</td>
-                        <td class="num">{{ number_format($vatPercent, 2) }}%</td>
-                        <td class="num">{{ number_format($vatAmount, 2) }}</td>
-                        <td class="num">{{ number_format($rowTotal, 2) }}</td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+            'editTitle' => 'Edit Invoice',
 
-        <!-- Financial Summary (compact card on right) -->
-        <div class="financial-summary">
-            <table>
-                <thead>
-                    <tr><th colspan="2" class="secondary-header">Financial Summary</th></tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="font-weight: 600;">Subtotal (excl. VAT):</td>
-                        <td class="num">{{ number_format($invoice->subtotal ?? $subtotal_from_items, 2) }}</td>
-                    </tr>
-                    @if(($invoice->vat ?? 0) > 0)
-                    <tr>
-                        <td style="font-weight: 600;">VAT Amount ({{ $invoice->vat_percent ?? 5 }}%):</td>
-                        <td class="num">{{ number_format($invoice->vat ?? 0, 2) }}</td>
-                    </tr>
-                    @endif
-                </tbody>
-            </table>
-        </div>
+            'editCan' => ['customers_invoices_edit', 'bike_on_rent_invoices_edit'],
 
-        <!-- Grand Total Card (modern badge) -->
-        <div class="grand-total-wrapper">
-            <div class="grand-total-card">
-                <div>TOTAL AMOUNT</div>
-                <div>{{ number_format($invoice->total ?? $running_total, 2) }} {{ \App\Helpers\Currency::code() }}</div>
-            </div>
-        </div>
+            'editPaymentUrl' => $ciPaymentId ? route('payments.edit', $ciPaymentId) : null,
 
-        <!-- Notes Section -->
-        @if($invoice->notes)
-        <div class="notes-section">
-            <strong>📌 Notes:</strong><br>
-            {{ $invoice->notes }}
-        </div>
-        @endif
+            'editPaymentTitle' => 'Edit Payment',
 
-        @else
-        <div style="text-align: center; padding: 40px; background: #f9f9fc; border-radius: 12px;">
-            <p>No items found for this invoice.</p>
-        </div>
-        @endif
+            'editPaymentCan' => ['customers_payments_edit', 'cash_&_banks_payments_edit'],
 
-        <!-- Footer -->
-        <div style="height: 20px;"></div>
-        <div style="position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 11px; color: #5b6e8c; border-top: 1px solid #e2e8f0; padding-top: 16px; padding-bottom: 0px; background: white; width: 100%; z-index: 1000;">
-            <p style="margin-top: 5px; font-size: 10px;">For queries contact: {{ $settings['company_phone'] ?? 'Company Phone' }} | {{ $settings['company_email'] ?? 'Company Email' }}</p>
-        </div>
+            'emailUrl' => route('customer_invoices.sendEmail', $invoice->id),
+
+            'emailTitle' => 'Send Email',
+
+            'downloadUrl' => route('customer_invoices.download', $invoice),
+
+            'showPayment' => ! $ciIsPaid,
+
+            'paymentUrl' => route('payments.create') . '?customer_id=' . ($invoice->customer_id ?? '') . '&invoice_id=' . $invoice->id,
+
+            'paymentTitle' => 'Record Payment',
+
+            'paymentCan' => ['customers_payments_create', 'customers_invoices_edit', 'bike_on_rent_invoices_edit'],
+
+            'cloneUrl' => route('customer_invoice.clone', $invoice),
+
+            'cloneTitle' => 'Clone Invoice',
+
+            'cloneCan' => ['customers_invoices_create', 'bike_on_rent_invoices_create'],
+
+            'deleteFormRoute' => ['customer_invoices.destroy', $invoice],
+
+            'deleteCan' => ['customers_invoices_delete', 'bike_on_rent_invoices_delete'],
+
+        ])
+
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.num').forEach(function(el) {
-                let raw = el.innerText.trim();
-                let num = parseFloat(raw.replace(/,/g, ''));
-                if (!isNaN(num) && raw !== '') {
-                    let formatted = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    if (el.innerText !== formatted) el.innerText = formatted;
-                }
-            });
-        });
+    @endif
 
-        (function () {
-            if (typeof window.printModalContent === 'function') {
-                return;
-            }
-            window.printModalContent = function () {
-                var box = document.querySelector('.invoice-box');
-                if (!box) {
-                    window.print();
-                    return;
-                }
-                var styles = '';
-                document.querySelectorAll('style').forEach(function (node) {
-                    styles += node.outerHTML;
-                });
-                var title = (document.title || 'Customer Invoice').replace(/</g, '');
-                var win = window.open('', '_blank');
-                if (!win) {
-                    window.print();
-                    return;
-                }
-                win.document.open();
-                win.document.write(
-                    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + title + '</title></head><body>' +
-                    styles + box.outerHTML + '</body></html>'
-                );
-                win.document.close();
-                setTimeout(function () {
-                    try {
-                        win.focus();
-                        win.print();
-                    } catch (e) {}
-                    win.onafterprint = function () { win.close(); };
-                }, 400);
-            };
-            document.querySelectorAll('.js-print-modal-content').forEach(function (btn) {
-                btn.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    window.printModalContent();
-                });
-            });
-        })();
-    </script>
+
+
+    <div class="invoice-box"@if(!empty($invPdf['box'])) style="{{ $invPdf['box'] }}"@endif>
+
+        <div class="band"></div>
+
+        <div class="sheet"@if(!empty($invPdf['sheet'])) style="{{ $invPdf['sheet'] }}"@endif>
+
+            @include('invoices.partials.tax_invoice_header', [
+
+            'settings' => $settings,
+
+            'invoiceTitle' => $invoiceTitle,
+
+            'invoiceNumber' => $invoiceNumber,
+
+            'invoiceDateLabel' => date('d M Y', strtotime($invoice->inv_date)),
+
+            'billingLabel' => date('M-Y', strtotime($invoice->billing_month)),
+
+            ])
+
+
+
+            <div class="parties"@if(!empty($invPdf['parties'])) style="{{ $invPdf['parties'] }}"@endif>
+
+                    <div class="party"@if(!empty($invPdf['partyFirst'])) style="{{ $invPdf['partyFirst'] }}"@endif>
+
+                        <h3 class="party-title"@if(!empty($invPdf['partyTitle'])) style="{{ $invPdf['partyTitle'] }}"@endif>Bill To</h3>
+
+                        <p class="party-name"@if(!empty($invPdf['partyName'])) style="{{ $invPdf['partyName'] }}"@endif>{{ $customerDisplay }}</p>
+
+                        <div class="party-grid">
+
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Project</span>
+
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $projectName }}</span>
+
+                            </div>
+
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>TRN</span>
+
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $invoice->customer->tax_number ?? '—' }}</span>
+
+                            </div>
+
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Contact</span>
+
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $invoice->customer->contact_number ?? '—' }}</span>
+
+                            </div>
+
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Email</span>
+
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $invoice->customer->company_email ?? '—' }}</span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="party alt"@if(!empty($invPdf['partyAlt'])) style="{{ $invPdf['partyAlt'] }}"@endif>
+
+                        <h3 class="party-title"@if(!empty($invPdf['partyTitle'])) style="{{ $invPdf['partyTitle'] }}"@endif>Service Period</h3>
+
+                        <div class="party-grid" style="margin-top: 4px;">
+
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>From</span>
+
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ date('d M Y', strtotime($invoice->date_from)) }}</span>
+
+                            </div>
+
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>To</span>
+
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ date('d M Y', strtotime($invoice->date_to)) }}</span>
+
+                            </div>
+
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Month</span>
+
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ date('F Y', strtotime($invoice->billing_month)) }}</span>
+
+                            </div>
+
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Currency</span>
+
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $currency }}</span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+            </div>
+
+
+
+            @if($invoice->description)
+
+            <div class="desc"@if(!empty($invPdf['desc'])) style="{{ $invPdf['desc'] }}"@endif>
+
+                <span class="t"@if(!empty($invPdf['descTitle'])) style="{{ $invPdf['descTitle'] }}"@endif>Description</span>
+
+                <p @if(!empty($invPdf['descBody'])) style="{{ $invPdf['descBody'] }}"@endif>{{ $invoice->description }}</p>
+
+            </div>
+
+            @endif
+
+
+
+            @if($invoice->items && $invoice->items->count() > 0)
+
+            <div class="tbl-wrap">
+
+                <table class="items">
+
+                    <thead>
+
+                        <tr>
+
+                            <th class="col-sr">#</th>
+
+                            <th class="col-desc">Description</th>
+
+                            <th>Qty</th>
+
+                            <th>Rate</th>
+
+                            <th>Amount</th>
+
+                            <th>VAT %</th>
+
+                            <th>VAT</th>
+
+                            <th>Total</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        @foreach($invoice->items as $key => $item)
+
+                        @php
+
+                        $quantity = $item->quantity ?? 1;
+
+                        $rate = $item->rate ?? 0;
+
+                        $vatPercent = $item->vat ?? 0;
+
+                        $subtotal = $quantity * $rate;
+
+                        $vatAmount = $subtotal * ($vatPercent / 100);
+
+                        $rowTotal = $subtotal + $vatAmount;
+
+                        $running_total += $rowTotal;
+
+                        $subtotal_from_items += $subtotal;
+
+                        @endphp
+
+                        <tr>
+
+                            <td class="col-sr">{{ $key + 1 }}</td>
+
+                            <td class="col-desc">{{ $item->item_name ?? 'N/A' }}</td>
+
+                            <td>{{ number_format($quantity, 2) }}</td>
+
+                            <td>{{ number_format($rate, 2) }}</td>
+
+                            <td>{{ number_format($subtotal, 2) }}</td>
+
+                            <td>{{ number_format($vatPercent, 2) }}%</td>
+
+                            <td>{{ number_format($vatAmount, 2) }}</td>
+
+                            <td class="total-cell">{{ number_format($rowTotal, 2) }}</td>
+
+                        </tr>
+
+                        @endforeach
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+
+            @include('invoices.partials.tax_invoice_totals_notes', [
+
+            'partyNote' => $customerNote,
+
+            'partyNoteLabel' => $customerNoteLabel,
+
+            'subtotalAmount' => $invoice->subtotal ?? $subtotal_from_items,
+
+            'vatAmount' => $invoice->vat ?? 0,
+
+            'totalAmount' => $invoice->total ?? $running_total,
+
+            'currency' => $currency,
+
+            'paidAmount' => $invoice->paid_amount ?? 0,
+
+            'balanceAmount' => $invoice->balance ?? (($invoice->total ?? 0) - ($invoice->paid_amount ?? 0)),
+
+            ])
+
+            @else
+
+            <div class="empty">No line items on this invoice.</div>
+
+            @endif
+
+
+
+            @include('invoices.partials.tax_invoice_footnotes', [
+
+            'noteCards' => $noteCards,
+
+            'noteGridClass' => $noteGridClass,
+
+            ])
+
+
+
+            @include('invoices.partials.tax_invoice_footer', ['settings' => $settings])
+
+        </div>
+
+    </div>
+
+
+
+    @include('invoices.partials.tax_invoice_print_script', ['isPdf' => $isPdf ?? null])
+
 </body>
+
+
 
 </html>

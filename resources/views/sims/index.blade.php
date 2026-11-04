@@ -213,6 +213,16 @@
     vertical-align: middle;
   }
 
+  /* Row ⋮ menu: keep compact (teleport-to-body can inherit a huge width otherwise) */
+  .sim-table-dropdown-menu {
+    width: max-content !important;
+    min-width: 10rem !important;
+    max-width: 14rem !important;
+  }
+  .sim-table-dropdown-menu .dropdown-item {
+    white-space: nowrap;
+  }
+
   /* Action Dropdown Styles */
     .action-buttons {
         display: flex;
@@ -513,6 +523,7 @@
                             <option value="assigned" {{ in_array(request('status'), ['assigned', 'active'], true) ? 'selected' : '' }}>Assigned</option>
                             <option value="deactivated" {{ in_array(request('status'), ['deactivated', 'inactive'], true) ? 'selected' : '' }}>Deactivated</option>
                             <option value="in_office" {{ request('status') == 'in_office' ? 'selected' : '' }}>In office</option>
+                            <option value="lost" {{ request('status') == 'lost' ? 'selected' : '' }}>Lost</option>
                             <option value="user_absconded" {{ in_array(request('status'), ['user_absconded', 'absconded'], true) ? 'selected' : '' }}>User Absconded</option>
                         </select>
                     </div>
@@ -736,8 +747,15 @@ $(document).on('shown.bs.dropdown', '#table-data .sim-table-action-dropdown', fu
     var $menu = $dropdown.find('.sim-table-dropdown-menu').first();
     if (!$toggle.length || !$menu.length) return;
 
+    // Shrink to content — moving to body can leave a huge inherited/Popper width.
+    $menu.css({
+        width: 'max-content',
+        minWidth: '10rem',
+        maxWidth: '14rem'
+    });
+
     var toggleRect = $toggle[0].getBoundingClientRect();
-    var menuWidth = $menu.outerWidth() || 180;
+    var menuWidth = $menu.outerWidth() || 160;
     var menuHeight = $menu.outerHeight() || 0;
     var left = toggleRect.right - menuWidth;
     var top = toggleRect.bottom + 4;
@@ -756,7 +774,10 @@ $(document).on('shown.bs.dropdown', '#table-data .sim-table-action-dropdown', fu
         position: 'fixed',
         top: top + 'px',
         left: left + 'px',
-        zIndex: 2000
+        zIndex: 2000,
+        width: 'max-content',
+        minWidth: '10rem',
+        maxWidth: '14rem'
     });
 });
 
@@ -768,7 +789,10 @@ $(document).on('hide.bs.dropdown', '#table-data .sim-table-action-dropdown', fun
         position: '',
         top: '',
         left: '',
-        zIndex: 1050
+        zIndex: 1050,
+        width: '',
+        minWidth: '',
+        maxWidth: ''
     }).appendTo($dropdown);
 });
 </script>

@@ -103,20 +103,12 @@ class SimAssigneeContactSync
             return;
         }
 
-        if (self::setRiderColumn($rider, 'personal_contact', $simNumber)) {
-            return;
-        }
-
         self::setCustomFieldValue($rider, 'riders', 'rider_custom_fields', $simNumber);
     }
 
     private static function clearRider(Riders $rider): void
     {
         if (self::setRiderColumn($rider, 'company_contact', null)) {
-            return;
-        }
-
-        if (self::setRiderColumn($rider, 'personal_contact', null)) {
             return;
         }
 

@@ -231,7 +231,7 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
 
           <div class="mb-3">
             <label class="form-label">Module <span class="text-danger">*</span></label>
-            <p class="text-muted small mb-2">This agreement appears in the Action menu of the selected module.</p>
+            <p class="text-muted small mb-2">This agreement appears in the Action menu of the selected module. <strong>General</strong> is available in every module and only offers system placeholders.</p>
             <div class="row g-2">
               @php $savedModule = old('assigned_modules', $category->normalizedAssignedModules()[0] ?? ''); @endphp
               @foreach($modules as $moduleKey => $label)
@@ -449,9 +449,8 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
 
       document.querySelectorAll('.placeholder-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
-          var ph = btn.getAttribute('data-placeholder');
           if (tinymce.get('agreement-template-editor')) {
-            tinymce.get('agreement-template-editor').insertContent(ph);
+            tinymce.get('agreement-template-editor').insertContent(window.erpbkAgreementPlaceholderHtml(btn));
             syncEditorToStore();
           }
         });

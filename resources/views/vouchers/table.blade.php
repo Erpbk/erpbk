@@ -13,8 +13,8 @@ $vfCols = [
 'updated_by' => $vfShow('updated_by'),
 'attach_file' => $vfShow('attach_file'),
 ];
-// colspan for the "no data" row = visible data columns + Voucher ID + Actions.
-$vfColspan = count(array_filter($vfCols)) + 2;
+// colspan for the "no data" row = visible data columns + Voucher ID + Status + Actions.
+$vfColspan = count(array_filter($vfCols)) + 3;
 @endphp
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
   <thead class="text-center">
@@ -26,6 +26,7 @@ $vfColspan = count(array_filter($vfCols)) + 2;
       @if($vfCols['reference_number'])<th title="Reference Number" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Reference Number: activate to sort column ascending">Reference Number</th>@endif
       @if($vfCols['voucher_type'])<th title="Type" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Type</th>@endif
       @if($vfCols['amount'])<th title="Amount" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>@endif
+      <th title="Status" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Status">Status</th>
       @if($vfCols['created_by'])<th title="Created By" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>@endif
       @if($vfCols['updated_by'])<th title="Updated By" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>@endif
       @if($vfCols['attach_file'])<th title="File" class="sorting_disabled" rowspan="1" colspan="1" aria-label="File">File</th>@endif
@@ -58,7 +59,10 @@ $vfColspan = count(array_filter($vfCols)) + 2;
     @endphp
     @if(isset($data) && $data->count() > 0)
     @foreach($data as $voucher)
-    @php $voucherPendingDeletion = record_is_pending_deletion($voucher); @endphp
+    @php
+      $voucherPendingDeletion = record_is_pending_deletion($voucher);
+      $moduleActions = \App\Support\VoucherModuleActions::forVoucher($voucher, $__companySlug);
+    @endphp
     <tr class="text-center {{ $voucherPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $voucher->id }}">
       <td>
         @php
@@ -74,15 +78,14 @@ $vfColspan = count(array_filter($vfCols)) + 2;
         <span class="badge bg-primary">{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }}</span>
       </td>@endif
       @if($vfCols['amount'])<td class="text-end">{{ number_format($voucher->amount, 2) }}</td>@endif
+      <td>
+        <x-voucher-approval.status-badge :voucher="$voucher" />
+      </td>
       @if($vfCols['created_by'])<td>{{ \App\Helpers\Common::UserName($voucher->Created_By) }}</td>@endif
       @if($vfCols['updated_by'])<td>{{ \App\Helpers\Common::UserName($voucher->Updated_By) }}</td>@endif
       @if($vfCols['attach_file'])<td>
         @if($voucher->attach_file)
-        @if($voucher->voucher_type == 'RFV')
-        <a href="{{ url('storage/' . $voucher->attach_file) }}" class="btn btn-sm btn-outline-primary" target="_blank">
-          <i class="fa fa-file"></i> View
-        </a>
-        @elseif($voucher->voucher_type == 'LV')
+        @if(in_array($voucher->voucher_type, ['RFV', 'LV', 'VR'], true))
         <a href="{{ url('storage/' . $voucher->attach_file) }}" class="btn btn-sm btn-outline-primary" target="_blank">
           <i class="fa fa-file"></i> View
         </a>
@@ -104,36 +107,40 @@ $vfColspan = count(array_filter($vfCols)) + 2;
             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
           </button>
           <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}">
-            @canany(['voucher_create', 'voucher_edit'])
-            @if(!in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
+            @php
+              $riderVoucherUploadCode = \App\Support\RiderVoucherPermissions::codeFromVoucherType($voucher->voucher_type);
+              $canUploadThisVoucherDoc = $riderVoucherUploadCode !== null
+                ? \App\Support\RiderVoucherPermissions::canUpload($riderVoucherUploadCode)
+                : \App\Support\VoucherModulePermissions::canUpload();
+            @endphp
+            @if($canUploadThisVoucherDoc)
             <a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
-                data-action="{{ route('voucher.fileupload', array_filter(['id' => $voucher->id, 'company_slug' => $__companySlug])) }}" class="dropdown-item waves-effect show-modal">
-                <i class="fa fa-file my-1"></i> Upload Document
-              </a>
+              data-action="{{ route('voucher.fileupload', array_filter(['id' => $voucher->id, 'company_slug' => $__companySlug])) }}" class="dropdown-item waves-effect show-modal">
+              <i class="fa fa-file my-1"></i> Upload Document
+            </a>
             @endif
-            @endcanany
             @can('voucher_view')
             <a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}" data-title="{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">
-                <i class="fa fa-eye my-1"></i> View
-              </a>
+              <i class="fa fa-eye my-1"></i> View
+            </a>
             @endcan
-            @can('voucher_edit')
-            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_edit']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
-            <a href="javascript:void(0);" data-size="xl"
-                data-title="Edit Voucher No. {{ $voucher->voucher_type.'-'.str_pad($voucher->id,4,'0',STR_PAD_LEFT) }}"
-                data-action="{{ route('vouchers.edit', $voucherRouteParams($voucher->trans_code)) }}"
-                class="dropdown-item waves-effect show-modal">
-                <i class="fa fa-edit my-1"></i> Edit
-              </a>
+            @canany(['voucher_edit', 'vouchers_edit'])
+            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_edit']))
+            <a href="javascript:void(0);" data-size="{{ $moduleActions['edit_size'] }}"
+              data-title="{{ $moduleActions['edit_title'] }}"
+              data-action="{{ $moduleActions['edit_url'] }}"
+              class="dropdown-item waves-effect show-modal">
+              <i class="fa fa-edit my-1"></i> Edit
+            </a>
             @endif
-            @endcan
-            @can('voucher_delete')
-            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
-            <a href="javascript:void(0);" onclick='confirmDelete(@json(route('vouchers.destroy', $voucherRouteParams($voucher->trans_code))))' class="dropdown-item waves-effect text-danger">
-                <i class="fa fa-trash my-1"></i> Delete
-              </a>
+            @endcanany
+            @canany(['voucher_delete', 'vouchers_delete'])
+            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']))
+            <a href="javascript:void(0);" onclick='confirmDelete(@json($moduleActions['delete_url']))' class="dropdown-item waves-effect text-danger">
+              <i class="fa fa-trash my-1"></i> Delete
+            </a>
             @endif
-            @endcan
+            @endcanany
           </div>
         </div>
         @endif
@@ -162,8 +169,8 @@ $vfColspan = count(array_filter($vfCols)) + 2;
 @endif
 
 @include('delete_requests._confirm_delete_script', [
-    'entityName' => 'Voucher',
-    'confirmText' => 'Submit a delete request for this voucher? It will stay in the list as Pending Deletion until an administrator approves.',
+'entityName' => 'Voucher',
+'confirmText' => 'Submit a delete request for this voucher? It will stay in the list as Pending Deletion until an administrator approves.',
 ])
 <script>
   // Initialize Bootstrap dropdowns when this content is loaded (run only after jQuery is available)

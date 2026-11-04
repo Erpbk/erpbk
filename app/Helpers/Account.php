@@ -198,11 +198,41 @@ class Account
   //show currency in words
   public static function convertNumberToWord($num = false)
   {
-    $num = str_replace(array(',', ' '), '', trim($num));
-    if (!$num) {
+    $num = str_replace(array(',', ' '), '', trim((string) $num));
+    if ($num === '' || $num === false || !is_numeric($num)) {
       return false;
     }
-    $num = (int) $num;
+
+    // Keep decimals (e.g. 157.50 → whole + AND fifty). Casting to int used to drop .50.
+    $normalized = number_format(abs((float) $num), 2, '.', '');
+    [$wholeStr, $fractionStr] = array_pad(explode('.', $normalized, 2), 2, '00');
+    $wholeWords = self::convertIntegerToWord((int) $wholeStr);
+    if ($wholeWords === false || $wholeWords === '') {
+      return false;
+    }
+
+    $fractionInt = (int) $fractionStr;
+    if ($fractionInt > 0) {
+      $fractionWords = self::convertIntegerToWord($fractionInt);
+      if (is_string($fractionWords) && $fractionWords !== '') {
+        $wholeWords = trim($wholeWords) . ' AND ' . trim($fractionWords);
+      }
+    }
+
+    return $wholeWords;
+  }
+
+  /**
+   * Convert a non-negative integer to uppercase English words.
+   */
+  private static function convertIntegerToWord(int $num)
+  {
+    if ($num < 0) {
+      return false;
+    }
+    if ($num === 0) {
+      return 'ZERO';
+    }
     $words = array();
     $list1 = array(
       '',
@@ -254,11 +284,12 @@ class Account
       'vigintillion'
     );
     $list3 = array_map('strtoupper', $list3);
-    $num_length = strlen($num);
+    $numStr = (string) $num;
+    $num_length = strlen($numStr);
     $levels = (int) (($num_length + 2) / 3);
     $max_length = $levels * 3;
-    $num = substr('00' . $num, -$max_length);
-    $num_levels = str_split($num, 3);
+    $numStr = substr('00' . $numStr, -$max_length);
+    $num_levels = str_split($numStr, 3);
     for ($i = 0; $i < count($num_levels); $i++) {
       $levels--;
       $hundreds = (int) ($num_levels[$i] / 100);
@@ -274,10 +305,6 @@ class Account
         $singles = ' ' . $list1[$singles] . ' ';
       }
       $words[] = $hundreds . $tens . $singles . (($levels && (int) ($num_levels[$i])) ? ' ' . $list3[$levels] . ' ' : '');
-    } //end for loop
-    $commas = count($words);
-    if ($commas > 1) {
-      $commas = $commas - 1;
     }
     return implode(' ', $words);
   }

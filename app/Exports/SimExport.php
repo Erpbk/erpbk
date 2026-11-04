@@ -21,7 +21,7 @@ class SimExport extends DefaultValueBinder implements FromCollection, WithHeadin
     */
     public function collection()
     {
-        return Sims::with(['assignee', 'vendor','branch', 'telecomCompany'])->get();
+        return Sims::with(['assignee', 'vendors', 'branch', 'telecomCompany'])->get();
     }
 
     public function map($sim): array

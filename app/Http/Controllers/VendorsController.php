@@ -107,6 +107,7 @@ class VendorsController extends AppBaseController
       $account->ref_id = $vendor->id;
       $account->status = $vendor->status;
       $account->branch_id = $vendor->branch_id;
+      $account->is_locked = true;
       $account->save();
 
       $vendor->account_id = $account->id;
@@ -206,26 +207,8 @@ class VendorsController extends AppBaseController
       return delete_error_response('Vendor not found!', route('vendors.index'), 404);
     }
 
-    // Check if vendor has transactions - protect from deletion
-    if ($vendor->transactions()->count() > 0) {
-      return delete_error_response(
-        'Cannot delete vendor. Vendor has ' . $vendor->transactions()->count() . ' transaction(s). Please deactivate instead.',
-        route('vendors.index')
-      );
-    }
-
-    // Check if vendor account has ledger entries before deletion
-    if ($vendor->account) {
-      $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
-        ->where('account_id', $vendor->account->id)
-        ->count();
-
-      if ($ledgerEntriesCount > 0) {
-        return delete_error_response(
-          "Cannot delete vendor. The vendor account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first.",
-          route('vendors.index')
-        );
-      }
+    if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($vendor), 'Vendor')) {
+      return delete_error_response($blockReason, route('vendors.index'));
     }
 
     // Track cascaded deletions

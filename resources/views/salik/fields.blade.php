@@ -78,10 +78,10 @@
             <thead>
                 <tr>
                     <th>Description</th>
-                    <th>Amount (AED)</th>
+                    <th>Amount ({{ \App\Helpers\Currency::code() }})</th>
                     <th>VAT (%)</th>
-                    <th>VAT (AED)</th>
-                    <th>Total (AED)</th>
+                    <th>VAT ({{ \App\Helpers\Currency::code() }})</th>
+                    <th>Total ({{ \App\Helpers\Currency::code() }})</th>
                 </tr>
             </thead>
             <tbody>

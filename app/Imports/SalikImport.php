@@ -8,6 +8,7 @@ use App\Models\Riders;
 use App\Models\BikeHistory;
 use App\Models\BikeRentCompany;
 use App\Models\FailedSalikImport;
+use App\Support\ExcelDate;
 use App\Support\ExcelSlashDateFormat;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -15,7 +16,6 @@ use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use DB;
 use Auth;
 use Carbon\Carbon;
@@ -30,6 +30,8 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     protected $columnMap;
     protected $importBatchId;
     protected $affectedInvoiceGroups = [];
+    /** @var string 'own'|numeric leasing company id */
+    protected $leasingCompanyFilter;
     /** @var string ExcelSlashDateFormat::ORDER_DMY|ORDER_MDY */
     protected $slashDateOrder = ExcelSlashDateFormat::ORDER_DMY;
 
@@ -39,6 +41,7 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     public int $missingDataCount = 0;
     public int $duplicateCount = 0;
     public int $noBikeCount = 0;
+    public int $wrongCompanyCount = 0;
     public int $noRiderCount = 0;
     public int $noAccountCount = 0;
     public int $notSalikCount = 0;
@@ -48,18 +51,21 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     /** @var array<int, string> */
     public array $skippedLog = [];
 
-    public function __construct($adminChargePerSalik = 0, array $columnMap = [], $salikVatPercent = 0, $adminVatPercent = 0)
+    public function __construct($adminChargePerSalik = 0, array $columnMap = [], $salikVatPercent = 0, $adminVatPercent = 0, $leasingCompanyFilter = 'own')
     {
         $this->adminChargePerSalik = round((float) $adminChargePerSalik, 2);
         $this->salikVatPercent = (float) $salikVatPercent;
         $this->adminVatPercent = (float) $adminVatPercent;
         $this->columnMap = $columnMap ?: $this->defaultColumnMap();
+        $this->leasingCompanyFilter = $leasingCompanyFilter === 'own' || $leasingCompanyFilter === null || $leasingCompanyFilter === ''
+            ? 'own'
+            : (string) $leasingCompanyFilter;
         $this->importBatchId = 'batch_' . time() . '_' . Auth::id();
     }
 
     /**
      * Keep slash/dash date strings as text so we can parse them as d/m/Y (not US m/d/Y).
-     * Excel serial numbers are still accepted via numeric path in parseExcelDate.
+     * Excel serial numbers are still accepted via numeric path in ExcelDate::parse.
      */
     public function bindValue(Cell $cell, $value)
     {
@@ -76,21 +82,22 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     }
 
     /**
-     * Default 1-based columns matching the downloadable template.
+     * Default 1-based columns matching Salik portal "ViewTrips" exports
+     * (leading blank columns A–B are normal).
      */
     private function defaultColumnMap(): array
     {
         return [
-            'transaction_id' => 1,
-            'trip_date' => 2,
-            'trip_time' => 3,
-            'transaction_post_date' => 4,
-            'toll_gate' => 5,
-            'direction' => 6,
-            'tag_number' => 7,
-            'plate' => 8,
-            'amount' => 9,
-            'billing_month' => 10,
+            'transaction_id' => 3,
+            'trip_date' => 4,
+            'trip_time' => 6,
+            'transaction_post_date' => 7,
+            'toll_gate' => 8,
+            'direction' => 10,
+            'tag_number' => 11,
+            'plate' => 16,
+            'amount' => 17,
+            'billing_month' => null,
             'admin_charges' => null,
         ];
     }
@@ -106,7 +113,11 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
         }
 
         $index = ((int) $col) - 1;
-        return $row[$index] ?? null;
+        if ($row instanceof Collection) {
+            return $row->get($index);
+        }
+
+        return is_array($row) ? ($row[$index] ?? null) : null;
     }
 
     private function isMapped(string $key): bool
@@ -153,6 +164,9 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
         DB::beginTransaction();
 
         try {
+            // Rebuild map from the sheet header so preview/SheetJS column-letter drift
+            // (blank leading cols) cannot point Transaction ID at an empty Excel column.
+            $headerRowIndex = $this->reconcileColumnMapFromHeader($rows);
             $this->slashDateOrder = $this->detectSheetSlashDateOrder($rows);
 
             $importedSalikIds = [];
@@ -161,24 +175,35 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
             $duplicateCount = 0;
             $missingDataCount = 0;
             $noBikeCount = 0;
+            $wrongCompanyCount = 0;
             $noRiderCount = 0;
             $notSalikCount = 0;
             $updatedCount = 0;
             $processedTransactionIds = [];
             $consecutiveEmpty = 0;
+            $seenTransactionData = false;
 
-            foreach ($rows->skip(1) as $rowIndex => $row) {
+            foreach ($rows as $rowIndex => $row) {
+                // Skip preamble + the header row itself (Salik exports often have title rows first).
+                if (is_numeric($rowIndex) && (int) $rowIndex <= $headerRowIndex) {
+                    continue;
+                }
+
                 $rowCount++;
-                // Excel row 1 is the header; first data row is Excel row 2
+                // Collection keys are 0-based; Excel rows are 1-based
                 $excelRowNumber = is_numeric($rowIndex)
                     ? ((int) $rowIndex + 1)
                     : ($rowCount + 1);
 
                 $transactionIdRaw = $this->cell($row, 'transaction_id');
-                $transactionIdStr = $transactionIdRaw === null ? '' : trim((string) $transactionIdRaw);
+                $transactionIdStr = $this->normalizeTransactionId($transactionIdRaw);
 
-                // Only truly empty Trans ID cells count toward end-of-data stop
+                // Empty Trans ID before any real trip row: keep scanning (preamble / blank lines).
+                // After data has started, N consecutive empties mean end of sheet.
                 if ($transactionIdStr === '') {
+                    if (!$seenTransactionData) {
+                        continue;
+                    }
                     $consecutiveEmpty++;
                     if ($consecutiveEmpty >= self::END_OF_DATA_THRESHOLD) {
                         break;
@@ -188,6 +213,10 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
 
                 // Non-numeric Trans ID still has data — do not count as empty / do not stop import
                 if (!preg_match('/^\d+$/', $transactionIdStr)) {
+                    if (!$seenTransactionData) {
+                        // Preamble labels in the Trans ID column (e.g. section titles) — skip quietly
+                        continue;
+                    }
                     $consecutiveEmpty = 0;
                     $this->storeFailedImport(
                         $row,
@@ -200,6 +229,7 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
                     continue;
                 }
 
+                $seenTransactionData = true;
                 $consecutiveEmpty = 0;
                 $transactionId = $transactionIdStr;
 
@@ -291,6 +321,20 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
                         continue;
                     }
 
+                    if (!$this->bikeMatchesLeasingFilter($bike)) {
+                        $filterLabel = $this->leasingCompanyFilter === 'own'
+                            ? 'Own'
+                            : ('leasing company #' . $this->leasingCompanyFilter);
+                        $this->storeFailedImport(
+                            $row,
+                            $excelRowNumber,
+                            'Bike does not belong to selected company',
+                            "Plate {$plateNumber} does not belong to selected company ({$filterLabel})"
+                        );
+                        $wrongCompanyCount++;
+                        continue;
+                    }
+
                     $assignment = $this->findChargePartyForTripDate($bike->id, $tripDateForQueries);
                     if (!$assignment) {
                         $this->storeFailedImport(
@@ -350,6 +394,7 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
                         'tag_number' => $tagNumber,
                         'plate' => $plateNumber,
                         'bike_id' => $bike->id,
+                        'leasing_company_id' => $this->resolveLeasingCompanyIdForImport(),
                         'amount' => $transactionAmount,
                         'salik_vat' => $salikVatPercent,
                         'salik_vat_amount' => $salikVatAmount,
@@ -414,6 +459,7 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
             $this->missingDataCount = $missingDataCount;
             $this->duplicateCount = $duplicateCount;
             $this->noBikeCount = $noBikeCount;
+            $this->wrongCompanyCount = $wrongCompanyCount;
             $this->noRiderCount = $noRiderCount;
             $this->noAccountCount = $skippedCount;
             $this->notSalikCount = $notSalikCount;
@@ -430,6 +476,139 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
             \Log::error("Salik import failed with error: " . $e->getMessage());
             throw $e;
         }
+    }
+
+    /**
+     * Overwrite columnMap from the real header labels (1-based Excel positions).
+     * Client preview can shift letters left when leading columns are blank.
+     */
+    private function reconcileColumnMapFromHeader(Collection $rows): int
+    {
+        $headerRowIndex = $this->findHeaderRowIndex($rows);
+        $headerRow = $rows->get($headerRowIndex);
+        if ($headerRow === null) {
+            return $headerRowIndex;
+        }
+
+        $values = $headerRow instanceof Collection ? $headerRow->all() : (array) $headerRow;
+        if ($values === []) {
+            return $headerRowIndex;
+        }
+
+        $matchers = [
+            'transaction_post_date' => ['/post\s*date/i', '/posting/i'],
+            'transaction_id' => ['/^\s*transaction\s*id\s*$/i', '/trans\s*(id|no)/i'],
+            'trip_date' => ['/trip\s*date/i'],
+            'trip_time' => ['/trip\s*time/i', '/^\s*time\s*$/i'],
+            'toll_gate' => ['/toll/i', '/gate/i'],
+            'direction' => ['/direction/i'],
+            'tag_number' => ['/\btag\b/i'],
+            'plate' => ['/plate/i'],
+            'amount' => ['/amount\s*\(?\s*aed/i', '/^\s*amount\s*$/i'],
+            'billing_month' => ['/billing/i'],
+            'admin_charges' => ['/admin\s*charge/i', '/admin\s*fee/i'],
+        ];
+
+        $detected = [];
+        $used = [];
+        foreach ($matchers as $field => $patterns) {
+            foreach ($values as $idx => $label) {
+                $col = ((int) $idx) + 1;
+                if (isset($used[$col]) || !is_string($label) || trim($label) === '') {
+                    continue;
+                }
+                $normalized = strtolower(trim(preg_replace('/\s+/', ' ', $label)));
+                if ($field === 'amount' && (str_contains($normalized, 'vat') || str_contains($normalized, 'total'))) {
+                    continue;
+                }
+                foreach ($patterns as $pattern) {
+                    if (preg_match($pattern, $label) || preg_match($pattern, $normalized)) {
+                        $detected[$field] = $col;
+                        $used[$col] = $field;
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        if (isset($detected['trip_date']) && !isset($detected['trip_time'])) {
+            $dateLabel = strtolower((string) ($values[$detected['trip_date'] - 1] ?? ''));
+            if (str_contains($dateLabel, 'time')) {
+                $detected['trip_time'] = $detected['trip_date'];
+            }
+        }
+
+        foreach ($detected as $field => $col) {
+            $this->columnMap[$field] = $col;
+        }
+
+        // Keep optional fields unmapped when the sheet has no such header
+        foreach (['transaction_post_date', 'billing_month', 'admin_charges'] as $optional) {
+            if (!isset($detected[$optional])) {
+                $this->columnMap[$optional] = null;
+            }
+        }
+
+        \Log::info('Salik import column map after header reconcile', [
+            'header_row' => $headerRowIndex + 1,
+            'column_map' => $this->columnMap,
+        ]);
+
+        return $headerRowIndex;
+    }
+
+    /**
+     * Locate the Salik header row (may not be row 1 — portal exports add a report preamble).
+     */
+    private function findHeaderRowIndex(Collection $rows): int
+    {
+        foreach ($rows as $index => $row) {
+            $values = $row instanceof Collection ? $row->all() : (array) $row;
+            foreach ($values as $value) {
+                if (!is_string($value)) {
+                    continue;
+                }
+                if (preg_match('/^\s*transaction\s*id\s*$/i', trim($value))) {
+                    return is_numeric($index) ? (int) $index : 0;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Normalize Excel Trans ID cells (strings, ints, floats, scientific notation) to digit text.
+     */
+    private function normalizeTransactionId($raw): string
+    {
+        if ($raw === null || $raw === '') {
+            return '';
+        }
+
+        if (is_int($raw)) {
+            return (string) $raw;
+        }
+
+        if (is_float($raw)) {
+            return sprintf('%.0f', $raw);
+        }
+
+        $str = trim((string) $raw);
+        if ($str === '') {
+            return '';
+        }
+
+        if (preg_match('/^\d+(\.\d+)?[eE][+-]?\d+$/', $str)) {
+            return sprintf('%.0f', (float) $str);
+        }
+
+        // Excel sometimes appends .0 to numeric IDs stored as text/number hybrids
+        if (preg_match('/^\d+\.0+$/', $str)) {
+            return substr($str, 0, strpos($str, '.'));
+        }
+
+        return str_replace([' ', ','], '', $str);
     }
 
     /**
@@ -457,8 +636,13 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     {
         $dateKeys = ['trip_date', 'trip_time', 'transaction_post_date', 'billing_month'];
         $samples = [];
+        $headerRowIndex = $this->findHeaderRowIndex($rows);
 
-        foreach ($rows->skip(1) as $row) {
+        foreach ($rows as $rowIndex => $row) {
+            if (is_numeric($rowIndex) && (int) $rowIndex <= $headerRowIndex) {
+                continue;
+            }
+
             foreach ($dateKeys as $key) {
                 if (!$this->isMapped($key)) {
                     continue;
@@ -478,111 +662,16 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
         return ExcelSlashDateFormat::detectOrder($samples);
     }
 
-    /**
-     * Parse any Excel date/time cell value into Carbon.
-     * Slash/dash dates use sheet-detected d/m/Y or m/d/Y order.
-     */
-    private function parseExcelDate($value): ?Carbon
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        try {
-            if ($value instanceof Carbon) {
-                return $value->copy();
-            }
-
-            if ($value instanceof \DateTimeInterface) {
-                return Carbon::instance($value);
-            }
-
-            if (is_string($value)) {
-                $value = trim($value);
-                if ($value === '') {
-                    return null;
-                }
-            }
-
-            // Excel serial number (real date cell)
-            if (is_numeric($value)) {
-                return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
-            }
-
-            if (!is_string($value)) {
-                return null;
-            }
-
-            // Slash/dash numeric dates — use detected sheet order (dmy or mdy)
-            if (preg_match('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/', $value)) {
-                $parsed = ExcelSlashDateFormat::parse($value, $this->slashDateOrder);
-                if ($parsed) {
-                    return $parsed;
-                }
-
-                return null;
-            }
-
-            foreach ($this->excelDateFormats() as $format) {
-                $parsed = $this->tryParseWithFormat($value, $format);
-                if ($parsed) {
-                    return $parsed;
-                }
-            }
-
-            // Avoid Carbon::parse() on slash dates — it defaults to m/d/Y
-            return Carbon::parse($value);
-        } catch (\Exception $e) {
-            return null;
-        }
-    }
-
-    private function excelDateFormats(): array
-    {
-        return [
-            'Y-m-d H:i:s',
-            'Y-m-d H:i',
-            'Y-m-d',
-            'd M Y H:i:s',
-            'd M Y',
-            'd M y',
-            'j M Y',
-            'j M y',
-            'd-M-Y',
-            'd-M-y',
-            'M d, Y',
-            'M d Y',
-            'Y/m/d',
-        ];
-    }
-
-    private function tryParseWithFormat(string $value, string $format): ?Carbon
-    {
-        $dateTime = \DateTime::createFromFormat('!' . $format, $value);
-        if ($dateTime === false) {
-            return null;
-        }
-
-        $errors = \DateTime::getLastErrors();
-        if (is_array($errors) && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
-            return null;
-        }
-
-        return Carbon::instance($dateTime);
-    }
-
     private function parseTripDate($tripDate)
     {
-        $parsed = $this->parseExcelDate($tripDate);
+        $parsed = ExcelDate::parse($tripDate, $this->slashDateOrder);
 
         return $parsed ? $parsed->startOfDay() : null;
     }
 
     private function parseBillingMonth($billingMonth)
     {
-        $parsed = $this->parseExcelDate($billingMonth);
-
-        return $parsed ? $parsed->startOfMonth() : null;
+        return ExcelDate::parseBillingMonth($billingMonth, $this->slashDateOrder);
     }
 
     /**
@@ -591,57 +680,49 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
      */
     private function parseTripTime($tripTime)
     {
-        if ($tripTime === null || $tripTime === '') {
-            return null;
-        }
-
-        try {
-            if ($tripTime instanceof Carbon) {
-                return $tripTime->format('h:i:s A');
-            }
-
-            if ($tripTime instanceof \DateTimeInterface) {
-                return Carbon::instance($tripTime)->format('h:i:s A');
-            }
-
-            if (is_string($tripTime)) {
-                $tripTime = trim($tripTime);
-                if ($tripTime === '') {
-                    return null;
-                }
-            }
-
-            if (is_numeric($tripTime)) {
-                $dateTime = ExcelDate::excelToDateTimeObject((float) $tripTime);
-                return Carbon::instance($dateTime)->format('h:i:s A');
-            }
-
-            if (is_string($tripTime)) {
-                foreach (['H:i:s', 'H:i', 'h:i:s A', 'h:i A', 'g:i A', 'g:i:s A'] as $format) {
-                    $parsed = $this->tryParseWithFormat($tripTime, $format);
-                    if ($parsed) {
-                        return $parsed->format('h:i:s A');
-                    }
-                }
-
-                // Combined datetime string — extract time portion
-                $parsedDate = $this->parseExcelDate($tripTime);
-                if ($parsedDate) {
-                    return $parsedDate->format('h:i:s A');
-                }
-            }
-
-            return Carbon::parse($tripTime)->format('h:i:s A');
-        } catch (\Exception $e) {
-            return null;
-        }
+        return ExcelDate::formatTime($tripTime, 'h:i:s A', $this->slashDateOrder);
     }
 
     private function parseTransactionPostDate($transactionPostDate)
     {
-        $parsed = $this->parseExcelDate($transactionPostDate);
+        return ExcelDate::format($transactionPostDate, 'd M Y', $this->slashDateOrder);
+    }
 
-        return $parsed ? $parsed->format('d M Y') : null;
+    /**
+     * Snapshot leasing company id for this import batch (null = own).
+     */
+    private function resolveLeasingCompanyIdForImport(): ?int
+    {
+        if ($this->leasingCompanyFilter === 'own') {
+            return null;
+        }
+
+        $id = (int) $this->leasingCompanyFilter;
+        return $id > 0 ? $id : null;
+    }
+
+    /**
+     * Snapshot leasing company from bike. Null for owned / empty company bikes.
+     */
+    private function resolveLeasingCompanyIdFromBike(Bikes $bike): ?int
+    {
+        if (strcasecmp((string) ($bike->bike_owner ?? ''), 'Owned') === 0) {
+            return null;
+        }
+
+        $companyId = (int) ($bike->company ?? 0);
+        return $companyId > 0 ? $companyId : null;
+    }
+
+    private function bikeMatchesLeasingFilter(Bikes $bike): bool
+    {
+        $resolved = $this->resolveLeasingCompanyIdFromBike($bike);
+
+        if ($this->leasingCompanyFilter === 'own') {
+            return $resolved === null;
+        }
+
+        return $resolved !== null && (int) $resolved === (int) $this->leasingCompanyFilter;
     }
 
     /**

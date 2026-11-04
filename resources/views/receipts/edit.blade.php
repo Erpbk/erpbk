@@ -1,4 +1,10 @@
 {!! Form::model($receipt, ['route' => ['receipts.update', $receipt->id], 'method' => 'patch','id'=>'formajax']) !!}
+@if(!empty($fromCheques))
+    {!! Form::hidden('from_cheques', 1) !!}
+    @if(!empty($chequeClearEditToken))
+        {!! Form::hidden('cheque_clear_edit_token', $chequeClearEditToken) !!}
+    @endif
+@endif
 
 <div class="card-body">
     <div class="row">

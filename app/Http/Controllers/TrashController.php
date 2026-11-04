@@ -16,7 +16,9 @@ use App\Models\LeasingCompanyInvoice;
 use App\Models\Garages;
 use App\Models\Recruiters;
 use App\Models\Riders;
+use App\Models\Employee;
 use App\Models\Bikes;
+use App\Models\BikeMaintenance;
 use App\Models\Sims;
 use App\Models\SimCompany;
 use App\Models\BikeRentCompany;
@@ -32,6 +34,8 @@ use App\Traits\TracksCascadingDeletions;
 use Laracasts\Flash\Flash;
 use App\Models\RtaFines;
 use App\Models\Vouchers;
+use App\Models\Payment;
+use App\Models\Receipt;
 use App\Models\Transactions;
 use App\Services\ActivityLogger;
 use App\Services\DeleteRequestService;
@@ -98,6 +102,57 @@ class TrashController extends Controller
             ->where('related_id', $id)
             ->delete();
     }
+
+    /**
+     * Cascade parent that caused this related soft-delete (if any).
+     */
+    private function cascadedByPrimary(string $modelClass, $id): ?DeletionCascade
+    {
+        return DeletionCascade::getPrimaryDeletion($modelClass, $id);
+    }
+
+    /**
+     * IDs of this model that were soft-deleted only as cascade children.
+     *
+     * @return array<int, int|string>
+     */
+    private function cascadedRelatedIdsForModel(string $modelClass): array
+    {
+        return DeletionCascade::query()
+            ->where('related_model', $modelClass)
+            ->pluck('related_id')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function cascadeChildBlockedMessage(DeletionCascade $causedBy): string
+    {
+        $primaryLabel = class_basename($causedBy->primary_model);
+        $primaryName = $causedBy->primary_name
+            ? " \"{$causedBy->primary_name}\""
+            : '';
+
+        return "This record was deleted with {$primaryLabel}{$primaryName} (#{$causedBy->primary_id}). "
+            . 'Restore or permanently delete that primary record instead.';
+    }
+
+    private function rejectCascadeChildOperation(Request $request, DeletionCascade $causedBy)
+    {
+        $message = $this->cascadeChildBlockedMessage($causedBy);
+
+        if ($request->ajax() || $request->wantsJson() || $request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+            ], 422);
+        }
+
+        Flash::error($message);
+
+        return redirect()->route('settings-panel.trash.index');
+    }
+
     /**
      * List of models that support soft deletes
      */
@@ -156,11 +211,23 @@ class TrashController extends Controller
             'icon' => 'fa-motorcycle',
             'display_columns' => ['rider_id', 'name', 'personal_contact'],
         ],
+        'employees' => [
+            'model' => Employee::class,
+            'name' => 'Employees',
+            'icon' => 'fa-user-tie',
+            'display_columns' => ['employee_id', 'name', 'company_email'],
+        ],
         'bikes' => [
             'model' => Bikes::class,
             'name' => 'Bikes',
             'icon' => 'fa-motorcycle',
             'display_columns' => ['plate', 'model', 'chassis_number'],
+        ],
+        'bike_maintenance' => [
+            'model' => BikeMaintenance::class,
+            'name' => 'Bike Maintenance',
+            'icon' => 'fa-wrench',
+            'display_columns' => ['id', 'maintenance_date', 'bike_id', 'total_cost'],
         ],
         'sims' => [
             'model' => Sims::class,
@@ -224,12 +291,6 @@ class TrashController extends Controller
             'icon' => 'fa-file-invoice',
             'display_columns' => ['id', 'rider_id', 'billing_month', 'total_amount', 'status'],
         ],
-        'rta_account' => [
-            'model' => Accounts::class,
-            'name' => 'RTA Account',
-            'icon' => 'fa-file-invoice',
-            'display_columns' => ['id', 'name', 'account_code', 'account_type'],
-        ],
         'rta_fines' => [
             'model' => RtaFines::class,
             'name' => 'RTA Fines',
@@ -242,17 +303,23 @@ class TrashController extends Controller
             'icon' => 'fa-file-invoice',
             'display_columns' => ['id', 'rider_id', 'billing_month', 'ticket_no', 'amount', 'status'],
         ],
-        'salik_accounts' => [
-            'model' => Accounts::class,
-            'name' => 'Salik Account',
-            'icon' => 'fa-file-invoice',
-            'display_columns' => ['id', 'name', 'account_code', 'account_type'],
-        ],
         'vouchers' => [
             'model' => Vouchers::class,
             'name' => 'Vouchers',
             'icon' => 'fa-file-invoice',
             'display_columns' => ['id', 'trans_code', 'trans_date', 'billing_month', 'amount', 'status'],
+        ],
+        'payments' => [
+            'model' => Payment::class,
+            'name' => 'Payments',
+            'icon' => 'fa-money-bill',
+            'display_columns' => ['id', 'reference', 'date_of_payment', 'billing_month', 'amount', 'status'],
+        ],
+        'receipts' => [
+            'model' => Receipt::class,
+            'name' => 'Receipts',
+            'icon' => 'fa-receipt',
+            'display_columns' => ['id', 'reference', 'date_of_receipt', 'billing_month', 'amount', 'status'],
         ],
         'leasing_company_invoices' => [
             'model' => LeasingCompanyInvoice::class,
@@ -356,14 +423,13 @@ class TrashController extends Controller
                     // Check force delete permission
                     $canForceDelete = auth()->user()->can('settings_recycle_bin_delete');
 
-                    // Get cascade information - check if this was deleted as a cascade
-                    $causedBy = DeletionCascade::where('related_model', $config['model'])
-                        ->where('related_id', $record->id)
-                        ->with('deletedByUser')
-                        ->orderBy('created_at', 'desc')
-                        ->first();
+                    // Cascade children are restored/purged only via their primary — hide them here.
+                    $causedBy = $this->cascadedByPrimary($config['model'], $record->id);
+                    if ($causedBy) {
+                        continue;
+                    }
 
-                    // Get what this deletion cascaded to
+                    // Get what this deletion cascaded to (shown as a hint on the primary row)
                     $cascadedTo = DeletionCascade::where('primary_model', $config['model'])
                         ->where('primary_id', $record->id)
                         ->with('deletedByUser')
@@ -372,9 +438,7 @@ class TrashController extends Controller
 
                     // Get the user who deleted this record
                     $deletedByUser = null;
-                    if ($causedBy && $causedBy->deletedByUser) {
-                        $deletedByUser = $causedBy->deletedByUser;
-                    } elseif (isset($record->deleted_by) && $record->deleted_by) {
+                    if (isset($record->deleted_by) && $record->deleted_by) {
                         $deletedByUser = \App\Models\User::find($record->deleted_by);
                     }
 
@@ -388,7 +452,7 @@ class TrashController extends Controller
                         'deleted_at' => $record->deleted_at,
                         'can_restore' => $canRestore,
                         'can_force_delete' => $canForceDelete,
-                        'caused_by' => $causedBy,
+                        'caused_by' => null,
                         'cascaded_to' => $cascadedTo,
                         'deleted_by_user' => $deletedByUser,
                     ];
@@ -479,6 +543,10 @@ class TrashController extends Controller
         if (!$record) {
             Flash::error('Record not found in trash.');
             return redirect()->route('settings-panel.trash.index');
+        }
+
+        if ($causedBy = $this->cascadedByPrimary($config['model'], $id)) {
+            return $this->rejectCascadeChildOperation($request, $causedBy);
         }
 
         if (DeleteRequestService::hasPending($record)) {
@@ -588,6 +656,10 @@ class TrashController extends Controller
                 $restoredItems = array_merge($restoredItems, $record->restoreRelatedRecords());
             }
 
+            if ($module === 'bike_maintenance' && $record instanceof BikeMaintenance) {
+                $restoredItems = array_merge($restoredItems, $record->restoreRelatedRecords());
+            }
+
             if (in_array($module, ['visa_expenses', 'license_expenses'], true)) {
                 $restoredItems = array_merge(
                     $restoredItems,
@@ -663,6 +735,10 @@ class TrashController extends Controller
             return redirect()->route('settings-panel.trash.index');
         }
 
+        if ($causedBy = $this->cascadedByPrimary($config['model'], $id)) {
+            return $this->rejectCascadeChildOperation($request, $causedBy);
+        }
+
         if (DeleteRequestService::hasPending($record)) {
             Flash::error('This record has a pending delete request. Resolve the request before permanently deleting.');
             return redirect()->route('settings-panel.delete-requests.index');
@@ -689,7 +765,7 @@ class TrashController extends Controller
             // Check for business constraints before permanent deletion
             // Check constraint tables directly from database
             // Fuel/voucher/invoice children are not keyed by the parent id as account_id/customer_id.
-            if (! in_array($module, ['fuel_cards', 'fuel_data', 'vouchers', 'sim_invoices', 'supplier_invoices', 'visa_expenses', 'license_expenses', 'visa_installment_plans', 'license_installment_plans'], true)) {
+            if (! in_array($module, ['fuel_cards', 'fuel_data', 'vouchers', 'sim_invoices', 'supplier_invoices', 'bike_maintenance', 'visa_expenses', 'license_expenses', 'visa_installment_plans', 'license_installment_plans'], true)) {
                 $constraintTables = [
                     'transactions' => ['account_id', 'customer_id', 'vendor_id', 'supplier_id'],
                     'invoices' => ['customer_id', 'vendor_id'],
@@ -858,7 +934,17 @@ class TrashController extends Controller
                 }
             }
 
+            if ($module === 'employees' && $record instanceof Employee && $record->profile_image) {
+                if (Storage::disk('public')->exists($record->profile_image)) {
+                    Storage::disk('public')->delete($record->profile_image);
+                }
+            }
+
             if ($module === 'supplier_invoices' && $record instanceof SupplierInvoices) {
+                $deletedItems = array_merge($deletedItems, $record->purgeRelatedRecords());
+            }
+
+            if ($module === 'bike_maintenance' && $record instanceof BikeMaintenance) {
                 $deletedItems = array_merge($deletedItems, $record->purgeRelatedRecords());
             }
 
@@ -1016,8 +1102,13 @@ class TrashController extends Controller
             $model = $config['model'];
 
             try {
-                // Use Eloquent to count soft-deleted records for current company
-                $count = $this->applyTrashModuleConstraints($this->trashedQuery($model), $config)->count();
+                // Count soft-deleted primaries only (exclude cascade children)
+                $query = $this->applyTrashModuleConstraints($this->trashedQuery($model), $config);
+                $cascadedIds = $this->cascadedRelatedIdsForModel($model);
+                if (! empty($cascadedIds)) {
+                    $query->whereNotIn((new $model)->getQualifiedKeyName(), $cascadedIds);
+                }
+                $count = $query->count();
 
                 if ($count > 0) {
                     $stats[] = [
@@ -1183,6 +1274,21 @@ class TrashController extends Controller
         foreach ($transactions as $transaction) {
             $transaction->forceDelete();
             $deletedItems[] = 'Transaction #' . $transaction->id;
+        }
+
+        $receiptIds = [];
+        $partials = is_array($record->partial_paid_amount ?? null) ? $record->partial_paid_amount : [];
+        foreach ($partials as $receiptId => $amount) {
+            $id = (int) $receiptId;
+            if ($id > 0) {
+                $receiptIds[] = $id;
+            }
+        }
+        if ($receiptIds !== []) {
+            DeleteRequestService::purgeInstallmentLinkedReceipts($record);
+            foreach (array_unique($receiptIds) as $receiptId) {
+                $deletedItems[] = 'Receipt #' . $receiptId;
+            }
         }
 
         $this->syncInstallmentLiabilityLedger($record);

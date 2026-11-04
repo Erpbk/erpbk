@@ -32,7 +32,7 @@
         <form id="filterForm" action="{{ route('fuel_data.index') }}" method="GET">
             <div class="row">
                 <div class="form-group col-md-12">
-                    <label for="company_name">Rider ID</label>
+                    <label for="rider_id">Rider ID</label>
                     <select class="form-control" id="rider_id" name="rider_id">
                         @php
                         $riders = \App\Models\Riders::all();
@@ -44,12 +44,28 @@
                     </select>
                 </div>
                 <div class="form-group col-md-12">
-                    <label for="billing month">Billing Moth</label>
-                    <input type="month" name="billing_month" class="form-control">
+                    <label for="billing_month">Billing Month</label>
+                    <input type="month" name="billing_month" id="billing_month" class="form-control" value="{{ request('billing_month') }}">
                 </div>
                 <div class="form-group col-md-12">
-                    <label for="billing month">Date</label>
-                    <input type="date" name="date" class="form-control" value="{{ request('date') ?? '' }}">
+                    <label for="trans_no">Transaction Number</label>
+                    <input type="text" name="trans_no" id="trans_no" class="form-control" placeholder="Transaction #" value="{{ request('trans_no') }}">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="card_no">Card No</label>
+                    <input type="text" name="card_no" id="card_no" class="form-control" placeholder="Card number" value="{{ request('card_no') }}">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="bike_no">Bike No</label>
+                    <input type="text" name="bike_no" id="bike_no" class="form-control" placeholder="Bike plate" value="{{ request('bike_no') }}">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="from_date">From Date</label>
+                    <input type="date" name="from_date" id="from_date" class="form-control" value="{{ request('from_date') }}">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="to_date">To Date</label>
+                    <input type="date" name="to_date" id="to_date" class="form-control" value="{{ request('to_date') }}">
                 </div>
                 <div class="form-group col-md-12">
                     <label for="card_limit_daily">Card Limit ( Daily )</label>

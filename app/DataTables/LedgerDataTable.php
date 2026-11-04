@@ -13,6 +13,7 @@ use App\Models\salik;
 use App\Models\SupplierInvoices;
 use App\Models\Transactions;
 use App\Models\Vouchers;
+use App\Services\DeleteRequestService;
 use App\Support\CompanyQuery;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +32,17 @@ class LedgerDataTable extends DataTable
         }
         $transactions = $query->get();
         $openingBalance = $this->getOpeningBalance();
+
+        // Batch pending-deletion lookup for visible txs + vouchers (one reverse-map build).
+        $pendingTxRequestIds = DeleteRequestService::pendingRequestIdsForIds(
+            Transactions::class,
+            $transactions->pluck('id')->map(fn ($id) => (int) $id)->all()
+        );
+        $voucherIds = $transactions->pluck('voucher.id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $pendingVoucherRequestIds = DeleteRequestService::pendingRequestIdsForIds(
+            Vouchers::class,
+            $voucherIds
+        );
 
         $data = [];
         $runningBalance = $openingBalance;
@@ -76,7 +88,7 @@ class LedgerDataTable extends DataTable
                     $view_file = '  <a href="' . storage_url($fineFile) . '" class="no-print" target="_blank">View File</a>';
                 }
             } elseif (isset($row->voucher->attach_file)) {
-                if (in_array($row->reference_type, ['LV', 'LE'], true)) {
+                if (in_array($row->reference_type, ['LV', 'LE', 'VR'], true)) {
                     $view_file = '  <a href="' . url('storage/' . $row->voucher->attach_file) . '" class="no-print"  target="_blank">View File</a>';
                 } else {
                     $view_file = '  <a href="' . url('storage/vouchers/' . $row->voucher->attach_file) . '" class="no-print"  target="_blank">View File</a>';
@@ -86,7 +98,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -95,7 +107,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -104,11 +116,11 @@ class LedgerDataTable extends DataTable
                 $voucher_ID = 'RTA FINE';
                 $voucher_text = '<a href="javascript:void(0);" data-action="' . route('rtaFines.show', $row->reference_id) . '" class="show-modal-right" >' . $voucher_ID . '</a>';
             }
-            if (in_array($row->reference_type, ['LV', 'LE', 'VL', 'IL', 'FAV', 'FDV', 'BL'], true)) {
+            if (in_array($row->reference_type, ['LV', 'LE', 'VL', 'IL', 'FAV', 'FDV', 'BL', 'VR'], true)) {
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -117,7 +129,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -126,7 +138,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -135,7 +147,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -144,7 +156,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -153,7 +165,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -195,7 +207,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -204,20 +216,20 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
             }
             if ($row->reference_type == 'Invoice') {
                 $invoice_ID = $row->reference_id;
-                $voucher_text = '<a href="javascript:void(0);" data-title="Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('riderInvoices.show', $invoice_ID) . '" class="no-print show-modal">RD-' . $invoice_ID . '</a>';
+                $voucher_text = '<a href="javascript:void(0);" data-action="' . route('riderInvoices.show', $invoice_ID) . '" data-size="xl" class="no-print show-modal-right">RINV-' . str_pad((string) $invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
             }
             if ($row->reference_type == 'RiderInvoice') {
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -226,7 +238,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -248,7 +260,7 @@ class LedgerDataTable extends DataTable
                 $invoice = CustomerInvoices::where('id', $row->reference_id)->first();
                 if ($invoice) {
                     $voucher_ID = $invoice->invoice_number;
-                    $voucher_text = '<a href="' . route('customer_invoices.show', $invoice->id) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('customer_invoices.show', $invoice->id) . '" data-size="xl" class="no-print show-modal-right">' . e($voucher_ID) . '</a>';
                     if ($invoice->attachment) {
                         $view_file = '  <a href="' . storage_url($invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -261,7 +273,7 @@ class LedgerDataTable extends DataTable
                 $invoice = SupplierInvoices::where('id', $row->reference_id)->first();
                 if ($invoice) {
                     $voucher_ID = $invoice->invoice_number;
-                    $voucher_text = '<a href="' . route('supplier_invoices.show', $invoice->id) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('supplierInvoices.show', $invoice->id) . '" data-size="xl" class="no-print show-modal-right">' . e($voucher_ID) . '</a>';
                     if ($invoice->attachment) {
                         $view_file = '  <a href="' . storage_url($invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -274,7 +286,7 @@ class LedgerDataTable extends DataTable
                 $invoice = CompanyQuery::table('sim_invoices')->where('id', $row->reference_id)->first();
                 if ($invoice) {
                     $voucher_ID = $invoice->invoice_number;
-                    $voucher_text = '<a href="' . route('simInvoices.show', $invoice->id) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('simInvoices.show', $invoice->id) . '" data-size="xl" class="no-print show-modal-right">' . e($voucher_ID) . '</a>';
                     if ($invoice->attachment) {
                         $view_file = '  <a href="' . storage_url($invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -287,7 +299,7 @@ class LedgerDataTable extends DataTable
                 $invoice = EmployeeInvoices::where('id', $row->reference_id)->first();
                 if ($invoice) {
                     $voucher_ID = $invoice->invoice_number;
-                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('employeeInvoices.show', $invoice->id) . '" class="no-print show-modal-right">' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('employeeInvoices.show', $invoice->id) . '" data-size="xl" class="no-print show-modal-right">' . $voucher_ID . '</a>';
                     if ($invoice->attachment) {
                         $view_file = '  <a href="' . storage_url($invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -300,7 +312,7 @@ class LedgerDataTable extends DataTable
                 $invoice = FuelData::find($row->reference_id);
                 if ($invoice) {
                     $voucher_ID = $invoice->inv_id;
-                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('fuel_data.show', $invoice->id) . '" class="no-print show-modal-right" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('fuel_data.show', $invoice->id) . '" data-size="xl" class="no-print show-modal-right">' . $voucher_ID . '</a>';
                     if ($invoice->attachment) {
                         $view_file = '  <a href="' . storage_url($invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -313,7 +325,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = Vouchers::where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                     if ($vouchers->attach_file) {
                         $view_file = '  <a href="' . storage_url($vouchers->attach_file) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -325,7 +337,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = Vouchers::where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                     if ($vouchers->attach_file) {
                         $view_file = '  <a href="' . storage_url($vouchers->attach_file) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -335,14 +347,14 @@ class LedgerDataTable extends DataTable
             }
             if ($row->reference_type == 'LeasingCompanyInvoice') {
                 $invoice_ID = $row->reference_id;
-                $voucher_text = '<a href="javascript:void(0);" data-title="Leasing Company Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyInvoices.show', $invoice_ID) . '" class="no-print show-modal">LI-' . str_pad($invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
+                $voucher_text = '<a href="javascript:void(0);" data-action="' . route('leasingCompanyInvoices.show', $invoice_ID) . '" data-size="xl" class="no-print show-modal-right">LI-' . str_pad($invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
             }
             if ($row->reference_type == 'LeasingCompanyBillingInvoice' || $row->reference_type == 'Rental Invoice') {
                 $invoice_ID = $row->reference_id;
-                $voucher_text = '<a href="javascript:void(0);" data-title="Leasing Billing Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyBillingInvoices.show', $invoice_ID) . '" class="no-print show-modal">RBI-' . str_pad($invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
+                $voucher_text = '<a href="javascript:void(0);" data-action="' . route('leasingCompanyBillingInvoices.show', $invoice_ID) . '" data-size="xl" class="no-print show-modal-right">RBI-' . str_pad($invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
             }
             $month = $row->billing_month
-                ? "<span style='white-space: nowrap;'>" . date('M Y', strtotime((string) $row->billing_month)) . '</span>'
+                ? "<span style='white-space: nowrap;'>" . date('M-Y', strtotime((string) $row->billing_month)) . '</span>'
                 : '';
             if ($row->reference_type == 'RTA' || $row->reference_type == 'RTA FINE' || $row->reference_type == 'RTA_FINE') {
                 // Ticket / bike / trip date are already in the stored narration.
@@ -350,9 +362,9 @@ class LedgerDataTable extends DataTable
             } elseif ($row->reference_type == 'LV') {
                 $visaex = CompanyQuery::table('visa_expenses')->where('id', $row->reference_id)->first();
                 if ($visaex) {
-                    $rider = CompanyQuery::table('accounts')->where('id', $visaex->rider_id)->first();
-                    if ($rider) {
-                        $naration = 'Paid to <b>' . $rider->name . ' </b>' . $visaex->visa_status . ' Charges ' . $visaex->date . $view_file;
+                    $personName = $this->resolveVisaOrLicensePersonName($visaex);
+                    if ($personName) {
+                        $naration = 'Paid to <b>' . $personName . ' </b>' . $visaex->visa_status . ' Charges ' . $visaex->date . $view_file;
                     } else {
                         $naration = $row->narration . ' (Rider not found) ' . $view_file;
                     }
@@ -362,9 +374,9 @@ class LedgerDataTable extends DataTable
             } elseif ($row->reference_type == 'LE') {
                 $licenseex = CompanyQuery::table('license_expenses')->where('id', $row->reference_id)->first();
                 if ($licenseex) {
-                    $rider = CompanyQuery::table('accounts')->where('id', $licenseex->rider_id)->first();
-                    if ($rider) {
-                        $naration = 'Paid to <b>' . $rider->name . ' </b>' . $licenseex->license_status . ' Charges ' . $licenseex->date . $view_file;
+                    $personName = $this->resolveVisaOrLicensePersonName($licenseex);
+                    if ($personName) {
+                        $naration = 'Paid to <b>' . $personName . ' </b>' . $licenseex->license_status . ' Charges ' . $licenseex->date . $view_file;
                     } else {
                         $naration = $row->narration . ' (Rider not found) ' . $view_file;
                     }
@@ -405,6 +417,14 @@ class LedgerDataTable extends DataTable
             }
             $accountCode = $row->account ? ($row->account->account_code ?? 'N/A') : 'N/A';
             $accountName = $row->account ? ($row->account->name ?? 'N/A') : 'N/A';
+
+            $pendingRequestId = $pendingTxRequestIds[(int) $row->id]
+                ?? ($row->voucher ? ($pendingVoucherRequestIds[(int) $row->voucher->id] ?? null) : null);
+            if ($pendingRequestId) {
+                $naration .= ' <span class="badge bg-warning text-dark pending-deletion-badge" title="Linked to pending delete request #'
+                    . (int) $pendingRequestId . '"><i class="ti ti-lock me-1"></i>Pending Deletion</span>';
+            }
+
             $data[] = [
                 'date' => "<span style='white-space: nowrap;'>" . Common::DateFormat($row->trans_date) . '</span>',
                 'account_name' => $accountCode . '-' . $accountName,
@@ -450,8 +470,13 @@ class LedgerDataTable extends DataTable
             $query->where('billing_month', request('month') . '-01');
         }
 
-        if (request('from_date') && request('to_date')) {
-            $query->whereBetween('trans_date', [request('from_date'), request('to_date')]);
+        if (request('from_date') || request('to_date')) {
+            if (request('from_date')) {
+                $query->where('trans_date', '>=', request('from_date'));
+            }
+            if (request('to_date')) {
+                $query->where('trans_date', '<=', request('to_date'));
+            }
         }
 
         $query = $query->orderBy('billing_month', 'ASC')->orderBy('trans_date', 'ASC');
@@ -477,10 +502,15 @@ class LedgerDataTable extends DataTable
             return 0;
         }
 
-        if (request('from_date') && request('to_date')) {
+        if (request('from_date')) {
             return Transactions::where('account_id', $account_id)
                 ->where('trans_date', '<', request('from_date'))
                 ->sum(DB::raw('debit - credit'));
+        }
+
+        // Only to_date (no from): no opening cut-off — show history up to to_date
+        if (request('to_date') && ! request('month')) {
+            return 0;
         }
 
         return Transactions::where('account_id', $account_id)
@@ -569,6 +599,66 @@ class LedgerDataTable extends DataTable
               'processing' => '<div class="loading-overlay"><div class="spinner-border text-primary" role="status"></div></div>'
             ], */
             ]);
+    }
+
+    /**
+     * Resolve rider/employee display name for visa/license expense ledger rows.
+     *
+     * Current rows store riders.id (or employees.id) on rider_id/employee_id.
+     * Legacy rows may still store accounts.id on rider_id.
+     */
+    protected function resolveVisaOrLicensePersonName(?object $expense): ?string
+    {
+        if (!$expense) {
+            return null;
+        }
+
+        if (!empty($expense->employee_id)) {
+            $employee = CompanyQuery::table('employees')->where('id', $expense->employee_id)->first();
+            if ($employee) {
+                $code = $employee->employee_id ?: ('EMP-' . $employee->id);
+
+                return trim($code . ' - ' . $employee->name);
+            }
+        }
+
+        if (!empty($expense->expense_account_id)) {
+            $ea = CompanyQuery::table('expense_accounts')->where('id', $expense->expense_account_id)->first();
+            if ($ea) {
+                if (!empty($ea->employee_id)) {
+                    $employee = CompanyQuery::table('employees')->where('id', $ea->employee_id)->first();
+                    if ($employee) {
+                        $code = $employee->employee_id ?: ('EMP-' . $employee->id);
+
+                        return trim($code . ' - ' . $employee->name);
+                    }
+                }
+                if (!empty($ea->rider_id)) {
+                    $rider = CompanyQuery::table('riders')->where('id', $ea->rider_id)->first();
+                    if ($rider) {
+                        return trim(($rider->rider_id ? $rider->rider_id . ' - ' : '') . $rider->name);
+                    }
+                }
+                if (!empty($ea->name)) {
+                    return (string) $ea->name;
+                }
+            }
+        }
+
+        if (!empty($expense->rider_id)) {
+            $rider = CompanyQuery::table('riders')->where('id', $expense->rider_id)->first();
+            if ($rider) {
+                return trim(($rider->rider_id ? $rider->rider_id . ' - ' : '') . $rider->name);
+            }
+
+            // Legacy: rider_id was accounts.id
+            $account = CompanyQuery::table('accounts')->where('id', $expense->rider_id)->first();
+            if ($account) {
+                return (string) $account->name;
+            }
+        }
+
+        return null;
     }
 
     /**

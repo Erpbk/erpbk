@@ -123,7 +123,7 @@ class AssetCategoryAccountService
         $account->ref_id = $refId;
         $account->status = 1;
         $account->opening_balance = 0;
-        $account->is_locked = 0;
+        $account->is_locked = true;
 
         if ($companyId ?? CompanyContext::id()) {
             $account->company_id = $companyId ?? CompanyContext::id();

@@ -46,8 +46,12 @@ return [
         'route' => 'bikes.index',
         'count_strategy' => 'numeric_status',
         'filter_query' => [
-            'active' => ['bike_top_wh' => 'active'],
-            'inactive' => ['bike_top_wh' => 'inactive'],
+            'active' => ['bike_top_wh' => 'on_road'],
+            'inactive' => ['bike_top_wh' => 'off_road'],
+        ],
+        'stat_labels' => [
+            'active' => 'On Road',
+            'inactive' => 'Off Road',
         ],
     ],
     'sims' => [

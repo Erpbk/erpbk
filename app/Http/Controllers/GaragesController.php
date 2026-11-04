@@ -119,6 +119,7 @@ class GaragesController extends AppBaseController
       $account->status = 1;
       $account->account_code = 'GAR-' . str_pad($garages->id, 5, '0', STR_PAD_LEFT);
       $account->branch_id = $garages->branch_id;
+      $account->is_locked = true;
       $account->save();
       $garages->update([
         'account_id' => $account->id
@@ -227,6 +228,10 @@ class GaragesController extends AppBaseController
 
     if (empty($garages)) {
       return delete_error_response('Garage not found!', route('garages.index'), 404);
+    }
+
+    if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($garages), 'Garage')) {
+      return delete_error_response($blockReason, route('garages.index'));
     }
 
     $this->garagesRepository->delete($id);

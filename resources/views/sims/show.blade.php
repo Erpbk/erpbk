@@ -242,7 +242,62 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        vertical-align: bottom;
+        vertical-align: middle;
+    }
+
+    .sim-page .sim-notes-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .sim-page .wa-forward {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: #e4e6eb;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background-color 0.2s ease, transform 0.15s ease;
+    }
+
+    .sim-page .wa-forward i {
+        color: #6b7280;
+        font-size: 16px;
+    }
+
+    .sim-page .wa-forward:hover {
+        background-color: #d1d5db;
+        transform: scale(1.05);
+    }
+
+    .sim-page .sim-danger-panel {
+        border: 1px solid #fecaca;
+        background: #fef2f2;
+        border-radius: 12px;
+        padding: 14px;
+        margin-top: 16px;
+    }
+
+    .sim-page .sim-danger-panel .title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #b91c1c;
+        font-weight: 600;
+        font-size: 13px;
+        margin-bottom: 6px;
+    }
+
+    .sim-page .sim-danger-panel .desc {
+        color: #7f1d1d;
+        font-size: 12px;
+        line-height: 1.5;
+        margin-bottom: 12px;
     }
 </style>
 @endpush
@@ -308,7 +363,7 @@
                                 </div>
                             </div>
                             <div class="sim-mock-iccid">
-                                <div class="sim-mock-label">ICCID / EMI</div>
+                                <div class="sim-mock-label">ICCID / IMEI</div>
                                 <div class="value">{{ $emiDisplay !== '' ? $emiDisplay : '—' }}</div>
                             </div>
                         </div>
@@ -351,7 +406,7 @@
                     </div>
                     <div class="sim-info-row">
                         <i class="ti ti-cpu"></i>
-                        <span class="sim-info-label">EMI / ICCID</span>
+                        <span class="sim-info-label">IMEI / ICCID</span>
                         <span class="sim-info-value">{{ $emiDisplay !== '' ? $emiDisplay : '—' }}</span>
                     </div>
                     <div class="sim-info-row">
@@ -369,20 +424,22 @@
                     <div class="d-grid gap-2 mt-3">
                     @canany(['sims_assign_create', 'sims_assign_edit'])
                     @if($sims->assign_to)
-                    <a href="javascript:void(0);" class="btn btn-primary show-modal" data-size="lg"
+                    <a href="javascript:void(0);" class="btn btn-primary show-modal" data-size="md"
                        data-title="Return SIM" data-action="{{ route('sims.return', $sims->id) }}">
                         <i class="ti ti-arrow-back-up me-1"></i> Return SIM
                     </a>
                     @elseif($sims->isAssignable())
-                    <a href="javascript:void(0);" class="btn btn-primary show-modal" data-size="lg"
+                    <a href="javascript:void(0);" class="btn btn-primary show-modal" data-size="md"
                        data-title="Assign SIM" data-action="{{ route('sims.assign', $sims->id) }}">
-                        <i class="ti ti-user-plus me-1"></i> Assign Rider
+                        <i class="ti ti-user-plus me-1"></i> Assign
                     </a>
                     @else
                     <button type="button" class="btn btn-primary" disabled>
-                        <i class="ti ti-user-plus me-1"></i> Assign Rider
+                        <i class="ti ti-user-plus me-1"></i> Assign
                     </button>
-                    <small class="text-muted text-center">Activate this SIM before assigning it.</small>
+                    <small class="text-muted text-center">
+                        {{ $sims->isLost() ? 'A lost SIM cannot be assigned.' : 'Activate this SIM before assigning it.' }}
+                    </small>
                     @endif
                     @endcanany
 
@@ -392,7 +449,7 @@
                         <i class="ti ti-edit me-1"></i> Edit SIM
                     </a>
 
-                    @if(!$sims->assign_to)
+                    @if(!$sims->isLost() && !$sims->assign_to)
                     @php
                         $deactivating = !$sims->isDeactivated();
                     @endphp
@@ -408,6 +465,48 @@
                     @endif
                     @endcan
                     </div>
+
+                    @can('sims_sim_edit')
+                    <div class="sim-danger-panel">
+                        @if($sims->isLost())
+                        <div class="title"><i class="ti ti-alert-triangle"></i> SIM Lost / Not Returned</div>
+                        <div class="desc mb-2">
+                            Charged to
+                            <strong>{{ $sims->lostPersonLabel() }}</strong>
+                            on {{ $sims->lost_date ? \Carbon\Carbon::parse($sims->lost_date)->format('d-M-Y') : '—' }}.
+                            @if($sims->lost_remarks)
+                            <br>{{ $sims->lost_remarks }}
+                            @endif
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <div class="text-muted" style="font-size: 11px;">Charged Amount</div>
+                                <div class="fw-bold text-danger" style="font-size: 18px;">
+                                    {{ \App\Helpers\Currency::format($sims->lost_amount) }}
+                                </div>
+                            </div>
+                            @if($sims->lostVoucherLabel())
+                            <a href="javascript:void(0);" class="btn btn-sm btn-outline-danger show-modal" data-size="xl"
+                               data-title="Voucher # {{ $sims->lostVoucherLabel() }}"
+                               data-action="{{ route('vouchers.show', $sims->lost_voucher_id) }}">
+                                <i class="ti ti-file-invoice me-1"></i>
+                                {{ $sims->lostVoucherLabel() }}
+                            </a>
+                            @endif
+                        </div>
+                        @else
+                        <div class="title"><i class="ti ti-alert-triangle"></i> SIM Lost / Not Returned</div>
+                        <div class="desc">
+                            Mark this SIM as lost or not returned and charge the holder. Enter the
+                            amount in the form; an Inventory Loss (IL) voucher is generated automatically.
+                        </div>
+                        <a href="javascript:void(0);" class="btn btn-danger btn-sm w-100 show-modal" data-size="xl"
+                           data-title="Charge Holder For Lost SIM" data-action="{{ route('sims.chargeLost', $sims->id) }}">
+                            <i class="ti ti-cash-off me-1"></i> Charge Holder (Lost SIM)
+                        </a>
+                        @endif
+                    </div>
+                    @endcan
                 </div>
             </div>
         </div>
@@ -516,13 +615,27 @@
                                             @endif
                                         </td>
                                         <td>
-                                            @if($history->notes)
-                                            <span class="sim-note" title="{{ $history->notes }}">{{ $history->notes }}</span>
-                                            @elseif(!$history->return_date)
+                                            @php
+                                                $copyNotes = (string) $history->notes;
+                                                $manualNote = \App\Services\AssignmentClipboardNote::displayNote($copyNotes);
+                                                $canCopy = \App\Services\AssignmentClipboardNote::isStructured($copyNotes);
+                                            @endphp
+                                            <div class="sim-notes-cell">
+                                            @if($manualNote)
+                                            <span class="sim-note" title="{{ $manualNote }}">{{ $manualNote }}</span>
+                                            @elseif(!$history->return_date && !$canCopy)
                                             <span class="text-muted">Currently assigned</span>
-                                            @else
+                                            @endif
+                                            @if($canCopy)
+                                            <span class="notes-cell wa-forward"
+                                                data-notes="{{ e($copyNotes) }}"
+                                                title="Click to copy assignment details">
+                                                <i class="fab fa-whatsapp"></i>
+                                            </span>
+                                            @elseif(!$manualNote && $history->return_date)
                                             —
                                             @endif
+                                            </div>
                                         </td>
                                     </tr>
                                     @endforeach
@@ -561,7 +674,7 @@
                             <div class="text-end" style="font-size: 12px;">
                                 <div class="text-muted">Total Billed</div>
                                 <div class="fw-bold">
-                                    AED {{ number_format((float) ($invoiceTotals->total ?? 0), 2) }}
+                                    {{ \App\Helpers\Currency::format($invoiceTotals->total ?? 0) }}
                                     <span class="text-muted fw-normal">
                                         ({{ (int) ($invoiceTotals->bills ?? 0) }} bills)
                                     </span>
@@ -584,48 +697,39 @@
                                         <th>Inv Date</th>
                                         <th>Billing Month</th>
                                         <th>Company</th>
-                                        <th class="text-end">Rental</th>
-                                        <th class="text-end">Extra</th>
+                                        <th class="text-end">Charges</th>
+                                        <th class="text-end">VAT</th>
                                         <th class="text-end">Total</th>
                                         <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($invoiceItems as $index => $item)
-                                    @php $invoice = $item->invoice; @endphp
+                                    @foreach($invoiceItems as $index => $invoice)
                                     <tr>
                                         <td>{{ $invoiceItems->firstItem() + $index }}</td>
                                         <td>
-                                            @if($invoice)
                                             <a href="javascript:void(0);" class="show-modal-right text-decoration-none"
                                                data-action="{{ route('simInvoices.show', $invoice->id) }}">
                                                 {{ $invoice->invoice_number ?? ('SIMI-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT)) }}
                                             </a>
+                                        </td>
+                                        <td>
+                                            {{ $invoice->inv_date ? \Carbon\Carbon::parse($invoice->inv_date)->format('d-M-Y') : '—' }}
+                                        </td>
+                                        <td>
+                                            {{ $invoice->billing_month ? \Carbon\Carbon::parse($invoice->billing_month)->format('M-Y') : '—' }}
+                                        </td>
+                                        <td>{{ $invoice->company?->name ?? '—' }}</td>
+                                        <td class="text-end">{{ number_format((float) ($invoice->charges_excl ?? 0), 2) }}</td>
+                                        <td class="text-end">{{ number_format((float) ($invoice->vat_sum ?? 0), 2) }}</td>
+                                        <td class="text-end fw-semibold">{{ number_format((float) ($invoice->line_total ?? 0), 2) }}</td>
+                                        <td>
+                                            @if((int) $invoice->status === 1)
+                                            <span class="badge bg-success">Paid</span>
+                                            @elseif((int) $invoice->status === 3)
+                                            <span class="badge bg-warning">Partially Paid</span>
                                             @else
-                                            —
-                                            @endif
-                                        </td>
-                                        <td>
-                                            {{ $invoice?->inv_date ? \Carbon\Carbon::parse($invoice->inv_date)->format('d-M-Y') : '—' }}
-                                        </td>
-                                        <td>
-                                            {{ $invoice?->billing_month ? \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') : '—' }}
-                                        </td>
-                                        <td>{{ $invoice?->company?->name ?? '—' }}</td>
-                                        <td class="text-end">{{ number_format((float) $item->rental_amount, 2) }}</td>
-                                        <td class="text-end">{{ number_format((float) ($item->additional_charges + $item->international_usage_charges), 2) }}</td>
-                                        <td class="text-end fw-semibold">{{ number_format((float) $item->total_amount, 2) }}</td>
-                                        <td>
-                                            @if($invoice)
-                                                @if((int) $invoice->status === 1)
-                                                <span class="badge bg-success">Paid</span>
-                                                @elseif((int) $invoice->status === 3)
-                                                <span class="badge bg-warning">Partially Paid</span>
-                                                @else
-                                                <span class="badge bg-danger">Unpaid</span>
-                                                @endif
-                                            @else
-                                            —
+                                            <span class="badge bg-danger">Unpaid</span>
                                             @endif
                                         </td>
                                     </tr>
@@ -663,6 +767,20 @@
                 }
             }, true);
         }
+
+        document.querySelectorAll('.notes-cell').forEach(function(cell) {
+            const notes = cell.dataset.notes;
+            if (!notes) return;
+
+            cell.style.cursor = 'pointer';
+            cell.addEventListener('click', function() {
+                navigator.clipboard.writeText(notes).then(() => {
+                    toastr.success('Notes copied to clipboard');
+                }).catch(() => {
+                    toastr.error('Failed to copy');
+                });
+            });
+        });
     });
 </script>
 @endsection

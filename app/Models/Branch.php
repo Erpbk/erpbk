@@ -3,13 +3,14 @@
 
 namespace App\Models;
 
+use App\Traits\TracksUserAttribution;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Branch extends BaseModel
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, TracksUserAttribution;
 
     /**
      * The attributes that are mass assignable.
@@ -28,6 +29,7 @@ class Branch extends BaseModel
         'description',
         'created_by',
         'updated_by',
+        'deleted_by'
     ];
 
     /**
@@ -72,20 +74,10 @@ class Branch extends BaseModel
     /**
      * Get the user who created this branch.
      */
-    public function createdBy()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    /**
+/**
      * Get the user who last updated this branch.
      */
-    public function updatedBy()
-    {
-        return $this->belongsTo(User::class, 'updated_by');
-    }
-
-    //Dynamic Relationships (for financial tables)
+//Dynamic Relationships (for financial tables)
     public function getUsersAttribute()
     {
         return User::whereJsonContains('branch_ids', $this->id)->get();

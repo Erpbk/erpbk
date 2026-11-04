@@ -6,8 +6,13 @@
 
 <!-- File Upload -->
 <div class="form-group col-sm-6">
-  {!! Form::label('file', 'Upload File:', ['class' => 'required']) !!}
-  {!! Form::file('file', ['class' => 'form-control', 'required']) !!}
+  @include('partials.universal_document_upload', [
+    'name' => 'file',
+    'label' => 'Upload File',
+    'required' => true,
+    'inputClass' => 'form-control',
+    'showHint' => true,
+  ])
 </div>
 
 <!-- Details -->

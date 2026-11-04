@@ -35,6 +35,24 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     $(document).ready(function(){
+        $('#quickSearch').on('keyup', function(e) {
+            if (e.keyCode === 13 || $(this).val().length === 0) {
+                const q = $(this).val();
+                $.ajax({
+                    url: window.location.pathname,
+                    type: 'GET',
+                    data: { quick_search: q },
+                    success: function(data) {
+                        if (data && data.tableData) {
+                            $('#table-data').html(data.tableData);
+                            const url = window.location.pathname + (q ? ('?quick_search=' + encodeURIComponent(q)) : '');
+                            history.pushState(null, '', url);
+                        }
+                    }
+                });
+            }
+        });
+
         $(document).on('click', '.delete-payment', function(e) {
             e.preventDefault();
             const url = $(this).data('url');

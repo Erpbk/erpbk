@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
+use App\Traits\TracksUserAttribution;
+
 class RiderItemPrice extends BaseModel
 {
-  use HasFactory, LogsActivity, SoftDeletes;
+  use HasFactory, LogsActivity, SoftDeletes, TracksUserAttribution;
   protected $guarded = [];
 
 
@@ -18,8 +20,4 @@ class RiderItemPrice extends BaseModel
     return $this->hasOne(Items::class, 'id', 'item_id');
   }
 
-  public function deletedBy()
-  {
-    return $this->belongsTo(\App\Models\User::class, 'deleted_by', 'id');
-  }
 }

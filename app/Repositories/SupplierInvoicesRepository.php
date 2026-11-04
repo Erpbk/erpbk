@@ -33,6 +33,8 @@ class SupplierInvoicesRepository extends BaseRepository
         'billing_month',
         'gaurantee',
         'notes',
+        'customer_note',
+        'terms_and_conditions',
         'garage_id',
     ];
 
@@ -52,12 +54,14 @@ class SupplierInvoicesRepository extends BaseRepository
             'supplier_id' => 'required|exists:suppliers,id',
             'descriptions' => 'required|string',
             'notes' => 'nullable|string',
+            'customer_note' => 'nullable|string',
+            'terms_and_conditions' => 'nullable|string',
             'item_ids' => 'required|array|min:1',
             'item_ids.*' => 'exists:items,id',
             'item_qty' => 'required|array|min:1',
             'item_qty.*' => 'numeric|min:0.01',
             'item_rate' => 'required|array|min:1',
-            'item_rate.*' => 'numeric|min:0',
+            'item_rate.*' => 'numeric',
             'item_vat' => 'nullable|array',
             'item_vat.*' => 'numeric|min:0|max:100',
         ];
@@ -152,7 +156,7 @@ class SupplierInvoicesRepository extends BaseRepository
                     $transCode = Transactions::where('reference_type', 'SUP')
                         ->where('reference_id', $id)
                         ->value('trans_code');
-                    Transactions::where('trans_code', $transCode)->delete();
+                    Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $transCode));
                 }
                 if (!$transCode) {
                     $transCode = \App\Helpers\Account::trans_code();

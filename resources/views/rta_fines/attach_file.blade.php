@@ -11,7 +11,14 @@
                 </a>
             </div>
             <div class="col-md-6">
-                <input type="file" name="attachment_path" class="form-control" accept=".jpg,.png,.pdf,,image/jpeg,image/png">
+                @include('partials.universal_document_upload', [
+                  'name' => 'attachment_path',
+                  'label' => null,
+                  'required' => false,
+                  'accept' => '.jpg,.png,.pdf,,image/jpeg,image/png',
+                  'inputClass' => 'form-control',
+                  'showHint' => true,
+                ])
             </div>
         </div>
         @if($fine->attachment)
@@ -25,7 +32,14 @@
                 </a>
             </div>
             <div class="col-md-6">
-                <input type="file" name="attachment" class="form-control" accept=".jpg,.png,.pdf,image/jpeg,image/png">
+                @include('partials.universal_document_upload', [
+                  'name' => 'attachment',
+                  'label' => null,
+                  'required' => false,
+                  'accept' => '.jpg,.png,.pdf,image/jpeg,image/png',
+                  'inputClass' => 'form-control',
+                  'showHint' => true,
+                ])
             </div>
         </div>
         @endif

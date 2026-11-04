@@ -86,4 +86,36 @@ class AgreementFontSettingsTest extends TestCase
         $refreshed = json_decode((string) file_get_contents($installedFile), true);
         $this->assertArrayNotHasKey('calibri', $refreshed);
     }
+
+    public function test_rtl_font_force_keeps_existing_inline_style(): void
+    {
+        $fonts = $this->app->make(AgreementFontSettings::class);
+        $html = $fonts->forceRtlFontFamiliesInHtml(
+            '<p style="text-align: right" class="agreement-ar-block agreement-ar" dir="rtl"><span style="font-size: 16pt;">إلى</span></p>'
+            .'<p class="agreement-ar" dir="rtl">نؤكد</p>'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/<p style="text-align: right; font-family: \'Amiri\'" class="agreement-ar-block agreement-ar" dir="rtl">/',
+            $html
+        );
+        $this->assertMatchesRegularExpression(
+            '/<p class="agreement-ar" dir="rtl" style="font-family: \'Amiri\'">/',
+            $html
+        );
+        $this->assertStringContainsString('font-size: 16pt', $html);
+        $this->assertStringNotContainsString('style=;', $html);
+        $this->assertStringNotContainsString('notonaskharabictext-align', $html);
+
+        $pdf = $this->app->make(\App\Services\Agreements\AgreementPdfService::class);
+        $forMpdf = $pdf->forceLateefFontsForMpdfHtml($html);
+
+        $this->assertMatchesRegularExpression(
+            '/style="text-align: right; font-family: [^"]+"/',
+            $forMpdf
+        );
+        $this->assertStringContainsString('text-align: right', $forMpdf);
+        $this->assertStringNotContainsString('style=;', $forMpdf);
+        $this->assertStringNotContainsString('notonaskharabictext-align', $forMpdf);
+    }
 }

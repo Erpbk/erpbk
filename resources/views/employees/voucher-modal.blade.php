@@ -1,17 +1,17 @@
 @php
 $actions = [
-'PN' => route('employees.storepenalty'),
-'INC' => route('employees.storeincentive'),
-'AL' => route('employees.storeadvanceloan'),
+'PN' => safe_route('employees.storepenalty', [], 'employees/storepenalty'),
+'INC' => safe_route('employees.storeincentive', [], 'employees/storeincentive'),
+'AL' => safe_route('employees.storeadvanceloan', [], 'employees/storeadvanceloan'),
 ];
 
 $editActions = [];
 
 $urls = [
-'PN' => route('employees.penalty', ['id' => $employee->id ?? 0]),
-'INC' => route('employees.incentive', ['id' => $employee->id ?? 0]),
-'AL' => route('employees.advanceloan', ['id' => $employee->id ?? 0]),
-'PAY' => route('payments.create', ['invoice_type' => 'employee', 'employee_id' => $employee->id ?? 0]),
+'PN' => safe_route('employees.penalty', ['id' => $employee->id ?? 0], 'employees/penalty/{id}'),
+'INC' => safe_route('employees.incentive', ['id' => $employee->id ?? 0], 'employees/incentive/{id}'),
+'AL' => safe_route('employees.advanceloan', ['id' => $employee->id ?? 0], 'employees/advanceloan/{id}'),
+'PAY' => safe_route('payments.create', ['invoice_type' => 'employee', 'employee_id' => $employee->id ?? 0], 'payments/create'),
 ];
 
 $editMode = isset($voucher_id) && isset($voucher_type);
@@ -222,7 +222,7 @@ $editMode = isset($voucher_id) && isset($voucher_type);
                     const inner = originalForm ? originalForm.innerHTML : temp.innerHTML;
                     const action = isEdit ? (typeToEditAction[type] || '#') : (typeToAction[type] || '#');
 
-                    container.innerHTML = '<form id="formajax" method="post" action="' + action + '"></form>';
+                    container.innerHTML = '<form id="formajax" method="post" action="' + action + '" enctype="multipart/form-data"></form>';
                     const form = container.querySelector('#formajax');
                     form.innerHTML = inner;
 
@@ -235,6 +235,19 @@ $editMode = isset($voucher_id) && isset($voucher_type);
                     }
 
                     initLoadedForm(form, temp);
+
+                    const $party = $(form).find('[data-uvf-party-voucher="1"]').first();
+                    if ($party.length) {
+                        const partyTitle = $party.data('modal-title') || 'Voucher';
+                        const partySubtitle = $party.data('modal-subtitle') || '';
+                        $('#modalTopTitle').html(
+                            '<span style="color:#1e4b8f;font-weight:700;">' + partyTitle + '</span>' +
+                            (partySubtitle
+                                ? '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + partySubtitle + '</div>'
+                                : '')
+                        );
+                        $(form).find('[data-rpf-inline-header]').addClass('d-none');
+                    }
                 })
                 .catch(() => {
                     container.innerHTML = '<div class="alert alert-danger">Failed to load form.</div>';
@@ -245,8 +258,8 @@ $editMode = isset($voucher_id) && isset($voucher_type);
             loadFormFor(this.value, false);
         });
 
-        if (editMode && voucherType) {
-            loadFormFor(voucherType, true);
+        if (voucherType) {
+            loadFormFor(voucherType, editMode);
         }
     })();
 </script>

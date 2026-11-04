@@ -112,7 +112,7 @@
                         <td>{{ $inst->installment_no }}</td>
                         <td>{{ $inst->due_date->format('d M Y') }}</td>
                         <td>{{ $inst->paid_date ? $inst->paid_date->format('d M Y') : '-' }}</td>
-                        <td>{{ $inst->paid_date ? $inst->paid_date->format('M Y') : $inst->due_date->format('M Y') }}</td>
+                        <td>{{ $inst->paid_date ? $inst->paid_date->format('M-Y') : $inst->due_date->format('M-Y') }}</td>
                         <td>{{ number_format($inst->principal_amount, 2) }}</td>
                         <td>{{ number_format($inst->interest_amount, 2) }}</td>
                         <td>{{ number_format($inst->total_amount, 2) }}</td>

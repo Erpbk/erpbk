@@ -4,6 +4,7 @@ namespace App\Services\RiderActivities;
 
 use App\Models\RiderActivityImportSetting;
 use Illuminate\Http\UploadedFile;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -156,17 +157,27 @@ class RiderActivityImportMappingService
     }
 
     /**
-     * @return array{customer_id: int, import_type: string, header_rows_to_skip: int, column_mappings: array<string, int>}
+     * @return array{
+     *   customer_id: int,
+     *   import_type: string,
+     *   header_rows_to_skip: int,
+     *   column_mappings: array<string, int>,
+     *   ordered_field_keys: list<string>,
+     *   required_fields: array<string, bool>
+     * }
      */
     public function resolve(int $customerId, string $importType = self::TYPE_RIDER): array
     {
         $importType = self::normalizeImportType($importType);
+        $defaultMappings = self::defaultColumnMappings($importType);
 
         $defaults = [
             'customer_id' => $customerId,
             'import_type' => $importType,
             'header_rows_to_skip' => self::defaultHeaderRowsToSkip(),
-            'column_mappings' => self::defaultColumnMappings($importType),
+            'column_mappings' => $defaultMappings,
+            'ordered_field_keys' => array_keys($defaultMappings),
+            'required_fields' => $this->resolveRequiredFields(null, $defaultMappings),
         ];
 
         if ($customerId === self::DEFAULT_CUSTOMER_ID) {
@@ -226,21 +237,142 @@ class RiderActivityImportMappingService
         return $configured;
     }
 
+    public const ORDER_META_KEY = '__order';
+
     /**
-     * @param  array<string, mixed>  $inputMappings
-     * @return array<string, int>
+     * @return list<string>
      */
-    public function sanitizeColumnMappings(array $inputMappings, string $importType = self::TYPE_RIDER): array
+    public static function alwaysRequiredFieldKeys(): array
     {
+        return ['date', 'rider_id'];
+    }
+
+    /**
+     * Sanitize submitted mappings.
+     *
+     * Preserves submission/DOM order via an embedded __order meta key so MySQL
+     * JSON key reordering cannot lose the project's field sort.
+     * Does NOT re-add deleted optional fields unless $fillMissingDefaults is true.
+     *
+     * @param  array<string, mixed>  $inputMappings
+     * @param  list<string>|null  $preferredOrder
+     * @return array<string, int|list<string>>
+     */
+    public function sanitizeColumnMappings(
+        array $inputMappings,
+        string $importType = self::TYPE_RIDER,
+        bool $fillMissingDefaults = false,
+        ?array $preferredOrder = null
+    ): array {
         $importType = self::normalizeImportType($importType);
+        $defaults = self::defaultColumnMappings($importType);
+        $allowed = array_keys($defaults);
         $sanitized = [];
 
-        foreach (self::defaultColumnMappings($importType) as $field => $defaultIndex) {
-            $value = $inputMappings[$field] ?? $defaultIndex;
+        $embeddedOrder = [];
+        if (isset($inputMappings[self::ORDER_META_KEY]) && is_array($inputMappings[self::ORDER_META_KEY])) {
+            $embeddedOrder = $inputMappings[self::ORDER_META_KEY];
+            unset($inputMappings[self::ORDER_META_KEY]);
+        }
+
+        foreach ($inputMappings as $field => $value) {
+            $field = (string) $field;
+            if ($field === self::ORDER_META_KEY || ! in_array($field, $allowed, true)) {
+                continue;
+            }
+            if ($value === null || $value === '') {
+                continue;
+            }
             $sanitized[$field] = max(0, (int) $value);
         }
 
-        return $sanitized;
+        foreach (self::alwaysRequiredFieldKeys() as $required) {
+            if (! array_key_exists($required, $sanitized)) {
+                $sanitized[$required] = (int) $defaults[$required];
+            }
+        }
+
+        if ($fillMissingDefaults) {
+            foreach ($defaults as $field => $defaultIndex) {
+                if (! array_key_exists($field, $sanitized)) {
+                    $sanitized[$field] = (int) $defaultIndex;
+                }
+            }
+        }
+
+        $orderSource = $preferredOrder ?? $embeddedOrder;
+        if (! is_array($orderSource) || $orderSource === []) {
+            $orderSource = array_keys($sanitized);
+        }
+
+        $orderedKeys = [];
+        foreach ($orderSource as $field) {
+            $field = (string) $field;
+            if (array_key_exists($field, $sanitized) && ! in_array($field, $orderedKeys, true)) {
+                $orderedKeys[] = $field;
+            }
+        }
+        foreach (array_keys($sanitized) as $field) {
+            if (! in_array($field, $orderedKeys, true)) {
+                $orderedKeys[] = $field;
+            }
+        }
+
+        // Rebuild in order, then attach meta for durable sort persistence.
+        $ordered = [];
+        foreach ($orderedKeys as $field) {
+            $ordered[$field] = $sanitized[$field];
+        }
+        $ordered[self::ORDER_META_KEY] = $orderedKeys;
+
+        return $ordered;
+    }
+
+    /**
+     * @param  array<string, mixed>  $mappings
+     * @return array{column_mappings: array<string, int>, ordered_field_keys: list<string>}
+     */
+    public function normalizeStoredMappings(array $mappings, string $importType = self::TYPE_RIDER): array
+    {
+        $payload = $this->sanitizeColumnMappings($mappings, $importType, false);
+        $order = [];
+        if (isset($payload[self::ORDER_META_KEY]) && is_array($payload[self::ORDER_META_KEY])) {
+            $order = array_values(array_map('strval', $payload[self::ORDER_META_KEY]));
+            unset($payload[self::ORDER_META_KEY]);
+        }
+
+        $labels = self::fieldLabels();
+        $columnMappings = [];
+        foreach ($payload as $field => $index) {
+            if (! is_string($field) || ! array_key_exists($field, $labels)) {
+                continue;
+            }
+            $columnMappings[$field] = max(0, (int) $index);
+        }
+
+        if ($order === []) {
+            $order = array_keys($columnMappings);
+        } else {
+            $order = array_values(array_filter(
+                $order,
+                static fn ($key) => array_key_exists($key, $columnMappings)
+            ));
+            foreach (array_keys($columnMappings) as $field) {
+                if (! in_array($field, $order, true)) {
+                    $order[] = $field;
+                }
+            }
+        }
+
+        $orderedMappings = [];
+        foreach ($order as $field) {
+            $orderedMappings[$field] = $columnMappings[$field];
+        }
+
+        return [
+            'column_mappings' => $orderedMappings,
+            'ordered_field_keys' => $order,
+        ];
     }
 
     /**
@@ -279,8 +411,9 @@ class RiderActivityImportMappingService
         };
 
         $reader = IOFactory::createReader($readerType);
+        // Keep number formats so date cells can be detected; preview only reads a small window.
         if (method_exists($reader, 'setReadDataOnly')) {
-            $reader->setReadDataOnly(true);
+            $reader->setReadDataOnly(false);
         }
 
         $spreadsheet = $reader->load($file->getRealPath());
@@ -297,20 +430,7 @@ class RiderActivityImportMappingService
             $cells = [];
             for ($col = 1; $col <= $previewCols; $col++) {
                 $coordinate = Coordinate::stringFromColumnIndex($col) . $row;
-                $cell = $sheet->getCell($coordinate);
-                $value = $cell->getValue();
-
-                if (ExcelDate::isDateTime($cell) && is_numeric($value)) {
-                    try {
-                        $value = ExcelDate::excelToDateTimeObject((float) $value)->format('Y-m-d');
-                    } catch (\Throwable $e) {
-                        $value = $cell->getFormattedValue();
-                    }
-                } else {
-                    $value = $cell->getFormattedValue();
-                }
-
-                $cells[] = is_scalar($value) || $value === null ? (string) $value : '';
+                $cells[] = $this->formatPreviewCell($sheet->getCell($coordinate));
             }
             $rows[] = $cells;
         }
@@ -328,6 +448,75 @@ class RiderActivityImportMappingService
         ];
     }
 
+    /**
+     * Format a spreadsheet cell for the import file preview.
+     * Uses calculated values (not formulas). Converts Excel date serials to Y-m-d
+     * and rounds fractional numbers to 2 decimals.
+     */
+    private function formatPreviewCell(Cell $cell): string
+    {
+        try {
+            $value = $cell->getCalculatedValue();
+        } catch (\Throwable $e) {
+            try {
+                $value = $cell->getOldCalculatedValue();
+            } catch (\Throwable $e2) {
+                $value = $cell->getValue();
+            }
+        }
+
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if (is_numeric($value)) {
+            $numeric = (float) $value;
+
+            if (ExcelDate::isDateTime($cell) || $this->looksLikeExcelDateSerial($numeric)) {
+                try {
+                    return ExcelDate::excelToDateTimeObject($numeric)->format('Y-m-d');
+                } catch (\Throwable $e) {
+                    // Fall through to numeric / formatted handling.
+                }
+            }
+
+            // Login hours, on-time %, etc. — show 2 decimal places instead of float noise.
+            if (abs($numeric - round($numeric)) > 0.0000001) {
+                return number_format($numeric, 2, '.', '');
+            }
+
+            return (string) (int) round($numeric);
+        }
+
+        $formatted = $cell->getFormattedValue();
+
+        return is_scalar($formatted) || $formatted === null ? (string) $formatted : '';
+    }
+
+    /**
+     * Detect Excel day-serial values that lack a date number format (common in exports).
+     * Range covers calendar years ~2000–2100 so order counts / hours are not treated as dates.
+     */
+    private function looksLikeExcelDateSerial(float $value): bool
+    {
+        // 2000-01-01 ≈ 36526, 2100-12-31 ≈ 73415
+        if ($value < 36526 || $value > 73415) {
+            return false;
+        }
+
+        try {
+            $year = (int) ExcelDate::excelToDateTimeObject($value)->format('Y');
+
+            return $year >= 2000 && $year <= 2100;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     private function findStoredSetting(int $customerId, string $importType): ?RiderActivityImportSetting
     {
         return RiderActivityImportSetting::query()
@@ -338,15 +527,59 @@ class RiderActivityImportMappingService
     }
 
     /**
-     * @return array{customer_id: int, import_type: string, header_rows_to_skip: int, column_mappings: array<string, int>}
+     * @return array{
+     *   customer_id: int,
+     *   import_type: string,
+     *   header_rows_to_skip: int,
+     *   column_mappings: array<string, int>,
+     *   ordered_field_keys: list<string>,
+     *   required_fields: array<string, bool>
+     * }
      */
     private function mergeWithDefaults(RiderActivityImportSetting $stored, int $customerId, string $importType): array
     {
+        $normalized = $this->normalizeStoredMappings(
+            is_array($stored->column_mappings) ? $stored->column_mappings : [],
+            $importType
+        );
+
         return [
             'customer_id' => $customerId,
             'import_type' => $importType,
             'header_rows_to_skip' => max(0, (int) ($stored->header_rows_to_skip ?? self::defaultHeaderRowsToSkip())),
-            'column_mappings' => $this->sanitizeColumnMappings($stored->column_mappings ?? [], $importType),
+            'column_mappings' => $normalized['column_mappings'],
+            'ordered_field_keys' => $normalized['ordered_field_keys'],
+            'required_fields' => $this->resolveRequiredFields(
+                is_array($stored->required_fields) ? $stored->required_fields : null,
+                $normalized['column_mappings']
+            ),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $storedRequired
+     * @param  array<string, int>  $columnMappings
+     * @return array<string, bool>
+     */
+    private function resolveRequiredFields(?array $storedRequired, array $columnMappings): array
+    {
+        $defaults = self::requiredFields();
+        $resolved = [];
+
+        foreach (array_keys($columnMappings) as $field) {
+            if (in_array($field, self::alwaysRequiredFieldKeys(), true)) {
+                $resolved[$field] = true;
+                continue;
+            }
+
+            if (is_array($storedRequired) && array_key_exists($field, $storedRequired)) {
+                $resolved[$field] = (bool) $storedRequired[$field];
+                continue;
+            }
+
+            $resolved[$field] = (bool) ($defaults[$field] ?? false);
+        }
+
+        return $resolved;
     }
 }

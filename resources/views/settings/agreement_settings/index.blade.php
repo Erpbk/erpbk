@@ -65,8 +65,16 @@ $activeTab = $activeTab ?? 'general';
                   <input type="text" name="name" class="form-control form-control-sm" value="{{ old('kind') === 'watermark' ? '' : old('name') }}" placeholder="e.g. Stellar Innovations">
                 </div>
                 <div class="col-md-5">
-                  <label class="form-label small mb-1">File <span class="text-danger">*</span></label>
-                  <input type="file" name="letterhead" class="form-control form-control-sm" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" required>
+                  @include('partials.universal_document_upload', [
+                    'name' => 'letterhead',
+                    'label' => 'File',
+                    'required' => true,
+                    'accept' => 'image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf',
+                    'inputClass' => 'form-control form-control-sm',
+                    'labelClass' => 'form-label small mb-1',
+                    'showHint' => false,
+                    'compact' => true,
+                  ])
                 </div>
                 <div class="col-md-3">
                   <button type="submit" class="btn btn-primary btn-sm w-100">
@@ -138,8 +146,16 @@ $activeTab = $activeTab ?? 'general';
                   <input type="text" name="name" class="form-control form-control-sm" value="{{ old('kind') === 'watermark' ? old('name') : '' }}" placeholder="e.g. Company seal">
                 </div>
                 <div class="col-md-5">
-                  <label class="form-label small mb-1">File <span class="text-danger">*</span></label>
-                  <input type="file" name="letterhead" class="form-control form-control-sm" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" required>
+                  @include('partials.universal_document_upload', [
+                    'name' => 'letterhead',
+                    'label' => 'File',
+                    'required' => true,
+                    'accept' => 'image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf',
+                    'inputClass' => 'form-control form-control-sm',
+                    'labelClass' => 'form-label small mb-1',
+                    'showHint' => false,
+                    'compact' => true,
+                  ])
                 </div>
                 <div class="col-md-3">
                   <button type="submit" class="btn btn-primary btn-sm w-100">

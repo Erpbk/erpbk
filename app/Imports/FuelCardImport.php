@@ -4,13 +4,12 @@ namespace App\Imports;
 
 use App\Models\FuelCards;
 use App\Models\FuelCompany;
-use Carbon\Carbon;
+use App\Support\ExcelDate;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class FuelCardImport implements ToCollection
 {
@@ -127,31 +126,7 @@ class FuelCardImport implements ToCollection
      */
     protected function parseDate($value): ?string
     {
-        if ($value === null || trim((string) $value) === '') {
-            return null;
-        }
-
-        try {
-            if (is_numeric($value)) {
-                return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value))->format('Y-m-d');
-            }
-
-            $raw = trim((string) $value);
-
-            // Slash/dash dates are read day-first, matching the other ERP imports.
-            if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/', $raw, $m)) {
-                $year = (int) $m[3];
-                if ($year < 100) {
-                    $year += 2000;
-                }
-
-                return Carbon::createFromDate($year, (int) $m[2], (int) $m[1])->format('Y-m-d');
-            }
-
-            return Carbon::parse($raw)->format('Y-m-d');
-        } catch (\Exception $e) {
-            return null;
-        }
+        return ExcelDate::format($value);
     }
 
     protected function fail(int $rowNumber, string $cardNumber, string $company, string $reason): void

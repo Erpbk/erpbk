@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>Fine Invoice #{{ $rtaFine->ticket_no ?? $rtaFine->id }}</title>
+</head>
+<body>
+    {{-- Styles must live in <body>: openRightSideModal uses extractAjaxBodyHtml(), which drops <head> --}}
     <style>
-        /* Scoped — do not style the app <body> when embedded in right-side modal */
+        /* Scoped — do not style the app body when embedded in right-side modal */
         body:has(> .invoice-box),
         body:has(> .controls) {
             font-family: Calibri, Arial, sans-serif;
@@ -20,15 +23,18 @@
         }
 
         .invoice-box {
-            width: 850px;
+            width: 100%;
+            max-width: 850px;
             margin: auto;
             padding: 10px;
+            box-sizing: border-box;
         }
 
         .invoice-box table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 8px;
+            table-layout: fixed;
         }
 
         .invoice-box th, .invoice-box td {
@@ -36,6 +42,7 @@
             padding: 4px 6px;
             font-size: 12px;
             text-align: center;
+            word-break: break-word;
         }
 
         .invoice-box th {
@@ -210,8 +217,7 @@
             color: #28a745;
         }
     </style>
-</head>
-<body>
+
     <div class="controls no-print">
         <button type="button" class="print-btn" onclick="printModalContent()">Print</button>
     </div>
@@ -348,16 +354,16 @@
             <div style="display: inline-block; width: 350px;">
                 <div class="total-row" style="padding: 8px; border-bottom: 1px solid #ddd;">
                     <span><strong>Subtotal:</strong></span>
-                    <span>{{ number_format($fineAmount + $serviceCharges + $adminFee, 2) }} AED</span>
+                    <span>{{ \App\Helpers\Currency::format($fineAmount + $serviceCharges + $adminFee) }}</span>
                 </div>
                 <div class="total-row" style="padding: 8px; border-bottom: 1px solid #ddd;">
                     <span><strong>VAT:</strong></span>
-                    <span>{{ number_format($vat, 2) }} AED</span>
+                    <span>{{ \App\Helpers\Currency::format($vat) }}</span>
                 </div>
                 <div style="padding: 12px; background: #004aad; color: white; border-radius: 5px; margin-top: 10px;">
-                    <div style="font-size: 22px; font-weight: bold; text-align: center;">{{ number_format($totalAmount, 2) }} AED</div>
+                    <div style="font-size: 22px; font-weight: bold; text-align: center;">{{ \App\Helpers\Currency::format($totalAmount) }}</div>
                     <div style="font-size: 11px; text-align: center; margin-top: 5px;">
-                        AED {{ ucfirst(strtolower(\App\Helpers\General::numToWordsRec($totalAmount))) }}
+                        {{ \App\Helpers\Currency::code() }} {{ ucfirst(strtolower(\App\Helpers\General::numToWordsRec($totalAmount))) }}
                     </div>
                 </div>
             </div>
@@ -419,7 +425,7 @@
                     
                     <!-- Fine Amount - Simple -->
                     <div style="margin-top: 50px; text-align: center; font-size: 18px;">
-                         AED {{ number_format($rtaFine->amount ?? 500, 2) }}
+                         {{ \App\Helpers\Currency::format($rtaFine->amount ?? 500) }}
                     </div>
                 </div>
             </div>

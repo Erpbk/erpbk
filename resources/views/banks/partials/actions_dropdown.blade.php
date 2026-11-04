@@ -9,7 +9,7 @@
     <div class="action-dropdown-container">
         <button class="action-dropdown-btn" id="addBikeDropdownBtn">
             <i class="ti ti-plus"></i>
-            <span>Cash & Banks Actions</span>
+            <span>Bank Actions</span>
             <i class="ti ti-chevron-down"></i>
         </button>
 

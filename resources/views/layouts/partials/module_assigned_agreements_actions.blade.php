@@ -28,15 +28,25 @@
     return '<i class="ti ti-file-certificate me-1"></i>';
   }
 
+  function modalHref(href) {
+    if (!href) {
+      return '';
+    }
+    return href + (href.indexOf('?') >= 0 ? '&' : '?') + 'modal=1';
+  }
+
   function rowItem(item, recordId) {
     var href = recordHref(item, recordId);
     if (!href) {
       return null;
     }
     var a = document.createElement('a');
-    a.className = 'dropdown-item waves-effect';
+    a.className = 'dropdown-item waves-effect show-modal';
     a.setAttribute('data-agreement-action', '1');
-    a.href = href;
+    a.setAttribute('data-size', 'md');
+    a.setAttribute('data-title', 'Agreements');
+    a.setAttribute('data-action', modalHref(href));
+    a.href = 'javascript:void(0);';
     a.innerHTML = iconHtml() + ' ';
     a.appendChild(document.createTextNode(item.name || 'Agreements'));
     return a;

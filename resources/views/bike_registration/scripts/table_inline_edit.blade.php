@@ -60,10 +60,8 @@
                 year: 'numeric'
             });
             var bm = new Date(data.billing_month + '-01');
-            if (billDisp) billDisp.textContent = bm.toLocaleDateString('en-US', {
-                month: 'short',
-                year: 'numeric'
-            });
+            if (billDisp) var monthShort = bm.toLocaleDateString('en-US', { month: 'short' });
+            billDisp.textContent = monthShort + '-' + bm.getFullYear();
         }).catch(function() {
             if (typeof Swal !== 'undefined') {
                 Swal.fire({

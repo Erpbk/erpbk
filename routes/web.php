@@ -146,6 +146,8 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
     Route::post('companies/{company}/reject', [AdminCompaniesController::class, 'reject'])->middleware('admin.permission:companies_reject')->name('companies.reject');
     Route::get('companies/{company}/modules', [AdminCompaniesController::class, 'editModules'])->middleware('admin.permission:companies_approve')->name('companies.modules.edit');
     Route::put('companies/{company}/modules', [AdminCompaniesController::class, 'updateModules'])->middleware('admin.permission:companies_approve')->name('companies.modules.update');
+    Route::get('companies/{company}/notification-channels', [\App\Http\Controllers\Admin\AdminCompanyNotificationChannelsController::class, 'edit'])->middleware('admin.permission:companies_approve')->name('companies.notification-channels.edit');
+    Route::put('companies/{company}/notification-channels', [\App\Http\Controllers\Admin\AdminCompanyNotificationChannelsController::class, 'update'])->middleware('admin.permission:companies_approve')->name('companies.notification-channels.update');
 
     // Agreement Settings (assignable modules + per-module placeholders)
     Route::get('agreement-settings', [AdminAgreementSettingsController::class, 'index'])->middleware('admin.permission:agreement_settings_view')->name('agreement-settings.index');
@@ -236,6 +238,16 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('/home', [HomeController::class, 'index'])->name('home-dashboard');
     Route::post('/logout', [CompanyAuthController::class, 'logout'])->name('company.logout');
 
+    // Notification center (in-app inbox)
+    Route::get('notifications', [\App\Http\Controllers\NotificationCenterController::class, 'index'])->name('notifications.index');
+    Route::get('notifications/unread-count', [\App\Http\Controllers\NotificationCenterController::class, 'unreadCount'])->name('notifications.unread-count');
+    Route::get('notifications/dropdown', [\App\Http\Controllers\NotificationCenterController::class, 'dropdown'])->name('notifications.dropdown');
+    Route::get('notifications/banners', [\App\Http\Controllers\NotificationCenterController::class, 'banners'])->name('notifications.banners');
+    Route::post('notifications/read-all', [\App\Http\Controllers\NotificationCenterController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::post('notifications/dismiss-all', [\App\Http\Controllers\NotificationCenterController::class, 'dismissAll'])->name('notifications.dismiss-all');
+    Route::post('notifications/{notification}/read', [\App\Http\Controllers\NotificationCenterController::class, 'markRead'])->name('notifications.read');
+    Route::post('notifications/{notification}/dismiss', [\App\Http\Controllers\NotificationCenterController::class, 'dismiss'])->name('notifications.dismiss');
+
     // Agreements (main app — centralized management)
     Route::prefix('agreements')->name('agreements.')->group(function () {
         Route::get('/', [App\Http\Controllers\AgreementSettingsController::class, 'index'])->name('index');
@@ -312,13 +324,17 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('bikes/delete/{id}', [BikesController::class, 'destroy'])->name('bikes.delete');
     Route::get('bike/files/{id}', [BikesController::class, 'files'])->name('bikes.files');
     Route::get('bike/maintenance/{id}', [BikesController::class, 'maintenance'])->name('bikes.maintenance');
+    Route::get('bike/fines/{id}', [BikesController::class, 'fines'])->name('bikes.fines');
+    Route::get('bike/saliks/{id}', [BikesController::class, 'saliks'])->name('bikes.saliks');
 
     Route::resource('bikes', BikesController::class);
 
+    Route::post('bikeMaintenance/getAssignees', [BikeMaintenanceController::class, 'getAssignees'])->name('bikeMaintenance.getAssignees');
     Route::resource('bikeMaintenance', BikeMaintenanceController::class);
     Route::any('bike-maintenance/{bike}/edit', [BikeMaintenanceController::class, 'edit'])->name('bike-maintenance.editForm');
     Route::any('bike-maintenance/{bike}/update', [BikeMaintenanceController::class, 'update'])->name('bike-maintenance.update');
     Route::get('bike-maintenance/{maintenance}/invoice', [BikeMaintenanceController::class, 'Invoice'])->name('bike-maintenance.invoice');
+    Route::get('bike-maintenance/{maintenance}/invoice/download', [BikeMaintenanceController::class, 'downloadInvoice'])->name('bike-maintenance.invoice.download');
     Route::get('bike-maintenance/{maintenance}/sticker', [BikeMaintenanceController::class, 'sticker'])->name('bike-maintenance.sticker');
 
     Route::get('bikes/import-bikes', [BikesController::class, 'importbikes'])->name('bikes.importbikes');
@@ -357,41 +373,20 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::get('/customer_invoices/{id}/edit', [CustomerInvoicesController::class, 'edit'])->name('customer_invoice.edit');
     Route::get('/customer_invoices/{id}/clone', [CustomerInvoicesController::class, 'clone'])->name('customer_invoice.clone');
+    Route::any('/customer_invoices/sendemail/{id}', [CustomerInvoicesController::class, 'sendEmail'])->name('customer_invoices.sendEmail');
+    Route::get('customer_invoices/{id}/download', [CustomerInvoicesController::class, 'download'])->name('customer_invoices.download');
     Route::resource('customer_invoices', CustomerInvoicesController::class);
 
-    Route::get('employees/payments', [EmployeeController::class, 'payment'])->name('employee.payment');
-    Route::get('employees/advanceloan/{id}', [EmployeeController::class, 'advanceloan'])->name('employees.advanceloan');
-    Route::get('employees/penalty/{id}', [EmployeeController::class, 'penalty'])->name('employees.penalty');
-    Route::get('employees/incentive/{id}', [EmployeeController::class, 'incentive'])->name('employees.incentive');
-    Route::post('employees/storeadvanceloan', [EmployeeController::class, 'storeadvanceloan'])->name('employees.storeadvanceloan');
-    Route::post('employees/storepenalty', [EmployeeController::class, 'storepenalty'])->name('employees.storepenalty');
-    Route::post('employees/storeincentive', [EmployeeController::class, 'storeincentive'])->name('employees.storeincentive');
-    Route::resource('employees', EmployeeController::class);
-    Route::get('/employees/{id}/ledger', [EmployeeController::class, 'ledger'])->name('employee.ledger');
-    Route::get('/employees/{id}/files', [EmployeeController::class, 'files'])->name('employee.files');
-    Route::get('/employees/{id}/salary', [EmployeeController::class, 'salary'])->name('employee.salary');
-    Route::get('/employees/{id}/attendance', [EmployeeController::class, 'attendance'])->name('employee.attendance');
-    Route::get('/employees/{id}/leaves', [EmployeeController::class, 'leaves'])->name('employee.leaves');
-    Route::get('/employees/{id}/history', [EmployeeController::class, 'history'])->name('employee.history');
-    Route::any('/employees/sendemail/{id}', [EmployeeController::class, 'sendEmail'])->name('employee.sendemail');
-    Route::get('/employees/{id}/voucher', [EmployeeController::class, 'voucher'])->name('employees.voucher');
-    Route::post('/employees/update-status', [EmployeeController::class, 'updateStatus'])->name('employee.update-status');
-    Route::post('/employees/update-profile-field', [EmployeeController::class, 'updateProfileField'])->name('employee.update-profile-field');
-    Route::post('/employees/{id}/update-section', [EmployeeController::class, 'updateSection'])->name('employees.updateSection');
-
-    Route::get('attendance/summary', [AttendanceController::class, 'summary'])->name('attendance.summary');
-    Route::get('attendance/export', [AttendanceController::class, 'export'])->name('attendance.export');
-    Route::get('attendance/summary/export', [AttendanceController::class, 'exportSummary'])->name('attendance.summary.export');
-    Route::get('/attendance/create/{refType}', [AttendanceController::class, 'create'])->name('attendance.create');
-    Route::resource('attendance', AttendanceController::class)->except(['create']);
-    Route::post('attendance/bulk-mark', [AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');
-    Route::get('attendance/users/{refType}', [AttendanceController::class, 'getUsers'])->name('attendance.users');
+    // Employees + attendance + employee invoices (deploy this include with employee views)
+    require __DIR__ . '/employee_module.php';
 
     // Visa expense custom routes (register before resource to avoid {VisaExpense} shadowing)
+    Route::get('VisaExpense/rider/{riderId}', [VisaexpenseController::class, 'showForRider'])->name('VisaExpense.showForRider');
     Route::get('VisaExpense/generatentries/{id}', [VisaexpenseController::class, 'generatentries'])->name('VisaExpense.generatentries');
     Route::get('VisaExpense/create/{id}', [VisaexpenseController::class, 'create'])->name('VisaExpense.create');
     Route::get('VisaExpense/edit/{id}', [VisaexpenseController::class, 'edit'])->name('VisaExpense.edit');
     Route::get('VisaExpense/delete/{id}', [VisaexpenseController::class, 'destroy'])->name('VisaExpense.delete');
+    Route::post('VisaExpense/bulk-delete', [VisaexpenseController::class, 'bulkDelete'])->name('VisaExpense.bulkDelete');
     Route::get('VisaExpense/viewvoucher/{id}', [VisaexpenseController::class, 'viewvoucher'])->name('VisaExpense.viewvoucher');
     Route::get('VisaExpense/getrider/{id}', [VisaexpenseController::class, 'getrider']);
 
@@ -407,6 +402,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     // Visa Status Management Routes
     Route::resource('visa-statuses', VisaStatusController::class);
     Route::post('visa-statuses/reorder', [VisaStatusController::class, 'reorder'])->name('visa-statuses.reorder');
+    Route::post('visa-statuses/{id}/unassign', [VisaStatusController::class, 'unassign'])->name('visa-statuses.unassign');
     Route::get('visa-statuses/{id}/toggle-active', [VisaStatusController::class, 'toggleActive'])->name('visa-statuses.toggle-active');
     Route::resource('license-statuses', LicenseStatusController::class);
     Route::post('license-statuses/reorder', [LicenseStatusController::class, 'reorder'])->name('license-statuses.reorder');
@@ -428,12 +424,19 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('Installments/updateInstallmentField', [InstallmentsController::class, 'updateInstallmentField'])->name('Installments.updateInstallmentField');
     Route::post('Installments/finalizePayment', [InstallmentsController::class, 'finalizePayment'])->name('Installments.finalizePayment');
     Route::get('Installments/deleteInstallment/{id}', [InstallmentsController::class, 'deleteInstallment'])->name('Installments.deleteInstallment')->whereNumber('id');
+    Route::post('Installments/bulk-delete-installments', [InstallmentsController::class, 'bulkDeleteInstallments'])->name('Installments.bulkDeleteInstallments');
     Route::get('Installments/generateInstallmentInvoice/{riderId}', [InstallmentsController::class, 'generateInstallmentInvoice'])->name('Installments.generateInstallmentInvoice');
     Route::get('Installments/autoMarkInstallments/{riderId?}', [InstallmentsController::class, 'autoMarkInstallmentsAsPaid'])->name('Installments.autoMarkInstallments');
     Route::post('Installments/recalculateInstallments', [InstallmentsController::class, 'recalculateInstallments'])->name('Installments.recalculateInstallments');
+    Route::get('Installments/paymentReceivingModal/{riderId}', [InstallmentsController::class, 'paymentReceivingModal'])->name('Installments.paymentReceivingModal');
+    Route::get('Installments/editPaymentReceiving/{receipt}', [InstallmentsController::class, 'editPaymentReceiving'])->name('Installments.editPaymentReceiving');
+    Route::post('Installments/processPaymentReceiving', [InstallmentsController::class, 'processPaymentReceiving'])->name('Installments.processPaymentReceiving');
     Route::get('Installments', [InstallmentsController::class, 'index'])->name('Installments.index');
 
     Route::post('accountcreate', [VisaexpenseController::class, 'accountcreate'])->name('VisaExpense.accountcreate');
+    Route::post('VisaExpense/filter-ajax', [VisaexpenseController::class, 'filterAjax'])->name('VisaExpense.filterAjax');
+    Route::get('VisaExpense/export-customizable', [VisaexpenseController::class, 'exportCustomizableAccounts'])->name('VisaExpense.exportCustomizableAccounts');
+    Route::get('VisaExpense/search-persons', [VisaexpenseController::class, 'searchPersons'])->name('VisaExpense.searchPersons');
     Route::get('VisaExpense/eligible-categories/{personType}/{personId}', [VisaexpenseController::class, 'eligibleRenewalCategories'])
         ->where(['personType' => 'rider|employee', 'personId' => '[0-9]+'])
         ->name('VisaExpense.eligibleRenewalCategories');
@@ -441,6 +444,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('VisaExpense/deleteaccount/{id}', [VisaexpenseController::class, 'deleteaccount'])->name('VisaExpense.deleteaccount');
     Route::post('VisaExpense/payfine', [VisaexpenseController::class, 'payfine'])->name('VisaExpense.payfine');
     Route::get('VisaExpense/pay-form/{id}', [VisaexpenseController::class, 'payForm'])->name('VisaExpense.payForm');
+    Route::get('VisaExpense/edit-lv/{id}', [VisaexpenseController::class, 'editLv'])->name('VisaExpense.editLv');
+    Route::post('VisaExpense/update-lv', [VisaexpenseController::class, 'updateLv'])->name('VisaExpense.updateLv');
     Route::get('VisaExpense/edit-voucher-credit/{visaExpense}', [VisaexpenseController::class, 'editVoucherCreditForm'])->name('VisaExpense.editVoucherCreditForm');
     Route::post('VisaExpense/update-voucher-credit', [VisaexpenseController::class, 'updateVoucherCredit'])->name('VisaExpense.updateVoucherCredit');
 
@@ -452,9 +457,13 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('LicenseExpense/updateInstallmentField', [LicenseexpenseController::class, 'updateInstallmentField'])->name('LicenseExpense.updateInstallmentField');
     Route::post('LicenseExpense/finalizePayment', [LicenseexpenseController::class, 'finalizePayment'])->name('LicenseExpense.finalizePayment');
     Route::get('LicenseExpense/deleteInstallment/{id}', [LicenseexpenseController::class, 'deleteInstallment'])->name('LicenseExpense.deleteInstallment')->whereNumber('id');
+    Route::post('LicenseExpense/bulk-delete-installments', [LicenseexpenseController::class, 'bulkDeleteInstallments'])->name('LicenseExpense.bulkDeleteInstallments');
     Route::get('LicenseExpense/generateInstallmentInvoice/{riderId}', [LicenseexpenseController::class, 'generateInstallmentInvoice'])->name('LicenseExpense.generateInstallmentInvoice');
     Route::get('LicenseExpense/autoMarkInstallments/{riderId?}', [LicenseexpenseController::class, 'autoMarkInstallmentsAsPaid'])->name('LicenseExpense.autoMarkInstallments');
     Route::post('LicenseExpense/recalculateInstallments', [LicenseexpenseController::class, 'recalculateInstallments'])->name('LicenseExpense.recalculateInstallments');
+    Route::get('LicenseExpense/paymentReceivingModal/{riderId}', [LicenseexpenseController::class, 'paymentReceivingModal'])->name('LicenseExpense.paymentReceivingModal');
+    Route::get('LicenseExpense/editPaymentReceiving/{receipt}', [LicenseexpenseController::class, 'editPaymentReceiving'])->name('LicenseExpense.editPaymentReceiving');
+    Route::post('LicenseExpense/processPaymentReceiving', [LicenseexpenseController::class, 'processPaymentReceiving'])->name('LicenseExpense.processPaymentReceiving');
 
     Route::get('LicenseExpense/generatentries/{id}', [LicenseexpenseController::class, 'generatentries'])->name('LicenseExpense.generatentries');
     Route::get('LicenseExpense/create/{id}', [LicenseexpenseController::class, 'create'])->name('LicenseExpense.create');
@@ -584,6 +593,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::match(['get', 'post'], 'sims/assign/{id}', [SimsController::class, 'assign'])->name('sims.assign');
     Route::match(['get', 'post'], 'sims/return/{id}', [SimsController::class, 'return'])->name('sims.return');
+    Route::match(['get', 'post'], 'sims/charge-lost/{id}', [SimsController::class, 'chargeLost'])->name('sims.chargeLost');
     Route::match(['get', 'post'], 'sims/activate-deactivate', [SimsController::class, 'activateDeactivate'])->name('sims.activateDeactivate');
     Route::get('sims/export', [SimsController::class, 'export'])->name('sims.export');
     Route::match(['get', 'post'], 'sims/import', [SimsController::class, 'import'])->name('sims.import');
@@ -604,6 +614,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('simInvoices/import', [SimInvoicesController::class, 'importForm'])->name('simInvoices.import.form');
     Route::post('simInvoices/import', [SimInvoicesController::class, 'import'])->name('simInvoices.import');
     Route::post('simInvoices/store', [SimInvoicesController::class, 'store'])->name('simInvoices.store');
+    Route::get('simInvoices/{id}/download', [SimInvoicesController::class, 'download'])->name('simInvoices.download')->whereNumber('id');
     Route::get('simInvoices/{id}', [SimInvoicesController::class, 'show'])->name('simInvoices.show')->whereNumber('id');
     Route::get('simInvoices/{id}/edit', [SimInvoicesController::class, 'edit'])->name('simInvoices.edit')->whereNumber('id');
     Route::put('simInvoices/{id}', [SimInvoicesController::class, 'update'])->name('simInvoices.update')->whereNumber('id');
@@ -637,8 +648,11 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     // Static rider paths must be registered before resource show (riders/{rider}).
     Route::get('riders/voucher-create', [RidersController::class, 'voucherCreate'])->name('riders.voucher.create');
-    Route::resource('riders', RidersController::class);
     Route::post('riders/filter-ajax', [RidersController::class, 'filterAjax'])->name('riders.filterAjax');
+    Route::get('riders/import/template', [RidersController::class, 'importRidersTemplate'])->name('riders.import.template');
+    Route::post('riders/import/preview', [RidersController::class, 'importRidersPreview'])->name('riders.import.preview');
+    Route::post('riders/import/commit', [RidersController::class, 'importRidersCommit'])->name('riders.import.commit');
+    Route::resource('riders', RidersController::class);
     Route::get('riders/dropdown-options/modal', [RidersController::class, 'dropdownOptionModal'])->name('riders.dropdown-options.modal');
     Route::post('riders/dropdown-options', [RidersController::class, 'storeDropdownOption'])->name('riders.dropdown-options.store');
     Route::any('riders/job_status/{id?}', [RidersController::class, 'job_status'])->name('rider.job_status');
@@ -681,6 +695,11 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::get('/all', [UserTableSettingsController::class, 'getAllSettings'])->name('user-table-settings.all');
     });
     Route::get('riders/files/{id}', [RidersController::class, 'files'])->name('rider.files');
+    Route::get('files/rider-document-types/{id}/subtypes', [App\Http\Controllers\FilesController::class, 'riderDocumentTypeSubtypes'])->name('files.rider-document-type-subtypes');
+    Route::get('files/rider-document-subtypes/{id}/fields', [App\Http\Controllers\FilesController::class, 'riderDocumentSubtypeFields'])->name('files.rider-document-subtype-fields');
+    Route::get('files/rider-document-subtypes/{id}/prefill', [App\Http\Controllers\FilesController::class, 'riderDocumentSubtypePrefill'])->name('files.rider-document-subtype-prefill');
+    Route::get('files/rider/{rider}/document-type/{documentType}/upload', [App\Http\Controllers\FilesController::class, 'riderDocumentUploadForm'])->name('files.rider-document-upload');
+    Route::post('files/rider/{rider}/document-type/{documentType}/upload', [App\Http\Controllers\FilesController::class, 'riderDocumentUploadStore'])->name('files.rider-document-upload.store');
     Route::get('riders/items/{id}', [RidersController::class, 'items'])->name('rider.items');
     Route::get('riders/additems/{id}', [RidersController::class, 'additems'])->name('riders.additems');
     Route::post('riders/storeitems/{id}', [RidersController::class, 'storeitems'])->name('riders.storeitems');
@@ -721,6 +740,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::resource('riderleads', riderhiringController::class);
 
     Route::get('payments/{id}/clone', [PaymentController::class, 'clone'])->name('payments.clone');
+    Route::get('payments/{id}/pdf', [PaymentController::class, 'pdf'])->name('payments.pdf');
     Route::resource('payments', PaymentController::class);
     Route::get('receipts/{id}/clone', [ReceiptController::class, 'clone'])->name('receipts.clone');
     Route::resource('receipts', ReceiptController::class);
@@ -732,21 +752,18 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::resource('riderEmails', RiderEmailsController::class);
 
     Route::any('riderInvoices/sendemail/{id}', [RiderInvoicesController::class, 'sendEmail'])->name('riderInvoices.sendEmail');
+    Route::get('riderInvoices/export', [RiderInvoicesController::class, 'export'])->name('riderInvoices.export');
+    Route::get('riderInvoices/search-riders', [RiderInvoicesController::class, 'searchRiders'])->name('riderInvoices.searchRiders');
     Route::get('riderInvoices/{id}/download', [RiderInvoicesController::class, 'download'])->name('riderInvoices.download');
     Route::post('riderInvoices/{id}/template', [RiderInvoicesController::class, 'updateTemplate'])->name('riderInvoices.updateTemplate');
     Route::resource('riderInvoices', RiderInvoicesController::class);
     Route::any('rider/invoice-import', [RiderInvoicesController::class, 'import'])->name('rider.invoice_import');
     Route::any('rider/invoice-import-paid', [RiderInvoicesController::class, 'importPaid'])->name('riderInvoices.importPaid');
     Route::any('rider/invoice-mark-paid/{id}', [RiderInvoicesController::class, 'markAsPaid'])->name('riderInvoices.markAsPaid');
+    Route::any('rider/invoice-mark-settled/{id}', [RiderInvoicesController::class, 'markAsSettled'])->name('riderInvoices.markAsSettled');
     Route::get('search_item_price/{RID}/{itemID}', [ItemsController::class, 'search_item_price']);
     Route::get('riderInvoices/delete/{id}', [RiderInvoicesController::class, 'destroy'])->name('riderInvoices.delete');
     Route::post('riderInvoices/bulk-delete', [RiderInvoicesController::class, 'bulkDelete'])->name('riderInvoices.bulkDelete');
-    Route::get('employeeInvoices/import', [EmployeeInvoicesController::class, 'importForm'])->name('employeeInvoices.import.form');
-    Route::post('employeeInvoices/import', [EmployeeInvoicesController::class, 'import'])->name('employeeInvoices.import');
-    Route::resource('employeeInvoices', EmployeeInvoicesController::class);
-    Route::get('employeeInvoices/delete/{id}', [EmployeeInvoicesController::class, 'destroy'])->name('employeeInvoices.delete');
-    Route::post('employeeInvoices/bulk-delete', [EmployeeInvoicesController::class, 'bulkDelete'])->name('employeeInvoices.bulkDelete');
-
     Route::resource('riderAttendances', RiderAttendanceController::class);
     Route::any('rider/attendance-import', [RiderAttendanceController::class, 'import'])->name('rider.attendance_import');
 
@@ -844,6 +861,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('leasingCompanyInvoices/create/{leasingCompanyId?}', [LeasingCompaniesController::class, 'createInvoice'])->name('leasingCompanyInvoices.create');
     Route::get('leasingCompanyInvoices/create-from-clone/{id}', [LeasingCompaniesController::class, 'createFromClone'])->name('leasingCompanyInvoices.createFromClone');
     Route::post('leasingCompanyInvoices/store', [LeasingCompaniesController::class, 'storeInvoice'])->name('leasingCompanyInvoices.store');
+    Route::get('leasingCompanyInvoices/{id}/download', [LeasingCompaniesController::class, 'downloadInvoice'])->name('leasingCompanyInvoices.download');
     Route::get('leasingCompanyInvoices/{id}', [LeasingCompaniesController::class, 'showInvoice'])->name('leasingCompanyInvoices.show');
     Route::get('leasingCompanyInvoices/{id}/edit', [LeasingCompaniesController::class, 'editInvoice'])->name('leasingCompanyInvoices.edit');
     Route::put('leasingCompanyInvoices/{id}', [LeasingCompaniesController::class, 'updateInvoice'])->name('leasingCompanyInvoices.update');
@@ -855,6 +873,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('leasingCompanyBillingInvoices/create/{customerId?}', [LeasingCompanyBillingInvoicesController::class, 'create'])->name('leasingCompanyBillingInvoices.create');
     Route::get('leasingCompanyBillingInvoices/create-from-clone/{id}', [LeasingCompanyBillingInvoicesController::class, 'createFromClone'])->name('leasingCompanyBillingInvoices.createFromClone');
     Route::post('leasingCompanyBillingInvoices/store', [LeasingCompanyBillingInvoicesController::class, 'store'])->name('leasingCompanyBillingInvoices.store');
+    Route::get('leasingCompanyBillingInvoices/{id}/download', [LeasingCompanyBillingInvoicesController::class, 'download'])->name('leasingCompanyBillingInvoices.download');
     Route::get('leasingCompanyBillingInvoices/{id}', [LeasingCompanyBillingInvoicesController::class, 'show'])->name('leasingCompanyBillingInvoices.show');
     Route::get('leasingCompanyBillingInvoices/{id}/edit', [LeasingCompanyBillingInvoicesController::class, 'edit'])->name('leasingCompanyBillingInvoices.edit');
     Route::put('leasingCompanyBillingInvoices/{id}', [LeasingCompanyBillingInvoicesController::class, 'update'])->name('leasingCompanyBillingInvoices.update');
@@ -910,9 +929,20 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     /*   Route::any('attach_file/{id}', 'VouchersController@fileUpload'); */
     Route::any('voucher/attach_file/{id}', [VouchersController::class, 'fileUpload'])->name('voucher.fileupload');
 
+    // Central voucher approval / rejection (Policy + Gate enforced in controller).
+    Route::prefix('voucher-approvals')->name('voucher-approvals.')->group(function () {
+        Route::post('{id}/approve', [\App\Http\Controllers\VoucherApprovalController::class, 'approve'])->name('approve');
+        Route::post('{id}/reject', [\App\Http\Controllers\VoucherApprovalController::class, 'reject'])->name('reject');
+        Route::post('{id}/resubmit', [\App\Http\Controllers\VoucherApprovalController::class, 'resubmit'])->name('resubmit');
+        Route::post('{id}/force-approve', [\App\Http\Controllers\VoucherApprovalController::class, 'forceApprove'])->name('force-approve');
+        Route::post('{id}/reopen', [\App\Http\Controllers\VoucherApprovalController::class, 'reopen'])->name('reopen');
+    });
+
     Route::prefix('settings')->group(function () {
 
         Route::any('/company', [HomeController::class, 'settings'])->name('settings');
+        Route::get('/global', [\App\Http\Controllers\GlobalSettingsController::class, 'index'])->name('settings.global');
+        Route::post('/global', [\App\Http\Controllers\GlobalSettingsController::class, 'store'])->name('settings.global.store');
         Route::get('/erp', [ErpSettingsController::class, 'index'])->name('settings.erp');
         Route::post('/erp', [ErpSettingsController::class, 'store'])->name('settings.erp.store');
         Route::resource('departments', DepartmentsController::class);
@@ -936,6 +966,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::get('detail/{id}/ledger-entries', [AccountsController::class, 'ledgerEntries'])->name('accounts.ledgerEntries');
         Route::resource('accounts', AccountsController::class)->parameters(['accounts' => 'id']);
         Route::get('tree', [AccountsController::class, 'tree'])->name('accounts.tree');
+        Route::get('tree/search', [AccountsController::class, 'treeSearch'])->name('accounts.treeSearch');
+        Route::get('tree/children/{id}', [AccountsController::class, 'treeChildren'])->name('accounts.treeChildren');
         // Accounts Trash Routes
         Route::get('trash', [AccountsController::class, 'trash'])->name('accounts.trash');
         Route::post('trash/{id}/restore', [AccountsController::class, 'restoreTrash'])->name('accounts.restore');
@@ -957,7 +989,6 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::post('/vat/returns/{vat_return}/delete-entries', [VatController::class, 'deleteReturnEntries'])->name('vat.returns.delete-entries');
         Route::get('/vat/voucher/create', [VatController::class, 'createVoucher'])->name('vat.voucher.create');
         Route::post('/vat/voucher/store', [VatController::class, 'storeVoucher'])->name('vat.voucher.store');
-        Route::post('accounts/{id}/toggle-lock', [AccountsController::class, 'toggleLock'])->name('accounts.toggleLock');
         Route::post('accounts/{id}/toggle-status', [AccountsController::class, 'toggleStatus'])->name('accounts.toggleStatus');
         Route::post('accounts/{id}/toggle-fixed', [AccountsController::class, 'toggleFixed'])->name('accounts.toggleFixed');
     });
@@ -965,7 +996,6 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     // Expense module: expense accounts from Chart of Accounts
     Route::get('expenses/detail/{id}', [ExpenseController::class, 'accountDetail'])->name('expenses.detail');
     Route::get('expenses/detail/{id}/ledger-entries', [ExpenseController::class, 'ledgerEntries'])->name('expenses.ledgerEntries');
-    Route::post('expenses/{id}/toggle-lock', [ExpenseController::class, 'toggleLock'])->name('expenses.toggleLock');
     Route::post('expenses/{id}/toggle-status', [ExpenseController::class, 'toggleStatus'])->name('expenses.toggleStatus');
     Route::get('expenses/voucher/create', [ExpenseController::class, 'createVoucher'])->name('expenses.voucher.create');
     Route::post('expenses/voucher/store', [ExpenseController::class, 'storeVoucher'])->name('expenses.voucher.store');
@@ -1087,6 +1117,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('/supplier_invoices/send-email/{id}', [SupplierInvoicesController::class, 'sendEmail'])->name('supplier_invoices.send_email');
     Route::get('supplierInvoices/edit/{id}', [SupplierInvoicesController::class, 'edit'])->name('supplierInvoices.edit');
     Route::put('/supplierInvoices/{id}', [SupplierInvoicesController::class, 'update'])->name('supplierInvoices.update');
+    Route::get('/supplier_invoices/{id}/download', [SupplierInvoicesController::class, 'download'])->name('supplierInvoices.download');
     Route::get('/supplier_invoices/{id}', [SupplierInvoicesController::class, 'show'])->name('supplierInvoices.show');
     Route::get('/supplierInvoices/create', [SupplierInvoicesController::class, 'create'])->name('supplierInvoices.create');
     Route::post('supplierInvoices', [SupplierInvoicesController::class, 'store'])->name('supplierInvoices.store');

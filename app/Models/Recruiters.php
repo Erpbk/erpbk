@@ -9,9 +9,11 @@ use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class Recruiters extends BaseModel
 {
-    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
+    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope, TracksUserAttribution;
 
     public $table = 'recruiters';
 
@@ -25,7 +27,8 @@ class Recruiters extends BaseModel
         'status',
         'account_id',
         'created_by',
-        'updated_by'
+        'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

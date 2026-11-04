@@ -79,6 +79,7 @@ form.form-with-fixed-footer {
   position: relative;
   padding-bottom: 70px; /* Space for the footer */
   overflow-x: hidden; /* Prevent horizontal scrolling */
+  padding: 0;
 }
 
 /* For cards that need to fill available space */

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\IConstants;
 use App\Helpers\Common;
+use App\Helpers\Currency;
 use App\Models\AdminCompany;
 use App\Models\Calculations;
 use App\Models\Company;
@@ -77,10 +78,6 @@ class HomeController extends Controller
         'company_country' => 'nullable|string|max:255',
         'company_city' => 'nullable|string|max:255',
         'company_logo' => 'nullable|image|mimes:jpg,jpeg,png,webp',
-        'company_primary_color' => 'nullable|string|max:20',
-        'company_secondary_color' => 'nullable|string|max:20',
-        'settings.currency_code' => 'nullable|string|max:10',
-        'settings.currency_symbol' => 'nullable|string|max:10',
         'settings.vat_number' => 'nullable|string|max:50',
         'settings.vat_percentage' => 'nullable|numeric',
       ]);
@@ -111,12 +108,6 @@ class HomeController extends Controller
       $currentCompany->address = $validated['company_address'] ?? null;
       $currentCompany->country = $validated['company_country'] ?? null;
       $currentCompany->city = $validated['company_city'] ?? null;
-      if ($request->filled('company_primary_color')) {
-        $currentCompany->primary_color = $request->input('company_primary_color');
-      }
-      if ($request->filled('company_secondary_color')) {
-        $currentCompany->secondary_color = $request->input('company_secondary_color');
-      }
 
       if ($request->hasFile('company_logo')) {
         $path = $request->file('company_logo')->store('company-logos', 'public');
@@ -156,22 +147,42 @@ class HomeController extends Controller
       } else {
         AdminCompany::syncFromCentralCompany($currentCompany);
       }
-      foreach ((array) $request->post('settings', []) as $key => $value) {
-        Settings::updateOrCreate(['name' => $key, 'company_id' => $currentCompany->id], ['name' => $key, 'value' => $value, 'company_id' => $currentCompany->id]);
+
+      $settingsPayload = (array) $request->post('settings', []);
+      unset($settingsPayload['currency_code'], $settingsPayload['currency_symbol'], $settingsPayload['currency_icon']);
+
+      foreach ($settingsPayload as $key => $value) {
+        Settings::updateOrCreate(
+          ['name' => $key, 'company_id' => $currentCompany->id],
+          ['name' => $key, 'value' => $value, 'company_id' => $currentCompany->id]
+        );
       }
 
       return back()->with('success', __('Company details updated successfully.'));
     }
 
-    if ($request->post('settings')) {
+    if ($request->isMethod('post') && $request->post('settings') && $currentCompany instanceof Company) {
+      $settingsPayload = (array) $request->post('settings', []);
+      unset($settingsPayload['currency_code'], $settingsPayload['currency_symbol'], $settingsPayload['currency_icon']);
 
-      foreach ($request->post('settings') as $key => $value) {
-        //echo $key.'-'.$value;
-        Settings::updateOrCreate(['name' => $key, 'company_id' => $currentCompany->id], ['name' => $key, 'value' => $value, 'company_id' => $currentCompany->id]);
-        session()->flash('success', 'Settings updated successfully.');
+      foreach ($settingsPayload as $key => $value) {
+        Settings::updateOrCreate(
+          ['name' => $key, 'company_id' => $currentCompany->id],
+          ['name' => $key, 'value' => $value, 'company_id' => $currentCompany->id]
+        );
       }
+
+      session()->flash('success', 'Settings updated successfully.');
     }
-    $settings = Settings::pluck('value', 'name');
-    return view('content.settings', compact('settings', 'currentCompany'));
+
+    $companyId = $currentCompany instanceof Company ? $currentCompany->id : null;
+    $settingsQuery = Settings::query();
+    if ($companyId !== null) {
+      $settingsQuery->where('company_id', $companyId);
+    }
+    $settings = $settingsQuery->pluck('value', 'name');
+    $currencyCatalog = Currency::catalog();
+
+    return view('content.settings', compact('settings', 'currentCompany', 'currencyCatalog'));
   }
 }

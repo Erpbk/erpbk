@@ -33,14 +33,30 @@ class FuelDataController extends Controller
             ->orderBy('billing_month', 'desc')
             ->with(['card', 'rider', 'bike']);
         $query->whereHas('card');
-        if ($request->has('rider_id') && !empty($request->rider_id)) {
+        if ($request->filled('rider_id')) {
             $query->where('rider_id', $request->rider_id);
         }
 
-        if ($request->has('billing_month') && !empty($request->billing_month)) {
-            $query->where('billing_month', $request->billing_month);
+        if ($request->filled('billing_month')) {
+            // Stored as first-of-month date (Y-m-01); month input sends Y-m
+            $query->whereDate('billing_month', $request->billing_month . '-01');
         }
-        if ($request->has('date') && !empty($request->date)) {
+        if ($request->filled('trans_no')) {
+            $query->where('trans_no', 'like', '%' . $request->trans_no . '%');
+        }
+        if ($request->filled('card_no')) {
+            $query->where('card_no', 'like', '%' . $request->card_no . '%');
+        }
+        if ($request->filled('bike_no')) {
+            $query->where('bike_no', 'like', '%' . $request->bike_no . '%');
+        }
+        if ($request->filled('from_date')) {
+            $query->whereDate('trans_date', '>=', $request->from_date);
+        }
+        if ($request->filled('to_date')) {
+            $query->whereDate('trans_date', '<=', $request->to_date);
+        }
+        if ($request->filled('date')) {
             $query->whereDate('trans_date', '=', $request->date);
         }
 

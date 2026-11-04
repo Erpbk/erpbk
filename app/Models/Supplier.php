@@ -5,13 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
+use App\Traits\HasInvoiceNoteLabels;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 use App\Helpers\IConstants;
 
+use App\Traits\TracksUserAttribution;
+
 class Supplier extends BaseModel
 {
-    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
+    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope, HasInvoiceNoteLabels, TracksUserAttribution;
 
     public $table = 'suppliers';
 
@@ -23,6 +26,13 @@ class Supplier extends BaseModel
         'address',
         'tax_number',
         'status',
+        'terms_and_conditions_label',
+        'terms_and_conditions',
+        'invoice_note_label',
+        'invoice_note',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
 
     public static $rules = [
@@ -79,17 +89,8 @@ class Supplier extends BaseModel
      */
     public function cannotBeDeletedReason(): ?string
     {
-        if ($this->account_id) {
-            $transactionCount = Transactions::withTrashed()
-                ->withoutGlobalScope('branch')
-                ->where('account_id', $this->account_id)
-                ->count();
-
-            if ($transactionCount > 0) {
-                return 'Cannot delete supplier. This supplier\'s account has '
-                    . $transactionCount
-                    . ' transaction(s). Deactivate the supplier instead.';
-            }
+        if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($this), 'Supplier')) {
+            return $blockReason;
         }
 
         $invoiceCount = $this->invoices()->where('is_invoice', true)->count();

@@ -759,12 +759,12 @@ class General
       'LV' => 'Visa Expense',
       'RFV' => 'RTA Fine Voucher',
       'VL' => 'Loan Voucher',
-      'AL' => 'Advance Loan Voucher',
+      'AL' => 'Advance payment',
       'SV' => 'Salik Voucher',
       'COD' => 'COD Voucher',
       'PN' => 'Penalty Voucher',
       'INC' => 'Incentive Voucher',
-      'PAY' => 'Payment Voucher',
+      'PAY' => 'Salary Payment',
       'VC' => 'Vendor Charges Voucher',
       'RI' => 'Rider Invoice Voucher',
       'GV' => 'Garage Voucher',
@@ -777,6 +777,7 @@ class General
       'IL' => 'Inventory Loss',
       'FAV' => 'Fixed Asset Acquisition',
       'FDV' => 'Fixed Asset Depreciation',
+      'VR' => 'Vehicle Registration Voucher',
     ];
 
     try {
@@ -921,12 +922,12 @@ class General
 
   public static function DateFormat($date)
   {
-    return date('d M Y', strtotime($date));
+    return Common::DateFormat($date);
   }
 
   public static function DateTimeFormat($date)
   {
-    return date('d M Y h:i A', strtotime($date));
+    return Common::DateTimeFormat($date);
   }
 
   public static function dropdownitems($itemsId = null, $selected = null, $parentId = null, $prefix = '')

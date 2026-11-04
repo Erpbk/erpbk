@@ -27,6 +27,8 @@ use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use App\Support\PublicStorageDisk;
+use App\Support\RiderVoucherPermissions;
+use App\Support\VoucherModulePermissions;
 use Flash;
 use Maatwebsite\Excel\Facades\Excel;
 use Response;
@@ -61,7 +63,8 @@ class VouchersController extends Controller
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
-    $query = Vouchers::query()->orderBy('id', 'desc');
+    // Hide rejected vouchers from the normal active list (admin dashboard still shows them).
+    $query = Vouchers::query()->activeApproval()->orderBy('id', 'desc');
 
     // Apply filters
     if ($request->has('voucher_id') && !empty($request->voucher_id)) {
@@ -147,7 +150,7 @@ class VouchersController extends Controller
       abort(403, 'Unauthorized action.');
     }
 
-    $query = Vouchers::query()->orderBy('id', 'desc');
+    $query = Vouchers::query()->activeApproval()->orderBy('id', 'desc');
 
     if ($request->filled('voucher_type')) {
       $query->where('voucher_type', $request->voucher_type);
@@ -205,9 +208,10 @@ class VouchersController extends Controller
 
 
       /** @var Vouchers $vouchers */
-      if (in_array($request->voucher_type, ['JV', 'TRF'], true)) {
-        if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
-
+      if ($request->voucher_type === 'TRF') {
+        $result = $voucherService->FundsTransfer($request);
+      } elseif ($request->voucher_type === 'JV') {
+        if (!$this->debitEqualsCredit($request)) {
           return response()->json(['errors' => ['error' => 'Total debit and credit must be equal.']], 422);
         }
         $result = $voucherService->JournalVoucher($request);
@@ -253,6 +257,8 @@ class VouchersController extends Controller
 
       //$vouchers = Vouchers::create($input);
       return $result;
+    } catch (\Illuminate\Validation\ValidationException $e) {
+      return response()->json(['errors' => $e->errors()], 422);
     } catch (\Exception $e) {
       // Log the error for debugging
       \Log::error('Voucher store error: ' . $e->getMessage(), [
@@ -278,7 +284,7 @@ class VouchersController extends Controller
   public function show($company_slug, $id)
   {
     /** @var Vouchers $vouchers */
-    $voucher = Vouchers::with(['transactions.account'])->find($id);
+    $voucher = Vouchers::with(['transactions.account', 'approvedByUser', 'rejectedByUser', 'approvalEvents'])->find($id);
     $voucherModuleKey = 'vouchers';
     $editDeleteFlags = VoucherType::getEditDeleteFlagsByModule($voucherModuleKey);
     if (empty($voucher)) {
@@ -287,8 +293,38 @@ class VouchersController extends Controller
       return redirect()->back();
     }
 
+    // Rider payment vouchers use the payment document UI (with All Vouchers sidebar).
+    if ((string) $voucher->voucher_type === 'PV') {
+      $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher'])
+        ->where('voucher_id', $voucher->id)
+        ->first();
+      if (! $payment && ! empty($voucher->ref_id)) {
+        $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher'])->find($voucher->ref_id);
+      }
+      if ($payment && app(\App\Services\Payment\RiderPaymentVoucherViewData::class)->isRiderPayment($payment)) {
+        return app(PaymentController::class)->show(request(), $company_slug, $payment->id);
+      }
+    }
+
+    $riderDoc = app(\App\Services\Voucher\RiderModuleVoucherViewData::class);
+    $visaDoc = app(\App\Services\Voucher\VisaExpenseVoucherViewData::class);
+
     if (request()->ajax() || request()->wantsJson()) {
       return view('vouchers.show_modal', compact('voucher', 'editDeleteFlags'));
+    }
+
+    $docBuilder = $riderDoc->supports($voucher)
+      ? $riderDoc
+      : ($visaDoc->supports($voucher) ? $visaDoc : null);
+
+    if ($docBuilder) {
+      $doc = $docBuilder->build($voucher);
+
+      if (request()->boolean('print') || request()->get('print')) {
+        return view('vouchers.rider_voucher_print', array_merge($doc, ['doc' => $doc]));
+      }
+
+      return view('vouchers.rider_voucher_document', array_merge($doc, ['doc' => $doc]));
     }
 
     return view('vouchers.show', compact('voucher'));
@@ -301,7 +337,7 @@ class VouchersController extends Controller
    *
    * @return Response
    */
-  public function edit($company_slug, $id)
+  public function edit(Request $request, $company_slug, $id)
   {
     /** @var Vouchers $vouchers */
     $vouchers = Vouchers::where('trans_code', $id)->first();
@@ -312,15 +348,50 @@ class VouchersController extends Controller
       return redirect(route('vouchers.index'));
     }
 
+    try {
+      \App\Support\VoucherApprovalGuard::assertMayEdit($vouchers);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+      Flash::error(collect($e->errors())->flatten()->first() ?: 'Voucher is locked.');
+      return redirect()->back();
+    }
+
     if (VoucherType::isLockedInVouchersModule($vouchers->voucher_type)) {
       abort(403, 'This voucher cannot be edited from the Vouchers module.');
     }
 
-    if (in_array($vouchers->voucher_type, ['JV', 'TRF', 'RFV', 'AL', 'COD', 'PN', 'IL', 'PAY', 'VC', 'INC'], true)) {
-      $data = Transactions::where('trans_code', $id)->get();
-    } else {
-      $data = Transactions::where('trans_code', $id)->where('debit', '>', 0)->get();
+    $editFlags = VoucherType::getEditDeleteFlagsByModule('vouchers');
+    if (empty($editFlags[$vouchers->voucher_type]['can_edit'])) {
+      abort(403, 'This voucher type is not allowed to be edited in the Vouchers module.');
     }
+
+    // Open the owning-module modal for PV / RV / EXP (same UI as Payments, Receipts, Expenses).
+    $moduleActions = \App\Support\VoucherModuleActions::forVoucher($vouchers, $company_slug);
+    if ($moduleActions['module'] === 'payments') {
+      $paymentId = Payment::where('voucher_id', $vouchers->id)->value('id')
+        ?: ($vouchers->ref_id ?: null);
+      if ($paymentId) {
+        return app(PaymentController::class)->edit($request, $company_slug, $paymentId);
+      }
+    }
+    if ($moduleActions['module'] === 'receipts') {
+      $receiptId = Receipt::where('voucher_id', $vouchers->id)->value('id')
+        ?: ($vouchers->ref_id ?: null);
+      if ($receiptId) {
+        return app(ReceiptController::class)->edit($request, $company_slug, $receiptId);
+      }
+    }
+    if ($moduleActions['module'] === 'expenses') {
+      return app(ExpenseController::class)->editVoucher($company_slug, $vouchers->id);
+    }
+    if ($moduleActions['module'] === 'visa_expense') {
+      $expenseId = $vouchers->ref_id ?: null;
+      if ($expenseId) {
+        return app(VisaexpenseController::class)->editLv($request, $company_slug, $expenseId);
+      }
+    }
+
+    // Load full ledger lines for every other voucher type (JV, etc.), including any approval holds.
+    $data = Transactions::forVoucherForm($id);
 
     $voucherCustomFields = VoucherCustomField::orderBy('display_order')->get();
     return view('vouchers.edit', compact('vouchers', 'data', 'voucherCustomFields'));
@@ -353,19 +424,35 @@ class VouchersController extends Controller
       return redirect(route('vouchers.index'));
     }
 
+    try {
+      \App\Support\VoucherApprovalGuard::assertMayEdit($vouchers);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+      return response()->json(['errors' => $e->errors()], 422);
+    }
+
     if (VoucherType::isLockedInVouchersModule($vouchers->voucher_type)) {
       return response()->json(['errors' => ['error' => 'This voucher cannot be edited from the Vouchers module.']], 403);
     }
 
-    if (in_array($request->voucher_type, ['JV', 'TRF'], true)) {
-      if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
+    $editFlags = VoucherType::getEditDeleteFlagsByModule('vouchers');
+    if (empty($editFlags[$vouchers->voucher_type]['can_edit'])) {
+      return response()->json(['errors' => ['error' => 'This voucher type is not allowed to be edited in the Vouchers module.']], 403);
+    }
 
+    if ($request->voucher_type === 'TRF') {
+      try {
+        $voucherService->FundsTransfer($request);
+      } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json(['errors' => $e->errors()], 422);
+      }
+    } elseif ($request->voucher_type === 'JV') {
+      if (!$this->debitEqualsCredit($request)) {
         return response()->json(['errors' => ['error' => 'Total debit and credit must be equal.']], 422);
       }
       $voucherService->JournalVoucher($request);
     }
     if ($request->voucher_type === 'RFV') {
-      if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
+      if (!$this->debitEqualsCredit($request)) {
         return response()->json(['errors' => ['error' => 'Total debit and credit must be equal']], 422);
       }
 
@@ -514,6 +601,13 @@ class VouchersController extends Controller
         DB::rollBack();
 
         return response()->json(['errors' => ['error' => 'This voucher cannot be deleted from the Vouchers module.']], 403);
+      }
+
+      $deleteFlags = VoucherType::getEditDeleteFlagsByModule('vouchers');
+      if (empty($deleteFlags[$voucher->voucher_type]['can_delete'])) {
+        DB::rollBack();
+
+        return response()->json(['errors' => ['error' => 'This voucher type is not allowed to be deleted in the Vouchers module.']], 403);
       }
 
       $relatedTransactions = Transactions::where('trans_code', $id)->get();
@@ -675,6 +769,18 @@ class VouchersController extends Controller
       \Log::error("Error deleting Voucher trans_code: {$id} - " . $e->getMessage());
       return response()->json(['errors' => ['error' => 'Error deleting voucher: ' . $e->getMessage()]], 500);
     }
+  }
+
+  /**
+   * Compare JV/TRF debit and credit totals using money precision (2 dp).
+   * Raw float array_sum can disagree even when the UI shows equal toFixed(2) totals.
+   */
+  private function debitEqualsCredit(Request $request): bool
+  {
+    $dr = round(array_sum(array_map('floatval', (array) $request->input('dr_amount', []))), 2);
+    $cr = round(array_sum(array_map('floatval', (array) $request->input('cr_amount', []))), 2);
+
+    return $dr === $cr;
   }
 
   /**
@@ -850,19 +956,35 @@ class VouchersController extends Controller
 
   public function fileUpload(Request $request, $company_slug, $id)
   {
-    $canUpload = user_can('vouchers_edit')
-      || user_can('vouchers_create')
-      || user_can('expenses_edit')
-      || user_can('expenses_create');
-
-    if (! $canUpload) {
-      return response()->json(['message' => 'Unauthorized action.'], 403);
-    }
-
     $voucher = Vouchers::find($id);
 
     if (! $voucher) {
       return response()->json(['message' => 'Voucher not found'], 404);
+    }
+
+    $riderVoucherCode = RiderVoucherPermissions::codeFromVoucherType($voucher->voucher_type);
+    if ($riderVoucherCode !== null) {
+      if (! RiderVoucherPermissions::canUpload($riderVoucherCode)) {
+        return response()->json(['message' => 'Unauthorized action.'], 403);
+      }
+    } else {
+      $canUpload = VoucherModulePermissions::canUpload()
+        || user_can('cash_&_banks_payments_edit')
+        || user_can('cash_&_banks_payments_create')
+        || user_can('employees_payments_edit')
+        || user_can('employees_payments_create')
+        || user_can('customers_payments_edit')
+        || user_can('customers_payments_create')
+        || user_can('sims_payments_edit')
+        || user_can('sims_payments_create')
+        || user_can('leasing_companies_payments_edit')
+        || user_can('leasing_companies_payments_create')
+        || user_can('suppliers_payments_edit')
+        || user_can('suppliers_payments_create');
+
+      if (! $canUpload) {
+        return response()->json(['message' => 'Unauthorized action.'], 403);
+      }
     }
 
     if ($request->isMethod('POST')) {
@@ -891,6 +1013,14 @@ class VouchersController extends Controller
         $voucher->attach_file = $fileName;
         $voucher->updated_by = auth()->id();
         $voucher->save();
+
+        // Keep linked payment attachment in sync (PV and similar).
+        $payment = Payment::where('voucher_id', $voucher->id)->first();
+        if ($payment) {
+          $payment->attachment = $fileName;
+          $payment->updated_by = auth()->id();
+          $payment->save();
+        }
       } catch (\Throwable $e) {
         report($e);
 
@@ -956,9 +1086,9 @@ class VouchersController extends Controller
 
       return view('payments.create', compact('payment', 'banks'));
     } elseif (in_array($vouchers->voucher_type, ['JV', 'TRF', 'RFV', 'AL', 'COD', 'PN', 'IL', 'PAY', 'VC', 'INC'], true)) {
-      $data = Transactions::where('trans_code', $id)->get();
+      $data = Transactions::forVoucherForm($id);
     } else {
-      $data = Transactions::where('trans_code', $id)->where('debit', '>', 0)->get();
+      $data = Transactions::forVoucherForm($id)->where('debit', '>', 0)->values();
     }
 
     if (empty($vouchers)) {

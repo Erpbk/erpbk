@@ -3,8 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <title>Supplier Invoice #{{ $supplierInvoice->inv_id }}</title>
+    @php
+        $orderBrand = $brand ?? ($companyBrand ?? []);
+        $orderBlue = $orderBrand['primary_color'] ?? '#004aad';
+        $orderBlueSoft = $orderBrand['primary_soft'] ?? '#e6f1ff';
+        $orderBlueRgb = $orderBrand['primary_rgb'] ?? '0, 74, 173';
+    @endphp
+</head>
+<body>
+    {{-- Styles in body so AJAX modals keep them (head is dropped) --}}
     <style>
-        /* Scoped to invoice content — do not leak into app when loaded in right-side modal */
+        /* Scoped to invoice content - do not leak into app when loaded in right-side modal */
         .invoice-box,
         .invoice-box * {
             box-sizing: border-box;
@@ -26,6 +35,9 @@
             padding: 20px;
         }
         .invoice-box {
+            --blue: {{ $orderBlue }};
+            --blue-soft: {{ $orderBlueSoft }};
+            --blue-rgb: {{ $orderBlueRgb }};
             max-width: 1100px;
             width: 100%;
             margin: 0 auto;
@@ -49,7 +61,7 @@
             vertical-align: top;
         }
         .invoice-box th {
-            background: #004aad;
+            background: var(--blue);
             color: white;
             font-weight: 600;
             text-align: center;
@@ -67,15 +79,15 @@
 
         /* ----- HEADER STYLES (kept from v1 but enhanced) ----- */
         .invoice-box .primary-header { background: #211c1d; color: white; }
-        .invoice-box .secondary-header { background: #004aad; color: white; font-weight: bold; }
+        .invoice-box .secondary-header { background: var(--blue); color: white; font-weight: bold; }
         .invoice-box .accent-total { background: #5271ff; color: white; }
-        .invoice-box .light-header { background: #e6f1ff; color: #004aad; }
+        .invoice-box .light-header { background: var(--blue-soft); color: var(--blue); }
         .invoice-box .amount-highlight { background: #2A62FF; color: white; }
         .invoice-box .yellow-highlight { background: #ffff00; font-weight: bold; padding: 8px; }
 
         /* ----- PRINT BUTTONS & CONTROLS (consistent with fuel invoice) ----- */
         #rightSideModalBody .print-btn,        body > .controls .print-btn {
-            background: #004aad;
+            background: var(--blue);
             color: #fff;
             border: none;
             padding: 8px 16px;
@@ -120,11 +132,11 @@
         .invoice-box  .card-header {
             margin-bottom: 14px;
             padding-bottom: 8px;
-            border-bottom: 2px solid #004aad;
+            border-bottom: 2px solid var(--blue);
             background-color: white !important;
         }
         .invoice-box .card-header strong {
-            color: #004aad;
+            color: var(--blue);
             font-size: 15px;
             letter-spacing: 0.3px;
         }
@@ -160,13 +172,13 @@
         /* description section (clean as v2) */
         .description-block {
             background: #f8fafc;
-            border-left: 4px solid #004aad;
+            border-left: 4px solid var(--blue);
             padding: 12px 18px;
             margin: 20px 0;
             border-radius: 10px;
         }
         .description-block strong {
-            color: #004aad;
+            color: var(--blue);
             font-size: 13px;
         }
 
@@ -187,7 +199,7 @@
         .grand-total-card {
             display: inline-block;
             padding: 12px 28px;
-            background: #004aad;
+            background: var(--blue);
             color: white;
             border-radius: 20px;
             text-align: center;
@@ -218,7 +230,7 @@
             border: 1px solid #ccc;
         }
         .items-table th {
-            background: #004aad;
+            background: var(--blue);
             color: white;
             font-weight: 600;
             text-align: center;
@@ -238,7 +250,7 @@
             border: 1px solid #e2e8f0;
         }
         .summary-mini-table th {
-            background: #004aad;
+            background: var(--blue);
         }
 
         @media print {
@@ -262,7 +274,7 @@
                 break-inside: avoid;
             }
             .grand-total-card {
-                background: #004aad !important;
+                background: var(--blue) !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
@@ -285,8 +297,7 @@
             }
         }
     </style>
-</head>
-<body>
+
 <div class="controls no-print">
     <button type="button" class="print-btn" onclick="printModalContent()">Print Order</button>
 </div>
@@ -313,7 +324,7 @@
                 <p style="margin: 3px 0; font-size: 12px;">TRN: {{ $settings['vat_number'] ?? 'TRN Number' }}</p>
             </td>
             <td style="width: 33%; text-align: center; align-content: center; border: none !important;">
-                <h2 style="margin: 0; font-weight: 800; color: #004aad; font-size: 22px;">PURCHASE ORDER</h2>
+                <h2 style="margin: 0; font-weight: 800; color: var(--blue); font-size: 22px;">PURCHASE ORDER</h2>
             </td>
         </tr>
     </table>
@@ -323,17 +334,17 @@
         <!-- Supplier Information Card (modern card version) -->
         <div class="supplier-card">
             <div class="card-header">
-                <strong>📇 Supplier Details</strong>
+                <strong>ÃÂ°ÃÂÃÂÃÂ Supplier Details</strong>
             </div>
             <div class="details-grid">
                 <span class="detail-label">Supplier Name:</span>
-                <span class="detail-value">{{ $supplierInvoice->supplier->name ?? '—' }}</span>
+                <span class="detail-value">{{ $supplierInvoice->supplier->name ?? 'ÃÂ¢ÃÂÃÂ' }}</span>
 
                 <span class="detail-label">Company Name:</span>
-                <span class="detail-value">{{ $supplierInvoice->supplier->company_name ?? '—' }}</span>
+                <span class="detail-value">{{ $supplierInvoice->supplier->company_name ?? 'ÃÂ¢ÃÂÃÂ' }}</span>
 
                 <span class="detail-label">Contact:</span>
-                <span class="detail-value">{{ $supplierInvoice->supplier->phone ?? '—' }}</span>
+                <span class="detail-value">{{ $supplierInvoice->supplier->phone ?? 'ÃÂ¢ÃÂÃÂ' }}</span>
                 
                 @if(!empty($supplierInvoice->supplier->email))
                 <span class="detail-label">Email:</span>
@@ -345,7 +356,7 @@
         <!-- Invoice Details Card (showing order/invoice fields from original, enhanced with billing month + garage) -->
         <div class="details-card">
             <div class="card-header">
-                <strong>📄 Invoice Details</strong>
+                <strong>ÃÂ°ÃÂÃÂÃÂ Invoice Details</strong>
             </div>
             <div class="details-grid">
                 <span class="detail-label">Order #:</span>
@@ -355,10 +366,10 @@
                 <span class="detail-value">{{ $supplierInvoice->order_date?->format('d M Y') ?? '' }}</span>
 
                 <span class="detail-label">Garage:</span>
-                <span class="detail-value">{{ $supplierInvoice->garage?->name ?? '—' }}</span>
+                <span class="detail-value">{{ $supplierInvoice->garage?->name ?? 'ÃÂ¢ÃÂÃÂ' }}</span>
 
                 <span class="detail-label">Created By:</span>
-                <span class="detail-value">{{ $supplierInvoice->creatorBy?->name ?? ($supplierInvoice->updatedBy?->name ?? '—') }}</span>
+                <span class="detail-value">{{ $supplierInvoice->creatorBy?->name ?? ($supplierInvoice->updatedBy?->name ?? 'ÃÂ¢ÃÂÃÂ') }}</span>
             </div>
         </div>
     </div>
@@ -366,7 +377,7 @@
     <!-- Description Section (if exists) exactly like fuel invoice description block -->
     @if($supplierInvoice->descriptions)
     <div class="description-block">
-        <strong>📝 Description</strong><br>
+        <strong>ÃÂ°ÃÂÃÂÃÂ Description</strong><br>
         <span style="color: #334155;">{{ $supplierInvoice->descriptions }}</span>
     </div>
     @endif
@@ -374,7 +385,7 @@
     <!-- Additional Notes Section (kept from original but elevated with v2 style) -->
     @if($supplierInvoice->notes)
     <div class="notes-section">
-        <strong>📌 Additional Notes:</strong><br>
+        <strong>ÃÂ°ÃÂÃÂÃÂ Additional Notes:</strong><br>
         {{ $supplierInvoice->notes }}
     </div>
     @endif
@@ -395,7 +406,7 @@
             <tbody>
                 @foreach($supplierInvoice->items as $item)
                 <tr>
-                    <td>{{ $item->item_des ?? '—' }}</td>
+                    <td>{{ $item->item_des ?? 'ÃÂ¢ÃÂÃÂ' }}</td>
                     <td class="num">{{ number_format($item->qty ?? 0, 2) }}</td>
                     <td class="num">{{ number_format($item->rate ?? 0, 2) }}</td>
                     <td class="num">{{ number_format($item->tax_amount ?? 0, 2) }}</td>
@@ -410,7 +421,7 @@
     <div style="display: flex; justify-content: flex-end; margin-top: 5px;">
         <table style="width: 45%; min-width: 260px; border: 1px solid #e2e8f0;">
             <thead>
-                <tr><th colspan="2" class="secondary-header" style="background:#004aad;">Financial Summary</th></tr>
+                <tr><th colspan="2" class="secondary-header" style="background:var(--blue);">Financial Summary</th></tr>
             </thead>
             <tbody>
                 <tr>
@@ -426,7 +437,7 @@
     </div>
     @else
     <div style="text-align: center; padding: 30px; background: #f9f9fc; border: 1px solid #e9ecef; border-radius: 12px; margin: 20px 0;">
-        <p style="margin: 0; color: #5b6e8c;">📭 No items recorded for this invoice</p>
+        <p style="margin: 0; color: #5b6e8c;">ÃÂ°ÃÂÃÂÃÂ­ No items recorded for this invoice</p>
     </div>
     @endif
 

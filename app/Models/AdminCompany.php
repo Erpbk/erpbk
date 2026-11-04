@@ -45,7 +45,9 @@ class AdminCompany extends BaseModel
         'logo',
         'primary_color',
         'secondary_color',
+        'accent_color',
         'modules_settings',
+        'notification_channels_settings',
         'approved_at',
         'approved_by',
         'rejection_reason',
@@ -56,6 +58,7 @@ class AdminCompany extends BaseModel
         'approved_at' => 'datetime',
         'tax_registration_date' => 'date',
         'modules_settings' => 'array',
+        'notification_channels_settings' => 'array',
     ];
 
     /**
@@ -79,7 +82,9 @@ class AdminCompany extends BaseModel
             'logo' => $company->logo,
             'primary_color' => $company->primary_color,
             'secondary_color' => $company->secondary_color,
+            'accent_color' => $company->accent_color,
             'modules_settings' => $company->modules_settings,
+            'notification_channels_settings' => $company->notification_channels_settings,
             'approved_at' => $company->approved_at,
             'approved_by' => $company->approved_by,
             'rejection_reason' => $company->rejection_reason,

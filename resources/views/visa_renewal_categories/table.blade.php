@@ -1,4 +1,4 @@
-@php
+﻿@php
 $routePrefix = $routePrefix ?? 'settings-panel.visa-renewal-categories';
 $embeddedManager = $embeddedManager ?? false;
 $returnTo = $returnTo ?? null;
@@ -36,8 +36,12 @@ $returnTo = $returnTo ?? null;
                     </span>
                 </td>
                 <td>
+                    @php $categoryPendingDeletion = record_is_pending_deletion($category); @endphp
                     <div class="visa-row-actions">
-                        @can('visa_expense_edit')
+                        @if($categoryPendingDeletion)
+                        @include('delete_requests._pending_badge', ['model' => $category])
+                        @else
+                        @can('visa_expense_account_creation_edit')
                         @if($embeddedManager)
                         <button type="button"
                             class="visa-icon-btn visa-icon-btn-edit js-visa-renewal-edit-btn"
@@ -48,12 +52,13 @@ $returnTo = $returnTo ?? null;
                             data-name="{{ $category->name }}"
                             data-display-order="{{ $category->display_order }}"
                             data-is-default="{{ $category->is_default ? 1 : 0 }}"
-                            data-is-active="{{ $category->is_active ? 1 : 0 }}">
+                            data-is-active="{{ $category->is_active ? 1 : 0 }}"
+                            data-status-ids="{{ $category->relationLoaded('visaStatuses') ? $category->visaStatuses->pluck('id')->implode(',') : '' }}">
                             <i class="ti ti-pencil"></i>
                         </button>
                         @endif
                         @endcan
-                        @can('visa_expense_delete')
+                        @can('visa_expense_account_creation_delete')
                         @if(!$category->is_default)
                         <button type="button"
                             class="visa-icon-btn visa-icon-btn-delete js-visa-renewal-delete-btn"
@@ -63,6 +68,7 @@ $returnTo = $returnTo ?? null;
                         </button>
                         @endif
                         @endcan
+                        @endif
                     </div>
                 </td>
             </tr>

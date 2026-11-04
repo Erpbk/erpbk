@@ -20,22 +20,45 @@ $homeLink = $isAdminLogin
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('cash_banks'))
 @canany(['cash_&_banks_banks_view', 'cash_&_banks_cheques_view', 'cash_&_banks_payments_view', 'cash_&_banks_receipts_view'])
-@php
-  $cashBanksUrl = user_can('cash_&_banks_banks_view')
-      ? route('banks.index')
-      : (user_can('cash_&_banks_cheques_view')
-          ? route('cheques.index')
-          : (user_can('cash_&_banks_payments_view')
-              ? route('payments.index')
-              : (user_can('cash_&_banks_receipts_view')
-                  ? route('receipts.index')
-                  : route('banks.index'))));
-@endphp
-<li class="menu-item {{ (Route::is('banks.*') || Route::is('bank.*') || Route::is('cheques.*') || Route::is('payments.*') || Route::is('receipts.*')) ? 'active' : '' }}">
-  <a href="{{ $cashBanksUrl }}" class="menu-link">
+<li class="menu-item {{ (Route::is('banks.*') || Route::is('bank.*') || Route::is('cheques.*') || Route::is('payments.*') || Route::is('receipts.*')) ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle">
     @include('layouts.partials.module_menu_icon', ['key' => 'cash_banks'])
     <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
   </a>
+  <ul class="menu-sub">
+    @can('cash_&_banks_banks_view')
+    <li class="menu-item {{ Route::is('banks.*') || Route::is('bank.*') ? 'active' : '' }}">
+      <a href="{{ route('banks.index') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'cash_banks'])
+        <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
+      </a>
+    </li>
+    @endcan
+    @can('cash_&_banks_cheques_view')
+    <li class="menu-item {{ Route::is('cheques.*') ? 'active' : '' }}">
+      <a href="{{ route('cheques.index') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'cheques'])
+        <div>{{ $menuLabels['cheques'] ?? 'Cheques' }}</div>
+      </a>
+    </li>
+    @endcan
+    @can('cash_&_banks_payments_view')
+    <li class="menu-item {{ Route::is('payments.*') ? 'active' : '' }}">
+      <a href="{{ route('payments.index') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'payments'])
+        <div>{{ $menuLabels['payments'] ?? 'Payments' }}</div>
+      </a>
+    </li>
+    @endcan
+    @can('cash_&_banks_receipts_view')
+    <li class="menu-item {{ Route::is('receipts.*') ? 'active' : '' }}">
+      <a href="{{ route('receipts.index') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'receipts'])
+        <div>{{ $menuLabels['receipts'] ?? 'Receipts' }}</div>
+      </a>
+    </li>
+    @endcan
+  </ul>
 </li>
 @endcanany
 @endif
@@ -83,10 +106,16 @@ $homeLink = $isAdminLogin
     @endcan
     @if(\App\Support\CompanyModuleVisibility::enabled('attendance'))
     @can('employees_attendance_view')
-    <li class="menu-item {{ (Route::is('attendance.summary') && request('user_type', 'employee') === 'employee') || (Route::is('attendance.index') && request('ref_type') === 'employee') ? 'active' : '' }}">
+    <li class="menu-item {{ Route::is('attendance.summary') && request('user_type', 'employee') === 'employee' ? 'active' : '' }}">
       <a href="{{ route('attendance.summary', ['user_type' => 'employee']) }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'attendance_summary'])
         {{ $menuLabels['attendance_summary'] ?? 'Attendance' }}
+      </a>
+    </li>
+    <li class="menu-item {{ Route::is('attendance.index') && request('ref_type', 'employee') === 'employee' ? 'active' : '' }}">
+      <a href="{{ route('attendance.index', ['ref_type' => 'employee']) }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'attendance_report'])
+        {{ $menuLabels['attendance_report'] ?? 'Attendance Report' }}
       </a>
     </li>
     @endcan
@@ -103,7 +132,7 @@ $homeLink = $isAdminLogin
     <li class="menu-item {{ Route::is('employee.payment') ? 'active' : '' }}">
       <a href="{{ route('employee.payment') }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'payments'])
-        <div>{{ $menuLabels['payments_sent'] ?? 'Payments Sent' }}</div>
+        <div>{{ $menuLabels['payments_sent'] ?? 'Payment Out Sent' }}</div>
       </a>
     </li>
     @endcan
@@ -513,7 +542,7 @@ $homeLink = $isAdminLogin
 @endif
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('installments'))
-@can('installment_view')
+@can('visa_expense_installments_view')
 <li class="menu-item {{ Route::is('Installments*') ? 'active' : '' }}">
   <a href="{{ route('Installments.index') }}" class="menu-link">
     @include('layouts.partials.module_menu_icon', ['key' => 'installments'])
@@ -876,7 +905,7 @@ $homeLink = $isAdminLogin
   <ul class="menu-sub">
 
     @can('accounts_coa_view')
-    <li class="menu-item {{ Route::is('accounts.tree') ? 'active' : '' }}">
+    <li class="menu-item {{ Route::is('accounts.tree', 'accounts.index') ? 'active' : '' }}">
       <a href="{{ route('accounts.tree') }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'chart_of_accounts'])
         <div>{{ $menuLabels['chart_of_accounts'] ?? 'Chart Of Accounts' }}</div>

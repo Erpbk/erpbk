@@ -9,8 +9,6 @@
 @endpush
 <div class="content">
 
-    @include('banks.partials.nav_tabs')
-
     @include('flash::message')
 
     <div class="card">

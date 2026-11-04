@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
+use App\Traits\TracksUserAttribution;
+
 class LoanInstallment extends BaseModel
 {
-    use LogsActivity, SoftDeletes;
+    use LogsActivity, SoftDeletes, TracksUserAttribution;
 
     public const STATUS_PENDING = 'pending';
 
@@ -33,6 +35,9 @@ class LoanInstallment extends BaseModel
         'paid_date',
         'voucher_id',
         'payment_id',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

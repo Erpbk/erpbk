@@ -1,14 +1,27 @@
-{!! Form::model($payment, ['route' => ['payments.update', $payment->id], 'method' => 'patch','id'=>'formajax']) !!}
+{!! Form::model($payment, ['route' => ['payments.update', $payment->id], 'method' => 'patch','id'=>'formajax', 'enctype' => 'multipart/form-data']) !!}
+@if(!empty($fromCheques))
+    {!! Form::hidden('from_cheques', 1) !!}
+    @if(!empty($chequeClearEditToken))
+        {!! Form::hidden('cheque_clear_edit_token', $chequeClearEditToken) !!}
+    @endif
+@endif
 
-<div class="card-body">
+<div class="px-3 pt-2 pb-1">
     <div class="row">
         @include('payments.fields')
     </div>
+    <div class="row mt-2">
+        @include('vouchers._custom_fields_section')
+    </div>
 </div>
 
-<div class="action-btn">
-    <button type="button" class="btn btn-default" data-bs-dismiss="modal">Cancel</button>
-    {!! Form::submit('Save', ['class' => 'btn btn-primary']) !!}
+<div class="action-btn rpf-actions">
+    <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
+    {!! Form::submit('Save Payment', [
+        'class' => 'btn btn-primary rpf-save-btn',
+    ]) !!}
 </div>
+
+@include('partials.uvf_styles')
 
 {!! Form::close() !!}

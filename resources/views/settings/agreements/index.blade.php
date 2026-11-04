@@ -17,7 +17,7 @@
         <div>
           <h4 class="card-title mb-0">Agreements</h4>
           <p class="text-muted small mb-0 mt-1">
-            Create agreements and assign each to one module. Template editing is module-side only.
+            Create agreements and assign each to one module, or to General so it is available in every module.
           </p>
         </div>
         @canany(['agreements_create', 'gn_settings'])

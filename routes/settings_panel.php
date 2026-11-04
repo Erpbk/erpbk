@@ -22,6 +22,8 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::match(['get', 'post'], '/company', [HomeController::class, 'settings'])->name('settings-panel.company');
     Route::post('/company/email/send-otp', [\App\Http\Controllers\Company\CompanyEmailChangeController::class, 'sendOtp'])->name('settings-panel.company.email.send-otp');
     Route::post('/company/email/verify-otp', [\App\Http\Controllers\Company\CompanyEmailChangeController::class, 'verifyOtp'])->name('settings-panel.company.email.verify-otp');
+    Route::get('/global', [App\Http\Controllers\GlobalSettingsController::class, 'index'])->name('settings-panel.global');
+    Route::post('/global', [App\Http\Controllers\GlobalSettingsController::class, 'store'])->name('settings-panel.global.store');
     Route::get('/erp', [App\Http\Controllers\ErpSettingsController::class, 'index'])->name('settings-panel.erp');
     Route::post('/erp', [App\Http\Controllers\ErpSettingsController::class, 'store'])->name('settings-panel.erp.store');
 
@@ -45,6 +47,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::resource('dropdowns', App\Http\Controllers\DropdownsController::class)->names('settings-panel.dropdowns');
     Route::resource('visa-statuses', App\Http\Controllers\VisaStatusController::class)->names('settings-panel.visa-statuses');
     Route::post('visa-statuses/reorder', [App\Http\Controllers\VisaStatusController::class, 'reorder'])->name('settings-panel.visa-statuses.reorder');
+    Route::post('visa-statuses/{id}/unassign', [App\Http\Controllers\VisaStatusController::class, 'unassign'])->name('settings-panel.visa-statuses.unassign');
     Route::get('visa-statuses/{id}/toggle-active', [App\Http\Controllers\VisaStatusController::class, 'toggleActive'])->name('settings-panel.visa-statuses.toggle-active');
     Route::resource('visa-renewal-categories', App\Http\Controllers\VisaRenewalCategoryController::class)->only(['index', 'store', 'update', 'destroy'])->names('settings-panel.visa-renewal-categories');
     Route::post('visa-renewal-categories/reorder', [App\Http\Controllers\VisaRenewalCategoryController::class, 'reorder'])->name('settings-panel.visa-renewal-categories.reorder');
@@ -81,6 +84,12 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::put('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'updateField'])->name('settings-panel.voucher-settings.update-field');
     Route::delete('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'destroyField'])->name('settings-panel.voucher-settings.destroy-field');
     Route::post('voucher-settings/fields/reorder', [App\Http\Controllers\VoucherSettingsController::class, 'reorderFields'])->name('settings-panel.voucher-settings.reorder-fields');
+    // Voucher Signature Assignment (per-type print/display signature slots)
+    Route::get('voucher-signature-assignment', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'index'])->name('settings-panel.voucher-signature-assignment.index');
+    Route::post('voucher-signature-assignment/module-label', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'storeModuleLabel'])->name('settings-panel.voucher-signature-assignment.store-module-label');
+    Route::get('voucher-signature-assignment/{code}', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'configure'])->name('settings-panel.voucher-signature-assignment.configure');
+    Route::post('voucher-signature-assignment/{code}', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'save'])->name('settings-panel.voucher-signature-assignment.save');
+    Route::delete('voucher-signature-assignment/{code}', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'clear'])->name('settings-panel.voucher-signature-assignment.clear');
     // Rider Settings (categories + fixed rider fields + rider custom fields)
     Route::get('rider-settings', [App\Http\Controllers\RiderSettingsController::class, 'index'])->name('settings-panel.rider-settings.index');
     Route::post('rider-settings/module-label', [App\Http\Controllers\RiderSettingsController::class, 'storeModuleLabel'])->name('settings-panel.rider-settings.store-module-label');
@@ -109,6 +118,16 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::put('rider-settings/documents/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateDocumentType'])->name('settings-panel.rider-settings.update-document-type');
     Route::delete('rider-settings/documents/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyDocumentType'])->name('settings-panel.rider-settings.destroy-document-type');
     Route::post('rider-settings/documents/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderDocumentTypes'])->name('settings-panel.rider-settings.reorder-document-types');
+    Route::get('rider-settings/documents/{id}/subtypes', [App\Http\Controllers\RiderSettingsController::class, 'documentTypeSubtypes'])->name('settings-panel.rider-settings.document-type-subtypes');
+    Route::post('rider-settings/documents/{id}/subtypes', [App\Http\Controllers\RiderSettingsController::class, 'storeDocumentSubtype'])->name('settings-panel.rider-settings.store-document-subtype');
+    Route::put('rider-settings/documents/subtypes/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateDocumentSubtype'])->name('settings-panel.rider-settings.update-document-subtype');
+    Route::delete('rider-settings/documents/subtypes/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyDocumentSubtype'])->name('settings-panel.rider-settings.destroy-document-subtype');
+    Route::post('rider-settings/documents/subtypes/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderDocumentSubtypes'])->name('settings-panel.rider-settings.reorder-document-subtypes');
+    Route::get('rider-settings/documents/subtypes/{id}/fields', [App\Http\Controllers\RiderSettingsController::class, 'documentSubtypeFields'])->name('settings-panel.rider-settings.document-subtype-fields');
+    Route::post('rider-settings/documents/subtypes/{id}/fields', [App\Http\Controllers\RiderSettingsController::class, 'storeDocumentTypeField'])->name('settings-panel.rider-settings.store-document-type-field');
+    Route::put('rider-settings/documents/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateDocumentTypeField'])->name('settings-panel.rider-settings.update-document-type-field');
+    Route::delete('rider-settings/documents/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyDocumentTypeField'])->name('settings-panel.rider-settings.destroy-document-type-field');
+    Route::post('rider-settings/documents/fields/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderDocumentTypeFields'])->name('settings-panel.rider-settings.reorder-document-type-fields');
     Route::get('rider-settings/rider-top/accordion-body', [App\Http\Controllers\RiderSettingsController::class, 'riderTopAccordionBody'])->name('settings-panel.rider-settings.rider-top-accordion-body');
     Route::post('rider-settings/rider-top/categories', [App\Http\Controllers\RiderSettingsController::class, 'storeRiderTopCategory'])->name('settings-panel.rider-settings.store-rider-top-category');
     Route::get('rider-settings/rider-top/categories/{id}/field-values', [App\Http\Controllers\RiderSettingsController::class, 'riderTopCategoryFieldValues'])->name('settings-panel.rider-settings.rider-top-category-field-values');
@@ -289,7 +308,8 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::post('module-settings/{module}/documents', [App\Http\Controllers\ModuleSettingsController::class, 'storeDocumentType'])->name('settings-panel.module-settings.store-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::put('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'updateDocumentType'])->name('settings-panel.module-settings.update-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::delete('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'destroyDocumentType'])->name('settings-panel.module-settings.destroy-document-type')->where('module', '[A-Za-z0-9_-]+');
-    Route::post('module-settings/{module}/visa-expense-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateVisaExpenseTop'])->name('settings-panel.module-settings.update-visa-expense-top')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/invoice-defaults', [App\Http\Controllers\ModuleSettingsController::class, 'updateInvoiceDefaults'])->name('settings-panel.module-settings.update-invoice-defaults')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/rider-payment-voucher-defaults', [App\Http\Controllers\ModuleSettingsController::class, 'updateRiderPaymentVoucherDefaults'])->name('settings-panel.module-settings.update-rider-payment-voucher-defaults')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/license-expense-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateLicenseExpenseTop'])->name('settings-panel.module-settings.update-license-top')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/legal-case-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateLegalCaseTop'])->name('settings-panel.module-settings.update-legal-case-top')->where('module', '[A-Za-z0-9_-]+');
     Route::resource('rider-inventory-items', App\Http\Controllers\RiderInventoryItemController::class)->names('settings-panel.rider-inventory-items');
@@ -307,6 +327,9 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::post('rider-activity-import-settings', [App\Http\Controllers\RiderActivityImportSettingsController::class, 'store'])->name('settings-panel.rider-activity-import-settings.store');
     Route::post('rider-activity-import-settings/preview', [App\Http\Controllers\RiderActivityImportSettingsController::class, 'preview'])->name('settings-panel.rider-activity-import-settings.preview');
     Route::match(['get', 'post'], 'rider-activity-import-settings/export-template', [App\Http\Controllers\RiderActivityImportSettingsController::class, 'exportTemplate'])->name('settings-panel.rider-activity-import-settings.export-template');
+
+    Route::get('excel-import-mappings/{module}', [App\Http\Controllers\ExcelImportMappingSettingsController::class, 'index'])->name('settings-panel.excel-import-mappings.index')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('excel-import-mappings/{module}', [App\Http\Controllers\ExcelImportMappingSettingsController::class, 'store'])->name('settings-panel.excel-import-mappings.store')->where('module', '[A-Za-z0-9_-]+');
 
     Route::resource('legal-case-statuses', App\Http\Controllers\LegalCaseStatusController::class)->names('settings-panel.legal-case-statuses');
     Route::post('legal-case-statuses/reorder', [App\Http\Controllers\LegalCaseStatusController::class, 'reorder'])->name('settings-panel.legal-case-statuses.reorder');
@@ -364,14 +387,31 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         Route::get('/api/statistics', [ActivityLogController::class, 'statistics'])->name('statistics');
         Route::get('/{activityLog}', [ActivityLogController::class, 'show'])->name('show');
     });
+    Route::get('notification-rules', [\App\Http\Controllers\NotificationRulesSettingsController::class, 'index'])->name('settings-panel.notification-rules.index');
+    Route::get('notification-rules/available-channels', [\App\Http\Controllers\NotificationRulesSettingsController::class, 'availableChannels'])->name('settings-panel.notification-rules.available-channels');
+    Route::put('notification-rules/{notificationRule}', [\App\Http\Controllers\NotificationRulesSettingsController::class, 'update'])->name('settings-panel.notification-rules.update');
+    Route::get('notification-logs', [\App\Http\Controllers\NotificationLogsSettingsController::class, 'index'])->name('settings-panel.notification-logs.index');
+    Route::get('notification-preferences', [\App\Http\Controllers\NotificationPreferencesSettingsController::class, 'edit'])->name('settings-panel.notification-preferences.edit');
+    Route::put('notification-preferences', [\App\Http\Controllers\NotificationPreferencesSettingsController::class, 'update'])->name('settings-panel.notification-preferences.update');
+
     Route::prefix('delete-requests')->name('settings-panel.delete-requests.')->group(function () {
         Route::get('/', [App\Http\Controllers\DeleteRequestsController::class, 'index'])->name('index');
         Route::get('/mine', [App\Http\Controllers\DeleteRequestsController::class, 'mine'])->name('mine');
-        Route::get('/notifications', [App\Http\Controllers\DeleteRequestsController::class, 'notifications'])->name('notifications');
-        Route::post('/notifications/{notification}/read', [App\Http\Controllers\DeleteRequestsController::class, 'markNotificationRead'])->name('notifications.read');
+        Route::get('/notifications', function () {
+            return redirect()->route('notifications.index');
+        })->name('notifications');
+        Route::post('/notifications/{notification}/read', [\App\Http\Controllers\NotificationCenterController::class, 'markRead'])->name('notifications.read');
         Route::get('/{deleteRequest}', [App\Http\Controllers\DeleteRequestsController::class, 'show'])->name('show');
         Route::post('/{deleteRequest}/approve', [App\Http\Controllers\DeleteRequestsController::class, 'approve'])->name('approve');
         Route::post('/{deleteRequest}/reject', [App\Http\Controllers\DeleteRequestsController::class, 'reject'])->name('reject');
+    });
+
+    Route::prefix('voucher-approvals')->name('settings-panel.voucher-approvals.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\VoucherApprovalDashboardController::class, 'index'])->name('index');
+        Route::get('/pending', [\App\Http\Controllers\VoucherApprovalDashboardController::class, 'pending'])->name('pending');
+        Route::get('/rejected', [\App\Http\Controllers\VoucherApprovalDashboardController::class, 'rejected'])->name('rejected');
+        Route::get('/permissions', [\App\Http\Controllers\VoucherApprovalPermissionsController::class, 'index'])->name('permissions');
+        Route::get('/{id}', [\App\Http\Controllers\VoucherApprovalDashboardController::class, 'show'])->name('show')->whereNumber('id');
     });
     Route::prefix('trash')->name('settings-panel.trash.')->group(function () {
         Route::get('/', [App\Http\Controllers\TrashController::class, 'index'])->name('index');

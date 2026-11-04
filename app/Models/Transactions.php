@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use App\Support\VoucherApprovalRegistry;
 use App\Traits\BranchScope;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
+
+use App\Traits\TracksUserAttribution;
 
 class Transactions extends BaseModel
 {
-    use BranchScope, LogsActivity, SoftDeletes;
+    use BranchScope, LogsActivity, SoftDeletes, TracksUserAttribution;
 
     protected $fillable = [
         'company_id',
@@ -23,11 +27,119 @@ class Transactions extends BaseModel
         'billing_month',
         'narration',
         'deleted_by',
+        'approval_held_at',
+        'created_by',
+        'updated_by'
+    ];
+
+    protected $casts = [
+        'approval_held_at' => 'datetime',
     ];
 
     public static $rules = [
         'branch_id' => 'nullable|exists:branches,id',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $model) {
+            if (! VoucherApprovalRegistry::deferPosting()) {
+                return;
+            }
+            if (! Schema::hasColumn('transactions', 'deleted_at')) {
+                return;
+            }
+            if ($model->deleted_at !== null) {
+                if (Schema::hasColumn('transactions', 'approval_held_at') && $model->approval_held_at === null) {
+                    // Caller already soft-held without marker — treat as approval hold.
+                    $model->approval_held_at = $model->deleted_at;
+                }
+
+                return;
+            }
+            $transCode = $model->trans_code;
+            if ($transCode === null || $transCode === '') {
+                return;
+            }
+            $voucher = Vouchers::query()->where('trans_code', $transCode)->first();
+            if ($voucher && ! $voucher->isApprovalApproved()) {
+                $heldAt = now();
+                $model->deleted_at = $heldAt;
+                if (Schema::hasColumn('transactions', 'approval_held_at')) {
+                    $model->approval_held_at = $heldAt;
+                }
+            }
+        });
+    }
+
+    /**
+     * Ledger lines for voucher edit/clone forms.
+     * Includes live rows plus approval soft-holds (approval_held_at), so entries
+     * always show for every user even if a past hold was not restored.
+     */
+    public static function forVoucherForm(string|int $transCode)
+    {
+        return static::withTrashed()
+            ->where('trans_code', $transCode)
+            ->where(function ($q) {
+                $q->whereNull('deleted_at');
+                if (Schema::hasColumn((new static)->getTable(), 'approval_held_at')) {
+                    $q->orWhereNotNull('approval_held_at');
+                } elseif (Schema::hasColumn((new static)->getTable(), 'deleted_by')) {
+                    // Legacy holds: soft-deleted with no user deleted_by.
+                    $q->orWhere(function ($q2) {
+                        $q2->whereNotNull('deleted_at')->whereNull('deleted_by');
+                    });
+                }
+            })
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Hard-delete matching ledger rows (including already soft-deleted).
+     * Use when rebuilding/replacing postings on update — do not leave soft-delete orphans.
+     *
+     * @param  callable(\Illuminate\Database\Eloquent\Builder): void  $constrain
+     */
+    public static function hardDeleteMatching(callable $constrain): int
+    {
+        $query = static::withTrashed()->withoutGlobalScope('branch');
+        $constrain($query);
+
+        return (int) $query->forceDelete();
+    }
+
+    /**
+     * Soft-delete matching ledger rows when the primary record is soft-deleted
+     * (so trash restore can bring them back together).
+     *
+     * @param  callable(\Illuminate\Database\Eloquent\Builder): void  $constrain
+     */
+    public static function softDeleteMatching(callable $constrain, ?int $deletedBy = null): int
+    {
+        $query = static::query()->withoutGlobalScope('branch');
+        $constrain($query);
+
+        $count = 0;
+        $query->orderBy('id')->chunkById(200, function ($rows) use (&$count, $deletedBy) {
+            foreach ($rows as $row) {
+                if ($deletedBy && Schema::hasColumn($row->getTable(), 'deleted_by')) {
+                    $row->deleted_by = $deletedBy;
+                    $row->save();
+                }
+                // Never mark approval_held_at for primary soft-deletes.
+                if (Schema::hasColumn($row->getTable(), 'approval_held_at') && $row->approval_held_at) {
+                    $row->approval_held_at = null;
+                    $row->save();
+                }
+                $row->delete();
+                $count++;
+            }
+        });
+
+        return $count;
+    }
 
     public function account()
     {

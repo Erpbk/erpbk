@@ -1,121 +1,415 @@
-@php
+﻿@php
 $accountId = $account->rider_id;
 $categoryId = (int) ($activeRenewalCategory->id ?? 0);
 $categoryExpenseQuery = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
-    (int) $account->id,
-    $accountId ? (int) $accountId : null,
-    $categoryId
+(int) $account->id,
+$accountId ? (int) $accountId : null,
+$categoryId
 );
 $totalUnpaid = (clone $categoryExpenseQuery)->where('payment_status', 'unpaid')->sum('amount');
 $totalPaid = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->sum('amount');
 $unpaidCount = (clone $categoryExpenseQuery)->where('payment_status', 'unpaid')->count();
 $paidCount = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->count();
+
+$showLicenseSection = !empty($showLicenseExpenseSection) && !empty($licenseAccount);
+$installmentStats = $installmentStats ?? ['unpaid_amount'=>0,'paid_amount'=>0,'paid_count'=>0,'unpaid_count'=>0];
+$licInstallmentData = $licInstallmentData ?? collect();
+$licInstallmentStats = $licInstallmentStats ?? ['unpaid_amount'=>0,'paid_amount'=>0,'paid_count'=>0,'unpaid_count'=>0];
+
+// Dynamic category tabs — only accounts that exist for this rider/employee
+$categoryAccounts = collect($visaCategoryAccounts ?? (
+    isset($siblingAccounts)
+        ? collect([$account])->merge($siblingAccounts)->unique('id')->sortBy('id')->values()
+        : collect([$account])
+));
+$useOverviewSwitch = !empty($visaRiderOverview) && !empty($visaOverviewPersonId);
+
+// Active tab: license only when requested AND rider has a license account; else active visa category
+$requestedTab = request('tab', 'visa');
+$activeTab = ($requestedTab === 'license' && $showLicenseSection) ? 'license' : 'visa';
+if (request()->filled('license_account_id') && $showLicenseSection) {
+    $activeTab = 'license';
+}
+$activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory->name ?? 'Visa');
 @endphp
 
-<div class="content">
+@include('partials.expense_panel_styles')
+<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261031-visa-tables">
+<style>
+  /* Nested expense tables: keep rider-list look without locking the whole page height. */
+  .exp-panel .riders-list-demo .rl-tbox {
+    max-height: none;
+    border-radius: 10px;
+  }
+</style>
+
+<div class="content exp-panel">
   @include('flash::message')
 
-  @if(isset($siblingAccounts) && $siblingAccounts->count() > 0)
-  <div class="alert alert-light border mb-3">
-    <span class="text-muted me-2">Other renewal accounts for this {{ !empty($account->employee_id) ? 'employee' : 'rider' }}:</span>
-    @foreach($siblingAccounts as $sibling)
-    <a href="{{ route('VisaExpense.generatentries', $sibling->id) }}" class="btn btn-sm btn-outline-secondary me-1 mb-1">
-      {{ $sibling->renewalCategory->name ?? 'Account #' . $sibling->id }}
-    </a>
-    @endforeach
-  </div>
-  @endif
+  {{-- ── Dynamic category tabs (only accounts that exist for this rider) ── --}}
+  <div class="exp-tab-nav" id="expenseTabs" role="tablist">
+    <ul class="nav nav-pills mb-0 flex-grow-1 flex-wrap">
+      @foreach($categoryAccounts as $catAccount)
+      @php
+        $isActiveCat = $activeTab === 'visa' && (int) $catAccount->id === (int) $account->id;
+        $catLabel = $catAccount->renewalCategory->name ?? ('Account #'.$catAccount->id);
+        $catUnpaid = \App\Support\VisaRenewalCategoryService::unpaidCountForAccount($catAccount);
+        $catUrl = $useOverviewSwitch
+          ? route('VisaExpense.showForRider', array_filter([
+              'riderId' => $visaOverviewPersonId,
+              'type' => ($visaOverviewType ?? 'rider') === 'employee' ? 'employee' : null,
+              'account_id' => $catAccount->id,
+              'tab' => 'visa',
+            ]))
+          : route('VisaExpense.generatentries', ['id' => $catAccount->id, 'tab' => 'visa']);
+      @endphp
+      <li class="nav-item">
+        <a class="nav-link {{ $isActiveCat ? 'active' : '' }}"
+          href="{{ $catUrl }}"
+          id="tab-visa-cat-{{ $catAccount->id }}">
+          <i class="fa fa-passport me-1"></i>
+          {{ $catLabel }}
+          @if($catUnpaid > 0)
+          <span class="badge rounded-pill ms-1">{{ $catUnpaid }}</span>
+          @endif
+        </a>
+      </li>
+      @endforeach
 
-  <div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <h3 class="mb-0">Visa Expense - {{ $account->name }} <span class="text-muted">({{ $activeRenewalCategory->name ?? 'New Visa' }})</span></h3>
-      @can('visaexpense_create')
-      <a class="btn btn-primary action-btn show-modal"
-        href="javascript:void(0);"
-        data-action="{{ route('VisaExpense.create', ['id' => $account->id]) }}"
-        data-size="lg"
-        data-title="New expense entry — {{ $activeRenewalCategory->name }}">
-        Add New Expense
-      </a>
-      @endcan
-    </div>
-    <div class="totals-cards pt-3">
-      <div class="total-card total-red">
-        <div class="label">Total Unpaid Amount</div>
-        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $totalUnpaid, 2) }}</div>
-      </div>
-      <div class="total-card total-green">
-        <div class="label">Total Paid Amount</div>
-        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $totalPaid, 2) }}</div>
-      </div>
-      <div class="total-card total-red">
-        <div class="label">Unpaid Expenses</div>
-        <div class="value">{{ $unpaidCount }}</div>
-      </div>
-      <div class="total-card total-green">
-        <div class="label">Paid Expenses</div>
-        <div class="value">{{ $paidCount }}</div>
-      </div>
-    </div>
-    <div class="card-body table-responsive px-2 py-0" id="table-data">
-      @include('visa_expenses.table', ['data' => $data])
-    </div>
+      @if($showLicenseSection)
+      @foreach(($licenseCategoryAccounts ?? collect($licenseAccount ? [$licenseAccount] : [])) as $licAccount)
+      @php
+        $isActiveLic = $activeTab === 'license' && (int) $licAccount->id === (int) ($licenseAccount->id ?? 0);
+        $licLabel = $licAccount->licenseCategory->name ?? ('License #'.$licAccount->id);
+        $licUnpaid = \App\Support\LicenseCategoryService::unpaidCountForAccount($licAccount);
+        $licUrl = request()->fullUrlWithQuery([
+          'tab' => 'license',
+          'license_account_id' => $licAccount->id,
+        ]);
+      @endphp
+      <li class="nav-item">
+        <a class="nav-link {{ $isActiveLic ? 'active' : '' }}"
+          href="{{ $licUrl }}"
+          id="tab-license-cat-{{ $licAccount->id }}">
+          <i class="fa fa-id-card me-1"></i>
+          {{ $licLabel }}
+          @if($licUnpaid > 0)
+          <span class="badge rounded-pill ms-1">{{ $licUnpaid }}</span>
+          @endif
+        </a>
+      </li>
+      @endforeach
+      @endif
+    </ul>
   </div>
 
-  <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <h3 class="mb-0">Visa Installments</h3>
-      <div class="d-flex flex-wrap gap-2">
-        @can('visa_expense_create')
-        <a class="btn btn-sm btn-success action-btn show-modal"
+  {{-- ════════════════════════════════════════════════════════════
+       ACTIVE VISA CATEGORY PANE
+  ════════════════════════════════════════════════════════════ --}}
+
+  <div id="pane-visa" class="{{ $activeTab === 'visa' ? '' : 'd-none' }}">
+
+    {{-- ── Visa Expenses card ── --}}
+    @can('visa_expense_entries_view')
+    <div class="card exp-card mb-4">
+      <div class="section-header">
+        <div class="section-icon">
+          <i class="fa fa-file-alt"></i>
+        </div>
+        <div class="flex-grow-1">
+          <h5>{{ $activeCategoryName }}</h5>
+        </div>
+        @can('visa_expense_entries_create')
+        <a class="btn btn-sm btn-primary action-btn show-modal"
           href="javascript:void(0);"
-          data-action="{{ route('Installments.createInstallmentPlanForm', $account->id) }}"
+          data-action="{{ route('VisaExpense.create', ['id' => $account->id]) }}"
           data-size="lg"
-          data-title="Create Installment Entry">
-          <i class="fa fa-plus"></i> Installment Plan
+          data-title="New expense entry — {{ $activeCategoryName }}">
+          <i class="fa fa-plus me-1"></i> Add New Expense
         </a>
         @endcan
-        @if(isset($installmentData) && $installmentData->count() > 0)
-        <a href="javascript:void(0);"
-          class="btn btn-sm btn-info action-btn show-modal"
-          data-action="{{ route('Installments.generateInstallmentInvoice', ['riderId' => $account->id]) }}"
-          data-size="xl"
-          data-title="Installment plan invoice — {{ $account->name ?? 'Person' }}">
-          <i class="fa fa-file-invoice"></i> Invoice
-        </a>
-        @endif
       </div>
-    </div>
-    @php
-      $installmentStats = $installmentStats ?? [
-          'unpaid_amount' => 0,
-          'paid_amount' => 0,
-          'paid_count' => 0,
-          'unpaid_count' => 0,
-      ];
-    @endphp
-    <div class="totals-cards pt-3">
-      <div class="total-card total-red">
-        <div class="label">Total Unpaid Amount</div>
-        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $installmentStats['unpaid_amount'], 2) }}</div>
-      </div>
-      <div class="total-card total-green">
-        <div class="label">Total Paid Amount</div>
-        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $installmentStats['paid_amount'], 2) }}</div>
-      </div>
-      <div class="total-card total-red">
-        <div class="label">Unpaid Installments</div>
-        <div class="value">{{ (int) $installmentStats['unpaid_count'] }}</div>
-      </div>
-      <div class="total-card total-green">
-        <div class="label">Paid Installments</div>
-        <div class="value">{{ (int) $installmentStats['paid_count'] }}</div>
-      </div>
-    </div>
-    <div class="card-body table-responsive px-2 py-0">
-      @include('visa_expenses.installmentPlanTable', ['data' => $installmentData ?? collect(), 'account' => $account])
-    </div>
-  </div>
 
-  @include('license_expenses._embedded_section')
-</div>
+      <div class="stat-strip">
+        <div class="stat-pill danger">
+          <div class="sp-icon"><i class="fa fa-arrow-down"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Unpaid Amount</span>
+            <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$totalUnpaid,2) }}</span>
+          </div>
+        </div>
+        <div class="stat-pill success">
+          <div class="sp-icon"><i class="fa fa-check"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Paid Amount</span>
+            <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$totalPaid,2) }}</span>
+          </div>
+        </div>
+        <div class="stat-pill warning">
+          <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Unpaid Expenses</span>
+            <span class="sp-value">{{ $unpaidCount }}</span>
+          </div>
+        </div>
+        <div class="stat-pill info">
+          <div class="sp-icon"><i class="fa fa-check"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Paid Expenses</span>
+            <span class="sp-value">{{ $paidCount }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body table-responsive px-2 py-0" id="table-data">
+        @include('visa_expenses.table', ['data' => $data])
+      </div>
+    </div>
+    @endcan
+
+    {{-- ── Visa Installments card ── --}}
+    @can('visa_expense_installments_view')
+    <div class="card exp-card mb-4">
+      <div class="section-header">
+        <div class="section-icon">
+          <i class="fa fa-calendar-check"></i>
+        </div>
+        <div class="flex-grow-1">
+          <h5>Installments of loans</h5>
+        </div>
+        <div class="d-flex gap-2">
+          @can('visa_expense_installments_create')
+          <a class="btn btn-sm btn-primary action-btn show-modal"
+            href="javascript:void(0);"
+            data-action="{{ route('Installments.createInstallmentPlanForm', $account->id) }}"
+            data-size="lg"
+            data-title="Create Installment Entry">
+            <i class="fa fa-plus me-1"></i> Installment Plan
+          </a>
+          @endcan
+          @if(isset($installmentData) && $installmentData->count() > 0)
+          <a href="javascript:void(0);"
+            class="btn btn-sm btn-outline-primary action-btn show-modal-right"
+            data-action="{{ route('Installments.generateInstallmentInvoice', ['riderId' => $account->id]) }}"
+            data-size="xl"
+            data-title="Installment plan invoice — {{ $account->name ?? 'Person' }}">
+            <i class="fa fa-file-invoice me-1"></i> Invoice
+          </a>
+          @endif
+        </div>
+      </div>
+
+      <div class="stat-strip">
+        <div class="stat-pill danger">
+          <div class="sp-icon"><i class="fa fa-arrow-down"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Unpaid Amount</span>
+            <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$installmentStats['unpaid_amount'],2) }}</span>
+          </div>
+        </div>
+        <div class="stat-pill success">
+          <div class="sp-icon"><i class="fa fa-check"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Paid Amount</span>
+            <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$installmentStats['paid_amount'],2) }}</span>
+          </div>
+        </div>
+        <div class="stat-pill warning">
+          <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Unpaid Installments</span>
+            <span class="sp-value">{{ (int)$installmentStats['unpaid_count'] }}</span>
+          </div>
+        </div>
+        <div class="stat-pill info">
+          <div class="sp-icon"><i class="fa fa-check"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Paid Installments</span>
+            <span class="sp-value">{{ (int)$installmentStats['paid_count'] }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body table-responsive px-2 py-0">
+        @include('visa_expenses.installmentPlanTable', [
+        'data' => $installmentData ?? collect(),
+        'account' => $account,
+        'linkedReceiptsById' => $linkedReceiptsById ?? collect(),
+        'installmentPayRoute' => 'Installments.payInstallment',
+        'installmentUpdateFieldRoute' => 'Installments.updateInstallmentField',
+        'installmentDeleteRoute' => 'Installments.deleteInstallment',
+        'installmentBulkDeleteRoute' => 'Installments.bulkDeleteInstallments',
+        'installmentPaymentReceivingRoute' => 'Installments.paymentReceivingModal',
+        'installmentEditPaymentReceivingRoute' => 'Installments.editPaymentReceiving',
+        'installmentPlanModel' => \App\Models\visa_installment_plan::class,
+        'canEditInstallment' => \App\Support\VisaExpenseAccess::canManageInstallments('edit'),
+        'canDeleteInstallment' => \App\Support\VisaExpenseAccess::canManageInstallments('delete'),
+        ])
+      </div>
+    </div>
+    @endcan
+
+  </div>{{-- /pane-visa --}}
+
+  {{-- ════════════════════════════════════════════════════════════
+       LICENSE TAB
+  ════════════════════════════════════════════════════════════ --}}
+  @if($showLicenseSection)
+  <div id="pane-license" class="{{ $activeTab==='license' ? '' : 'd-none' }}">
+
+    @if($licenseAccount ?? null)
+    {{-- ── License Expenses card ── --}}
+    <div class="card exp-card mb-4">
+      <div class="section-header">
+        <div class="section-icon">
+          <i class="fa fa-file-invoice-dollar"></i>
+        </div>
+        <div class="flex-grow-1">
+          <h5>{{ $activeLicenseCategory->name ?? 'License Expense' }}</h5>
+        </div>
+        @can('license_expense_create')
+        <a class="btn btn-sm btn-primary action-btn show-modal"
+          href="javascript:void(0);"
+          data-action="{{ route('LicenseExpense.create', $licenseAccount->id) }}"
+          data-size="lg"
+          data-title="New expense entry — {{ $activeLicenseCategory->name ?? 'License' }}">
+          <i class="fa fa-plus me-1"></i> Add New Expense
+        </a>
+        @endcan
+      </div>
+
+      <div class="stat-strip">
+        <div class="stat-pill danger">
+          <div class="sp-icon"><i class="fa fa-arrow-down"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Unpaid Amount</span>
+            <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)($licenseExpenseTotals['unpaid_amount'] ?? 0),2) }}</span>
+          </div>
+        </div>
+        <div class="stat-pill success">
+          <div class="sp-icon"><i class="fa fa-check"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Paid Amount</span>
+            <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)($licenseExpenseTotals['paid_amount'] ?? 0),2) }}</span>
+          </div>
+        </div>
+        <div class="stat-pill warning">
+          <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Unpaid Expenses</span>
+            <span class="sp-value">{{ (int)($licenseExpenseTotals['unpaid_count'] ?? 0) }}</span>
+          </div>
+        </div>
+        <div class="stat-pill info">
+          <div class="sp-icon"><i class="fa fa-check"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Paid Expenses</span>
+            <span class="sp-value">{{ (int)($licenseExpenseTotals['paid_count'] ?? 0) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body table-responsive px-2 py-0" id="license-table-data">
+        @include('license_expenses.table', ['data' => $licenseExpenseData ?? collect()])
+      </div>
+    </div>
+
+    {{-- ── License Installments card ── --}}
+    <div class="card exp-card mb-4">
+      <div class="section-header">
+        <div class="section-icon">
+          <i class="fa fa-calendar-check"></i>
+        </div>
+        <div class="flex-grow-1">
+          <h5>License Installments</h5>
+        </div>
+        <div class="d-flex gap-2">
+          @if(user_can('license_expense_create') || user_can('licenseexpense_create'))
+          <a class="btn btn-sm btn-primary action-btn show-modal"
+            href="javascript:void(0);"
+            data-action="{{ route('LicenseExpense.createInstallmentPlanForm', $licenseAccount->id) }}"
+            data-size="lg"
+            data-title="Create License Installment Plan">
+            <i class="fa fa-plus me-1"></i> Installment Plan
+          </a>
+          @endif
+          @if($licInstallmentData->count() > 0)
+          <a class="btn btn-sm btn-outline-primary action-btn show-modal-right"
+            href="javascript:void(0);"
+            data-action="{{ route('LicenseExpense.generateInstallmentInvoice', ['riderId' => $licenseAccount->id]) }}"
+            data-size="xl"
+            data-title="License Installment Invoice — {{ $licenseAccount->name }}">
+            <i class="fa fa-file-invoice me-1"></i> Invoice
+          </a>
+          @endif
+        </div>
+      </div>
+
+      <div class="stat-strip">
+        <div class="stat-pill danger">
+          <div class="sp-icon"><i class="fa fa-arrow-down"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Unpaid Amount</span>
+            <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$licInstallmentStats['unpaid_amount'],2) }}</span>
+          </div>
+        </div>
+        <div class="stat-pill success">
+          <div class="sp-icon"><i class="fa fa-check"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Paid Amount</span>
+            <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$licInstallmentStats['paid_amount'],2) }}</span>
+          </div>
+        </div>
+        <div class="stat-pill warning">
+          <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Unpaid Installments</span>
+            <span class="sp-value">{{ (int)$licInstallmentStats['unpaid_count'] }}</span>
+          </div>
+        </div>
+        <div class="stat-pill info">
+          <div class="sp-icon"><i class="fa fa-check"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Paid Installments</span>
+            <span class="sp-value">{{ (int)$licInstallmentStats['paid_count'] }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body table-responsive px-2 py-0">
+        @include('visa_expenses.installmentPlanTable', [
+        'data' => $licInstallmentData,
+        'account' => $licenseAccount,
+        'linkedReceiptsById' => $licLinkedReceiptsById ?? collect(),
+        'installmentPayRoute' => 'LicenseExpense.payInstallment',
+        'installmentUpdateFieldRoute' => 'LicenseExpense.updateInstallmentField',
+        'installmentDeleteRoute' => 'LicenseExpense.deleteInstallment',
+        'installmentBulkDeleteRoute' => 'LicenseExpense.bulkDeleteInstallments',
+        'installmentPaymentReceivingRoute' => 'LicenseExpense.paymentReceivingModal',
+        'installmentEditPaymentReceivingRoute' => 'LicenseExpense.editPaymentReceiving',
+        'installmentPlanModel' => \App\Models\license_installment_plan::class,
+        'canEditInstallment' => user_can('license_expense_edit') || user_can('licenseexpense_edit'),
+        'canDeleteInstallment' => user_can('license_expense_delete') || user_can('licenseexpense_delete'),
+        ])
+      </div>
+    </div>
+
+    @else
+    {{-- No license account found but module is enabled --}}
+    <div class="card exp-card">
+      <div class="card-body text-center py-5 text-muted">
+        <i class="fa fa-id-card fa-2x mb-2 d-block opacity-50"></i>
+        No license expense account found for this rider.
+        @can('license_expense_create')
+        <a href="{{ route('LicenseExpense.index') }}" class="btn btn-sm btn-outline-primary ms-2">
+          Create License Account
+        </a>
+        @endcan
+      </div>
+    </div>
+    @endif
+
+  </div>{{-- /pane-license --}}
+  @endif
+
+</div>{{-- /content --}}

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\FuelCards;
 use App\Models\FuelCardHistory;
+use App\Services\AssignmentClipboardNote;
 use App\Support\PublicStorageDisk;
 use Flash;
 use Illuminate\Support\Facades\DB;
@@ -74,19 +75,27 @@ class FuelCardHistoryController extends Controller
         ]);
         DB::beginTransaction();
         try {
-            FuelCardHistory::create([
-                'card_id' => $fuelCard->id,
-                'assigned_to' => $request['assigned_to'],
-                'assigned_by' => auth()->id(),
-                'assign_date' => $request['assign_date'],
-                'note' => $request['note'],
-            ]);
-            $rider = \App\Models\Riders::find($request['assigned_to']);
+            $rider = \App\Models\Riders::with(['bikes', 'customer'])->find($request['assigned_to']);
+            if (!$rider) {
+                throw new \Exception('Rider not found.');
+            }
             $fuelCard->assigned_to = $request['assigned_to'];
             $fuelCard->branch_id = $rider->branch_id;
             $fuelCard->bike_no = $rider->bikes->plate ?? null;
             $fuelCard->status = FuelCards::STATUS_ACTIVE;
             $fuelCard->save();
+            FuelCardHistory::create([
+                'card_id' => $fuelCard->id,
+                'assigned_to' => $request['assigned_to'],
+                'assigned_by' => auth()->id(),
+                'assign_date' => $request['assign_date'],
+                'note' => AssignmentClipboardNote::forFuelCard(
+                    $fuelCard->fresh(['fuelCompany']),
+                    $rider,
+                    $request['assign_date'],
+                    $request['note'] ?? null
+                ),
+            ]);
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
@@ -98,10 +107,13 @@ class FuelCardHistoryController extends Controller
         }
 
         if ($request->ajax()) {
-            return response()->json(['message' => 'Fuel Card Assigned Successfully']);
+            return response()->json([
+                'message' => 'Fuel Card Assigned Successfully',
+                'reload' => true,
+                ]);
         }
         Flash::success('Fuel Card Assigned Successfully');
-        return redirect()->back();
+        return redirect()->route('fuel_cards.index');
     }
 
     public function return(Request $request, $company_slug, $id)
@@ -140,7 +152,11 @@ class FuelCardHistoryController extends Controller
                 throw new \Exception('No active assignment found for this fuel card.');
             }
             $history->return_date = $request['return_date'];
-            $history->note = $request['note'];
+            $history->note = AssignmentClipboardNote::withReturn(
+                $history->note,
+                $request['return_date'],
+                $request['note'] ?? null
+            );
             $history->returned_by = auth()->id();
             $history->save();
 
@@ -159,10 +175,10 @@ class FuelCardHistoryController extends Controller
         }
 
         if ($request->ajax()) {
-            return response()->json(['message' => 'Fuel Card Returned Successfully']);
+            return response()->json(['message' => 'Fuel Card Returned Successfully', 'reload' => true]);
         }
         Flash::success('Fuel Card Returned Successfully');
-        return redirect()->back();
+        return redirect()->route('fuel_cards.index');
     }
 
     public function updateAssignment(Request $request, $company_slug, $id)

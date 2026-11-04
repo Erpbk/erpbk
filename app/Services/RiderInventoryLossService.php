@@ -211,9 +211,10 @@ class RiderInventoryLossService
         }
 
         if (empty($transCode)) {
-            Transactions::where('reference_type', 'IL')
-                ->where('reference_id', $assignment->id)
-                ->delete();
+            Transactions::hardDeleteMatching(function ($q) use ($assignment) {
+                $q->where('reference_type', 'IL')
+                    ->where('reference_id', $assignment->id);
+            });
 
             if (!empty($assignment->voucher_id)) {
                 Vouchers::where('id', $assignment->voucher_id)->delete();
@@ -227,13 +228,14 @@ class RiderInventoryLossService
         $transactionCount = Transactions::where('trans_code', $transCode)->count();
 
         if ($transactionCount <= 2) {
-            Transactions::where('trans_code', $transCode)->delete();
+            Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $transCode));
             Vouchers::where('trans_code', $transCode)->delete();
         } else {
-            Transactions::where('trans_code', $transCode)
-                ->where('reference_id', $assignment->id)
-                ->where('reference_type', 'IL')
-                ->delete();
+            Transactions::hardDeleteMatching(function ($q) use ($transCode, $assignment) {
+                $q->where('trans_code', $transCode)
+                    ->where('reference_id', $assignment->id)
+                    ->where('reference_type', 'IL');
+            });
 
             $remainingDebitTotal = (float) Transactions::where('trans_code', $transCode)
                 ->where('debit', '>', 0)

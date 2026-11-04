@@ -105,6 +105,7 @@
             <option value="employee">employee</option>
             <option value="leasingCompany">Leasing Company</option>
             <option value="riderInventory">Rider Inventory</option>
+            <option value="sim">SIM</option>
         </select>
         <small class="text-muted">Click on an option to add it. Selected types will appear below.</small>
     </div>
@@ -209,6 +210,7 @@ $(document).ready(function () {
             'customer': { label: 'Customer', color: '#28a745', icon: 'fa-user' },
             'employee': { label: 'Employee', color: '#6610f2', icon: 'fa-id-badge' },
             'leasingCompany': { label: 'Leasing', color: '#ffc107', icon: 'fa-building' },
+            'sim': { label: 'SIM', color: '#0d6efd', icon: 'fa-sim-card' },
             'riderInventory': { label: 'Rider Inventory', color: '#fd7e14', icon: 'fa-box-open' }
         };
         

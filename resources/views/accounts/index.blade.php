@@ -235,14 +235,15 @@
                   <ul class="dropdown-menu dropdown-menu-end">
                     @can('accounts_coa_edit')
                     @if(!$isGlobalLinked)
+                    @if(!$isLocked)
                     <li><a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-size="lg" data-title="Edit Account"><i class="fa fa-edit me-2"></i> Edit</a></li>
-                    <li><a class="dropdown-item toggle-lock" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleLock', ['company_slug' => $__companySlug, 'id' => $account->id]) }}"><i class="fa fa-{{ $account->is_locked ? 'unlock' : 'lock' }} me-2"></i> {{ $account->is_locked ? 'Unlock' : 'Lock' }}</a></li>
+                    @endif
                     <li><a class="dropdown-item toggle-status" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleStatus', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-active="{{ $account->status == 1 ? '1' : '0' }}"><i class="fa fa-{{ $account->status == 1 ? 'pause-circle-o' : 'play-circle-o' }} me-2"></i> {{ $account->status == 1 ? 'Mark as Inactive' : 'Mark as Active' }}</a></li>
                     @endif
                     @endcan
                     <li><a class="dropdown-item view-ledger" href="javascript:void(0);" data-id="{{ $account->id }}"><i class="fa fa-book me-2"></i> Ledger</a></li>
                     @can('accounts_coa_delete')
-                    @if(!$isMainParent && !$isGlobalLinked)
+                    @if(!$isMainParent && !$isGlobalLinked && !$isLocked)
                     <li>
                       <hr class="dropdown-divider">
                     </li>
@@ -281,9 +282,8 @@
     var ledgerPlaceholder = document.getElementById('chartLedgerPlaceholder');
     var ledgerContent = document.getElementById('chartLedgerContent');
 
-    function loadLedger(accountId, currency) {
-      currency = currency || 'bcy';
-      var url = detailUrl + '/' + accountId + '?currency=' + encodeURIComponent(currency);
+    function loadLedger(accountId) {
+      var url = detailUrl + '/' + accountId;
       ledgerPlaceholder.style.display = 'none';
       ledgerContent.style.display = 'block';
       ledgerContent.innerHTML = '<div class="text-center py-5 text-muted"><i class="fa fa-spinner fa-spin fa-2x"></i><p class="mt-2">Loading ledger...</p></div>';
@@ -310,16 +310,6 @@
               ledgerPlaceholder.style.display = 'block';
               document.querySelectorAll('#chartAccountsTbody tr.selected').forEach(function(r) {
                 r.classList.remove('selected');
-              });
-            });
-            ledgerContent.querySelectorAll('.chart-filter-currency').forEach(function(btn) {
-              btn.addEventListener('click', function() {
-                ledgerContent.querySelectorAll('.chart-filter-currency').forEach(function(b) {
-                  b.classList.remove('active');
-                });
-                this.classList.add('active');
-                var aid = ledgerContent.querySelector('.chart-account-detail-panel') && ledgerContent.querySelector('.chart-account-detail-panel').getAttribute('data-account-id');
-                if (aid) loadLedger(aid, this.getAttribute('data-currency'));
               });
             });
             ledgerContent.querySelectorAll('.delete-account').forEach(function(link) {
@@ -389,13 +379,12 @@
       var paginationEl = document.getElementById('ledgerPagination');
       if (!paginationEl) return;
       var accountId = paginationEl.getAttribute('data-account-id');
-      var currency = paginationEl.getAttribute('data-currency') || 'bcy';
       var perPage = paginationEl.getAttribute('data-per-page') || '25';
       var page = btn.getAttribute('data-page');
       if (!page || !accountId) return;
       var tbody = document.getElementById('ledgerTableBody');
       if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3"><i class="fa fa-spinner fa-spin"></i> Loading...</td></tr>';
-      fetch(ledgerEntriesBaseUrl + '/' + accountId + '/ledger-entries?page=' + page + '&per_page=' + perPage + '&currency=' + currency, {
+      fetch(ledgerEntriesBaseUrl + '/' + accountId + '/ledger-entries?page=' + page + '&per_page=' + perPage, {
           headers: {
             'Accept': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
@@ -490,6 +479,10 @@
             r.classList.remove('selected');
           });
           tr.classList.add('selected');
+          // Parent accounts have no postings — do not open details panel.
+          if (tr.getAttribute('data-has-children') === '1') {
+            return;
+          }
           loadLedger(id);
           return;
         }
@@ -507,6 +500,9 @@
           });
           var tr = tbody.querySelector('tr[data-account-id="' + id + '"]');
           if (tr) tr.classList.add('selected');
+          if (tr && tr.getAttribute('data-has-children') === '1') {
+            return;
+          }
           loadLedger(id);
         }
       }
@@ -557,23 +553,6 @@
             }
           });
         }
-      }
-      if (e.target.closest('.toggle-lock')) {
-        e.preventDefault();
-        var link = e.target.closest('.toggle-lock');
-        var fd = new FormData();
-        fd.append('_token', csrf);
-        fetch(link.getAttribute('data-url'), {
-          method: 'POST',
-          body: fd,
-          headers: {
-            'Accept': 'application/json'
-          }
-        }).then(function(r) {
-          return r.json();
-        }).then(function(res) {
-          if (res.success) location.reload();
-        });
       }
       if (e.target.closest('.toggle-status')) {
         e.preventDefault();

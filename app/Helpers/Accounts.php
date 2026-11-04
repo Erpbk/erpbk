@@ -99,6 +99,59 @@ class Accounts
     return $html;
   }
 
+  /**
+   * Parent-account dropdown: eligible ids are selectable; ancestors loaded only for
+   * nesting are disabled (bold) so the tree still reads correctly.
+   *
+   * @param array|\Illuminate\Support\Collection $items Items grouped by parent_id ('_root_' = root level)
+   * @param array $eligibleIds Selectable account ids (list or id => true map)
+   * @param mixed $selected Selected id
+   * @param mixed $parentKey Current parent key ('_root_' = root level, or account id)
+   * @param string $prefix Prefix for nested display
+   */
+  public static function parentAccountDropdown($items, array $eligibleIds, $selected = null, $parentKey = '_root_', $prefix = '')
+  {
+    $html = '';
+
+    if (!isset($items[$parentKey])) {
+      return $html;
+    }
+
+    $eligibleMap = self::eligibleIdMap($eligibleIds);
+
+    foreach ($items[$parentKey] as $item) {
+      $isEligible = isset($eligibleMap[(int) $item->id]);
+      $select = ($selected && (int) $item->id === (int) $selected) ? 'selected' : '';
+
+      if ($isEligible) {
+        $html .= '<option value="' . $item->id . '" ' . $select . '>' . $prefix . e($item->name) . '</option>';
+      } else {
+        $html .= '<option value="" disabled style="font-weight: bold;">' . $prefix . e($item->name) . '</option>';
+      }
+
+      $html .= self::parentAccountDropdown($items, $eligibleIds, $selected, $item->id, $prefix . '⮞ ');
+    }
+
+    return $html;
+  }
+
+  /**
+   * @param array $eligibleIds List of ids, or id => anything map (e.g. from Collection::flip)
+   * @return array<int, true>
+   */
+  private static function eligibleIdMap(array $eligibleIds): array
+  {
+    if ($eligibleIds === []) {
+      return [];
+    }
+
+    if (array_is_list($eligibleIds)) {
+      return array_fill_keys(array_map('intval', $eligibleIds), true);
+    }
+
+    return array_fill_keys(array_map('intval', array_keys($eligibleIds)), true);
+  }
+
 
   public static function getRef($data)
   {

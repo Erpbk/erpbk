@@ -21,20 +21,7 @@ class AgreementPdfBranding
     public function forCompany(?int $companyId): array
     {
         $branding = $this->companyBranding->resolve($companyId);
-
-        $primary = $this->normalizeHex($branding['primary_color'] ?? '#1e3a8a');
-        $secondary = $this->normalizeHex($branding['secondary_color'] ?? '#2563eb');
-
-        $branding['primary_color'] = $primary;
-        $branding['secondary_color'] = $secondary;
-        $branding['primary_light'] = $this->mixWithWhite($primary, 0.92);
-        $branding['primary_soft'] = $this->mixWithWhite($primary, 0.85);
-        $branding['primary_muted'] = $this->mixWithWhite($primary, 0.72);
-        $branding['primary_dark'] = $this->darken($primary, 0.22);
-        $branding['secondary_light'] = $this->mixWithWhite($secondary, 0.9);
-        $branding['text_on_primary'] = $this->contrastingTextColor($primary);
-        $branding['border_color'] = $this->mixWithWhite($primary, 0.65);
-        $branding['accent_line'] = $secondary;
+        $branding = $this->enrichColorPalette($branding);
 
         $logoPath = $this->companyBranding->resolveLogoFilesystemPath($companyId);
         $branding['logo_src'] = $this->logoToDataUri($logoPath);
@@ -50,6 +37,198 @@ class AgreementPdfBranding
         $branding['website_display'] = $this->resolveWebsiteDisplay($branding);
 
         return $branding;
+    }
+
+    /**
+     * Color-only brand palette (no logo conversion) for site-wide CSS and documents.
+     *
+     * @return array<string, mixed>
+     */
+    public function colorPalette(?int $companyId = null): array
+    {
+        return $this->enrichColorPalette($this->companyBranding->resolve($companyId));
+    }
+
+    /**
+     * @param  array<string, mixed>  $branding
+     * @return array<string, mixed>
+     */
+    public function enrichColorPalette(array $branding): array
+    {
+        $primary = $this->normalizeHex($branding['primary_color'] ?? '#2563eb');
+        $secondary = $this->normalizeHex($branding['secondary_color'] ?? '#1e3a8a');
+        $accent = $this->normalizeHex($branding['accent_color'] ?? '#818cf8');
+
+        $branding['primary_color'] = $primary;
+        $branding['secondary_color'] = $secondary;
+        $branding['accent_color'] = $accent;
+        $branding['primary_light'] = $this->mixWithWhite($primary, 0.92);
+        $branding['primary_soft'] = $this->mixWithWhite($primary, 0.85);
+        $branding['primary_muted'] = $this->mixWithWhite($primary, 0.72);
+        $branding['primary_dark'] = $this->darken($primary, 0.22);
+        $branding['secondary_light'] = $this->mixWithWhite($secondary, 0.9);
+        $branding['accent_soft'] = $this->mixWithWhite($accent, 0.85);
+        $branding['text_on_primary'] = $this->contrastingTextColor($primary);
+        $branding['border_color'] = $this->mixWithWhite($primary, 0.65);
+        $branding['accent_line'] = $secondary;
+        [$r, $g, $b] = $this->hexToRgb($primary);
+        $branding['primary_rgb'] = $r . ', ' . $g . ', ' . $b;
+        [$ar, $ag, $ab] = $this->hexToRgb($accent);
+        $branding['accent_rgb'] = $ar . ', ' . $ag . ', ' . $ab;
+
+        return $branding;
+    }
+
+    /**
+     * Local logo path for mPDF headers (avoids multi-MB data URIs that trip PCRE).
+     */
+    public function filesystemLogoSrc(?int $companyId): ?string
+    {
+        $path = $this->companyBranding->resolveLogoFilesystemPath($companyId);
+        if ($path === null) {
+            return null;
+        }
+        $real = realpath($path);
+        if ($real === false || ! is_readable($real)) {
+            return null;
+        }
+
+        return str_replace('\\', '/', $real);
+    }
+
+    /**
+     * Letterhead logo plate in millimetres (config `logo_display_mm`).
+     *
+     * @return array{width: float, height: float}
+     */
+    public function letterheadLogoBoxMm(): array
+    {
+        $box = config('agreement_letterhead.logo_display_mm', []);
+
+        return [
+            'width' => (float) ($box['width'] ?? 45),
+            'height' => (float) ($box['height'] ?? 18),
+        ];
+    }
+
+    /**
+     * Logo fitted into the letterhead plate so mPDF cannot use intrinsic pixels.
+     * The PNG is cropped to the drawn artwork so contact text can sit flush beside it.
+     *
+     * @return array{src: string, width_mm: float, height_mm: float, width_px: int, height_px: int}|null
+     */
+    public function preparedMpdfLogo(?int $companyId): ?array
+    {
+        $path = $this->filesystemLogoSrc($companyId);
+        if ($path === null) {
+            return null;
+        }
+
+        $tempDir = storage_path('app/mpdf-temp');
+        if (! is_dir($tempDir)) {
+            @mkdir($tempDir, 0775, true);
+        }
+
+        $box = $this->letterheadLogoBoxPx();
+        $mm = $this->letterheadLogoBoxMm();
+        $dest = rtrim($tempDir, '\\/').DIRECTORY_SEPARATOR
+            .'logo_fit_'.sha1($path.(string) @filesize($path).$box['width'].'x'.$box['height']).'.png';
+        if (! is_file($dest)) {
+            if (! $this->fitRasterIntoLogoBox($path, $dest, $box['width'], $box['height'])) {
+                return [
+                    'src' => $path,
+                    'width_mm' => $mm['width'],
+                    'height_mm' => $mm['height'],
+                    'width_px' => $box['width'],
+                    'height_px' => $box['height'],
+                ];
+            }
+        }
+
+        if (! is_readable($dest)) {
+            return null;
+        }
+
+        $info = @getimagesize($dest);
+        $pxW = is_array($info) ? (int) $info[0] : $box['width'];
+        $pxH = is_array($info) ? (int) $info[1] : $box['height'];
+        $dpi = 192;
+
+        return [
+            'src' => str_replace('\\', '/', $dest),
+            'width_mm' => round($pxW * 25.4 / $dpi, 1),
+            'height_mm' => round($pxH * 25.4 / $dpi, 1),
+            'width_px' => $pxW,
+            'height_px' => $pxH,
+        ];
+    }
+
+    public function preparedMpdfLogoSrc(?int $companyId): ?string
+    {
+        return $this->preparedMpdfLogo($companyId)['src'] ?? null;
+    }
+
+    /**
+     * @return array{width: int, height: int}
+     */
+    public function letterheadLogoBoxPx(): array
+    {
+        $mm = $this->letterheadLogoBoxMm();
+        $dpi = 192;
+
+        return [
+            'width' => max(1, (int) round($mm['width'] * $dpi / 25.4)),
+            'height' => max(1, (int) round($mm['height'] * $dpi / 25.4)),
+        ];
+    }
+
+    private function fitRasterIntoLogoBox(string $source, string $dest, int $boxW, int $boxH): bool
+    {
+        $info = @getimagesize($source);
+        if ($info === false) {
+            return false;
+        }
+        $src = match ($info[2]) {
+            IMAGETYPE_JPEG => @imagecreatefromjpeg($source),
+            IMAGETYPE_PNG => @imagecreatefrompng($source),
+            IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($source) : false,
+            IMAGETYPE_GIF => @imagecreatefromgif($source),
+            default => false,
+        };
+        if ($src === false) {
+            return false;
+        }
+
+        $srcW = imagesx($src);
+        $srcH = imagesy($src);
+        if ($srcW < 1 || $srcH < 1) {
+            imagedestroy($src);
+
+            return false;
+        }
+
+        $scale = min($boxW / $srcW, $boxH / $srcH);
+        $drawW = max(1, (int) round($srcW * $scale));
+        $drawH = max(1, (int) round($srcH * $scale));
+
+        $dst = imagecreatetruecolor($drawW, $drawH);
+        if ($dst === false) {
+            imagedestroy($src);
+
+            return false;
+        }
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+        $clear = imagecolorallocatealpha($dst, 255, 255, 255, 127);
+        imagefilledrectangle($dst, 0, 0, $drawW, $drawH, $clear);
+        imagealphablending($dst, true);
+        imagecopyresampled($dst, $src, 0, 0, 0, 0, $drawW, $drawH, $srcW, $srcH);
+        imagedestroy($src);
+
+        $ok = imagepng($dst, $dest, 6);
+        imagedestroy($dst);
+
+        return $ok !== false && is_readable($dest);
     }
 
     /**

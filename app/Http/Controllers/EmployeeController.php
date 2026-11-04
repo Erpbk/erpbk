@@ -19,7 +19,9 @@ use App\Models\Accounts;
 use App\Models\Payment;
 use App\Models\Vouchers;
 use App\Models\VoucherType;
+use App\DataTables\EmployeeInvoicesDataTable;
 use App\DataTables\LedgerDataTable;
+use App\Models\EmployeeInvoices;
 use App\Helpers\Account;
 use App\Support\GlobalAccounts;
 use Illuminate\Support\Facades\Validator;
@@ -33,15 +35,17 @@ use App\Support\CompanyScope;
 use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Services\EmployeeHistoryLogger;
 use App\Traits\GlobalPagination;
+use App\Traits\TracksCascadingDeletions;
 use Laracasts\Flash\Flash;
 
 class EmployeeController extends Controller
 {
-    use AppliesModuleTopBarFilters, GlobalPagination;
+    use AppliesModuleTopBarFilters, GlobalPagination, TracksCascadingDeletions;
 
     public function __construct()
     {
-        $this->middleware('permission:employees_employee_view')->only('index', 'show');
+        $this->middleware('permission:employees_employee_view')->only('index', 'show', 'filterAjax', 'toggleFavorite', 'salary');
+        $this->middleware('permission:employees_invoice_view')->only('invoices');
         $this->middleware('permission:employees_employee_create')->only('create', 'store');
         $this->middleware('permission:employees_employee_edit')->only('edit', 'update', 'updateSection', 'updateStatus', 'updateProfileField');
         $this->middleware('permission:employees_employee_delete')->only('destroy');
@@ -534,12 +538,19 @@ class EmployeeController extends Controller
         if ($request->filled('department_id')) {
             $query->where('department_id', $request->input('department_id'));
         }
+        if ($request->filled('designation')) {
+            $query->where('designation', $request->input('designation'));
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
 
         if ($request->filled('quick_search')) {
             $search = $request->input('quick_search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', '%' . $search . '%')
                     ->orWhere('employee_id', 'like', '%' . $search . '%')
+                    ->orWhere('designation', 'like', '%' . $search . '%')
                     ->orWhere('company_email', 'like', '%' . $search . '%')
                     ->orWhere('company_contact', 'like', '%' . $search . '%');
             });
@@ -561,6 +572,44 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Favorites first, then active employment status, then name.
+     *
+     * @param  list<int>  $favoriteIds
+     */
+    private function applyEmployeeListOrdering($query, array $favoriteIds = []): void
+    {
+        if ($favoriteIds !== []) {
+            $ids = implode(',', array_map('intval', $favoriteIds));
+            $query->orderByRaw("CASE WHEN employees.id IN ({$ids}) THEN 0 ELSE 1 END");
+        }
+        $query->orderByRaw("CASE WHEN employees.status = 'active' THEN 0 ELSE 1 END")
+            ->orderBy('employees.name');
+    }
+
+    private function buildEmployeesIndexQuery(Request $request, array $favoriteIds = [])
+    {
+        $query = Employee::query()
+            ->whereNull('employees.deleted_at')
+            ->with('branch', 'department', 'nationality');
+        $this->applyEmployeeIndexFilters($query, $request);
+        $this->applyEmployeeListOrdering($query, $favoriteIds);
+
+        return $query;
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    private function employeeStatusFilterOptions(): array
+    {
+        return [
+            ['value' => 'active', 'label' => 'Active'],
+            ['value' => 'inactive', 'label' => 'Inactive'],
+            ['value' => 'on_leave', 'label' => 'On Leave'],
+        ];
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
@@ -570,16 +619,75 @@ class EmployeeController extends Controller
         }
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-
-        $query = Employee::query()->with('branch', 'department', 'nationality');
-        $this->applyEmployeeIndexFilters($query, $request);
-        $query->orderBy('name');
+        $favoriteIds = array_map('intval', auth()->user()->favorite_employee_ids ?? []);
+        $query = $this->buildEmployeesIndexQuery($request, $favoriteIds);
         $data = $this->applyPagination($query, $paginationParams);
 
         return view('employees.index', array_merge([
             'data' => $data,
             'tableColumns' => $this->buildEmployeesIndexTableColumns(),
+            'employeeStatusFilterOptions' => $this->employeeStatusFilterOptions(),
+            'hideModuleTopBarSlider' => true,
+            'favoriteEmployeeIds' => $favoriteIds,
         ], $this->moduleTopBarListingData($request, 'employees')));
+    }
+
+    public function filterAjax(Request $request)
+    {
+        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+        $favoriteIds = array_map('intval', auth()->user()->favorite_employee_ids ?? []);
+        $query = $this->buildEmployeesIndexQuery($request, $favoriteIds);
+        $data = $this->applyPagination($query, $paginationParams);
+
+        $tableData = view('employees.table', [
+            'data' => $data,
+            'tableColumns' => $this->buildEmployeesIndexTableColumns(),
+            'favoriteEmployeeIds' => $favoriteIds,
+        ])->render();
+
+        $paginationLinks = method_exists($data, 'total')
+            ? view('components.riders-demo-pagination', ['paginator' => $data])->render()
+            : '';
+
+        return response()->json([
+            'success' => true,
+            'html' => $tableData,
+            'pagination' => $paginationLinks,
+            'total' => method_exists($data, 'total') ? $data->total() : $data->count(),
+            'per_page' => method_exists($data, 'perPage') ? $data->perPage() : $data->count(),
+        ]);
+    }
+
+    public function toggleFavorite(Request $request, $company_slug, $id)
+    {
+        $employee = $this->findAccessibleEmployee((int) $id);
+        if (empty($employee)) {
+            return response()->json(['success' => false, 'message' => 'Employee not found'], 404);
+        }
+
+        $user = auth()->user();
+        $favoriteIds = $user->favorite_employee_ids ?? [];
+        $employeeId = (int) $id;
+        $isFavorited = in_array($employeeId, $favoriteIds, true);
+
+        if ($isFavorited) {
+            $favoriteIds = array_values(array_filter($favoriteIds, fn ($fid) => (int) $fid !== $employeeId));
+            $message = 'Employee removed from favorites';
+            $favorited = false;
+        } else {
+            $favoriteIds[] = $employeeId;
+            $message = 'Employee added to favorites';
+            $favorited = true;
+        }
+
+        $user->favorite_employee_ids = $favoriteIds;
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'favorited' => $favorited,
+        ]);
     }
 
     /**
@@ -646,6 +754,7 @@ class EmployeeController extends Controller
                     'parent_id' => \App\Support\GlobalAccounts::id('STAFF'), // Staff salaries payable account
                     'created_by' => auth()->id(),
                     'branch_id' => $employee->branch_id,
+                    'is_locked' => true,
                 ]);
                 $employee->account_id = $account->id;
                 $employee->save();
@@ -661,6 +770,7 @@ class EmployeeController extends Controller
                     'parent_id' => \App\Support\GlobalAccounts::id('STAFF'), // Staff salaries payable account
                     'updated_by' => auth()->id(),
                     'branch_id' => $employee->branch_id,
+                    'is_locked' => true,
                 ]);
             }
 
@@ -775,12 +885,53 @@ class EmployeeController extends Controller
 
     public function salary($comapny_slug, $id)
     {
-        $employee = Employee::findOrFail($id);
+        $employee = $this->findAccessibleEmployee((int) $id);
+        if (empty($employee)) {
+            Flash::error('Employee not found');
+
+            return redirect(route('employees.index'));
+        }
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
 
-        return view('employees.salary', compact('employee', 'nationalities', 'branches', 'departments'));
+        $recentInvoices = EmployeeInvoices::query()
+            ->where('employee_id', $employee->id)
+            ->orderByDesc('billing_month')
+            ->orderByDesc('id')
+            ->limit(8)
+            ->get()
+            ->each(function (EmployeeInvoices $invoice) {
+                $invoice->load(['employee', 'items']);
+            });
+
+        $paymentCreateUrl = route('payments.create', [
+            'employee_payment' => 1,
+            'employee_id' => $employee->id,
+        ]);
+
+        return view('employees.salary', compact(
+            'employee',
+            'nationalities',
+            'branches',
+            'departments',
+            'recentInvoices',
+            'paymentCreateUrl'
+        ));
+    }
+
+    public function invoices($company_slug, $employee_id, EmployeeInvoicesDataTable $employeeInvoicesDataTable)
+    {
+        $employee = $this->findAccessibleEmployee((int) $employee_id);
+        if (empty($employee)) {
+            Flash::error('Employee not found');
+
+            return redirect(route('employees.index'));
+        }
+
+        return $employeeInvoicesDataTable
+            ->with(['employee_id' => (int) $employee_id])
+            ->render('employees.invoices', compact('employee'));
     }
 
     public function attendance($comapny_slug, $id)
@@ -995,8 +1146,12 @@ class EmployeeController extends Controller
                 $voucherTypes[$code] = $activeTypes[$code];
             }
         }
+        $voucher_type = strtoupper(trim((string) request('type', '')));
+        if ($voucher_type !== '' && ! isset($voucherTypes[$voucher_type])) {
+            $voucher_type = '';
+        }
 
-        return view('employees.voucher-modal', compact('employee', 'account', 'accounts', 'bank_accounts', 'voucherTypes'));
+        return view('employees.voucher-modal', compact('employee', 'account', 'accounts', 'bank_accounts', 'voucherTypes', 'voucher_type'));
     }
 
     public function incentive($company_slug, $id)
@@ -1041,10 +1196,7 @@ class EmployeeController extends Controller
     public function storeadvanceloan(Request $request)
     {
         try {
-            if (! VoucherType::isCodeAllowedForModule('AL', 'employees')) {
-                return response()->json(['errors' => ['error' => 'Advance Loan voucher type (AL) is not assigned to the Employees module. Please assign it in Voucher Settings.']], 422);
-            }
-            DB::beginTransaction();
+            \App\Support\EmployeeVoucherPermissions::authorize('AL', 'create');
 
             $this->mergeVoucherBranchId($request);
 
@@ -1058,80 +1210,38 @@ class EmployeeController extends Controller
                 'branch_id' => 'nullable|numeric|exists:branches,id',
             ]);
 
-            $employeeAccountId = $request->account_id[0];
-            if (empty($employeeAccountId)) {
-                throw new \Exception('Employee account ID is required');
-            }
+            $employeeAccountId = (int) ($request->account_id[0] ?? 0);
+            $creditAccountId = (int) ($request->account_id[1] ?? 0);
+            $employeeAmount = (float) ($request->dr_amount[0] ?? 0);
 
-            $employeeAccount = Accounts::find($employeeAccountId);
-            if (! $employeeAccount) {
-                throw new \Exception('Employee account not found with ID: ' . $employeeAccountId);
-            }
-
-            $creditAccountId = $request->account_id[1];
-            $employeeAmount = $request->dr_amount[0] ?? 0;
-            $creditAmount = $request->dr_amount[1] ?? 0;
-            if ($creditAmount == 0) {
-                $creditAmount = $employeeAmount;
-            }
-
-            $transCode = Account::trans_code();
-            $voucherData = [
-                'trans_date' => $request->trans_date ?? date('Y-m-d'),
-                'voucher_type' => 'AL',
-                'payment_type' => $request->payment_type ?? 1,
-                'payment_from' => $creditAccountId,
-                'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
+            $result = app(\App\Services\Employee\EmployeeAdvanceLoanService::class)->create([
+                'employee_account_id' => $employeeAccountId,
+                'bank_account_id' => $creditAccountId,
                 'amount' => $employeeAmount,
-                'remarks' => 'Advance Loan to Employee',
-                'ref_id' => $employeeAccount->ref_id ?: $employeeAccount->id,
+                'trans_date' => $request->trans_date ?? date('Y-m-d'),
+                'billing_month' => $request->billing_month ?? null,
                 'reference_number' => $request->reference_number ?? null,
-                'trans_code' => $transCode,
-                'Created_By' => auth()->id(),
-                'status' => 1,
+                'payment_type' => $request->payment_type ?? 1,
                 'branch_id' => $request->input('branch_id') ?: null,
+                'debit_narration' => $request->narration[0] ?? 'Advance Loan Received',
+                'credit_narration' => $request->narration[1] ?? null,
+                'remarks' => 'Advance Loan to Employee',
                 'custom_field_values' => $request->input('voucher_custom_fields', []),
-            ];
-
-            $voucher = Vouchers::create($voucherData);
-
-            Transactions::create([
-                'account_id' => $employeeAccountId,
-                'reference_id' => $voucher->id,
-                'reference_type' => 'AL',
-                'trans_code' => $transCode,
-                'trans_date' => $voucherData['trans_date'],
-                'narration' => $request->narration[0] ?? 'Advance Loan Received',
-                'debit' => $employeeAmount,
-                'branch_id' => $request->input('branch_id') ?: null,
-                'billing_month' => $voucherData['billing_month'],
-                'Created_By' => auth()->id(),
             ]);
-
-            Transactions::create([
-                'account_id' => $creditAccountId,
-                'reference_id' => $voucher->id,
-                'reference_type' => 'AL',
-                'trans_code' => $transCode,
-                'trans_date' => $voucherData['trans_date'],
-                'narration' => $request->narration[1] ?? 'Advance Loan Given to ' . $employeeAccount->name,
-                'credit' => $creditAmount,
-                'billing_month' => $voucherData['billing_month'],
-                'Created_By' => auth()->id(),
-                'branch_id' => $request->input('branch_id') ?: null,
-            ]);
-
-            DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Advance loan recorded successfully',
-                'voucher_id' => $voucher->id,
-                'trans_code' => $transCode,
+                'voucher_id' => $result['voucher']->id,
+                'trans_code' => $result['trans_code'],
                 'reload' => true,
             ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Employee advance loan error', [
                 'request_data' => $request->all(),
                 'error' => $e->getMessage(),
@@ -1147,6 +1257,7 @@ class EmployeeController extends Controller
     public function storepenalty(Request $request)
     {
         try {
+            \App\Support\EmployeeVoucherPermissions::authorize('PN', 'create');
             if (! VoucherType::isCodeAllowedForModule('PN', 'employees')) {
                 return response()->json(['errors' => ['error' => 'Penalty voucher type (PN) is not assigned to the Employees module. Please assign it in Voucher Settings.']], 422);
             }
@@ -1253,6 +1364,7 @@ class EmployeeController extends Controller
     public function storeincentive(Request $request)
     {
         try {
+            \App\Support\EmployeeVoucherPermissions::authorize('INC', 'create');
             if (! VoucherType::isCodeAllowedForModule('INC', 'employees')) {
                 return response()->json(['errors' => ['error' => 'Incentive voucher type (INC) is not assigned to the Employees module. Please assign it in Voucher Settings.']], 422);
             }
@@ -1416,24 +1528,83 @@ class EmployeeController extends Controller
      */
     public function destroy($comapny_slug, Employee $employee)
     {
-        if (Transactions::where('account_id', $employee->account_id)->count() > 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot delete employee with existing financial transactions. Please remove related transactions first.',
-            ], 400);
+        $cascadedItems = [];
+        $employeeId = $employee->id;
+        $employeeName = trim(($employee->employee_id ? $employee->employee_id . ' - ' : '') . ($employee->name ?? 'Employee'));
+        $relatedAccount = $employee->account;
+        if (! $relatedAccount && $employee->account_id) {
+            $relatedAccount = Accounts::find($employee->account_id);
+        }
+        if (! $relatedAccount) {
+            $relatedAccount = Accounts::where('ref_name', 'employee')->where('ref_id', $employee->id)->first();
         }
 
-        // Delete profile image
-        if ($employee->profile_image) {
-            Storage::disk('public')->delete($employee->profile_image);
+        // Block before any delete request / soft-delete: do not queue approval when the account has activity.
+        if ($blockReason = linked_account_delete_block_reason(
+            $relatedAccount?->id ?? resolve_linked_account_id($employee),
+            'Employee'
+        )) {
+            return delete_error_response($blockReason, route('employees.index'));
         }
 
+        $willQueue = \App\Services\DeleteRequestService::enabled()
+            && ! \App\Services\DeleteRequestService::shouldBypassApproval();
+
+        if (! $willQueue && Schema::hasColumn('employees', 'deleted_by')) {
+            $employee->deleted_by = Auth::id();
+            $employee->save();
+        }
+
+        // Soft-delete (or queue a delete request when approval is enabled).
+        // Do not remove profile image here — keep it for restore; purge on permanent delete.
         $employee->delete();
 
-        return delete_json_response(
-            'Employee',
-            route('settings-panel.trash.index') . '?module=employees'
-        );
+        if ($relatedAccount) {
+            $relatedAccount->delete();
+
+            if (! request()->attributes->get('delete_approval_created')) {
+                $cascadedItems[] = [
+                    'model' => 'Accounts',
+                    'id' => $relatedAccount->id,
+                    'name' => $relatedAccount->name,
+                ];
+
+                $this->trackCascadeDeletion(
+                    Employee::class,
+                    $employeeId,
+                    $employeeName,
+                    Accounts::class,
+                    $relatedAccount->id,
+                    $relatedAccount->name,
+                    'hasOne',
+                    'account',
+                    'soft'
+                );
+            }
+        }
+
+        $cascadeMessage = '';
+        if (! empty($cascadedItems)) {
+            $parts = array_map(fn ($item) => "{$item['model']}: {$item['name']}", $cascadedItems);
+            $cascadeMessage = ' (Also deleted: ' . implode(', ', $parts) . ')';
+        }
+
+        $trashUrl = route('settings-panel.trash.index') . '?module=employees';
+        if (wants_delete_json()) {
+            $response = delete_json_response('Employee', $trashUrl);
+            if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+                $data = $response->getData(true);
+                $data['message'] = 'Employee moved to Recycle Bin' . $cascadeMessage
+                    . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+                $response->setData($data);
+            }
+
+            return $response;
+        }
+
+        Flash::success('Employee moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.');
+
+        return redirect(route('employees.index'));
     }
 
     public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)

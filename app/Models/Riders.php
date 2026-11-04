@@ -9,10 +9,13 @@ use Illuminate\Support\Facades\Schema;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
+use App\Traits\HasInvoiceNoteLabels;
+
+use App\Traits\TracksUserAttribution;
 
 class Riders extends BaseModel
 {
-  use SoftDeletes, LogsActivity, HasActiveStatus, BranchScope;
+  use SoftDeletes, LogsActivity, HasActiveStatus, BranchScope, HasInvoiceNoteLabels, TracksUserAttribution;
 
   public $table = 'riders';
 
@@ -21,6 +24,8 @@ class Riders extends BaseModel
     'company_id',
     'name',
     'rider_id',
+    'personal_contact',
+    'company_contact',
     'account_id',
     'email',
     'nationality',
@@ -46,9 +51,15 @@ class Riders extends BaseModel
     'fleet_supervisor',
     'wps',
     'image_name',
+        'terms_and_conditions_label',
+        'terms_and_conditions',
+        'invoice_note_label',
+        'invoice_note',
     'person_code',
     'labor_card_number',
     'labor_card_expiry',
+    'residency_number',
+    'residency_expiry',
     'attendance',
     'customer_id',
     'rider_top_option_id',
@@ -62,6 +73,8 @@ class Riders extends BaseModel
     'custom_field_values' => 'array',
     'company_id' => 'integer',
     'name' => 'string',
+    'personal_contact' => 'string',
+    'company_contact' => 'string',
     'email' => 'string',
     'doj' => 'string',
     'emirate_id' => 'string',
@@ -83,6 +96,8 @@ class Riders extends BaseModel
     'person_code' => 'string',
     'labor_card_number' => 'string',
     'labor_card_expiry' => 'string',
+    'residency_number' => 'string',
+    'residency_expiry' => 'string',
     'attendance' => 'string',
     'rider_top_option_id' => 'integer',
     'recuriter' => 'string',
@@ -101,6 +116,8 @@ class Riders extends BaseModel
     'company_id' => 'nullable|integer|exists:companies,id',
     'name' => 'nullable|string|max:191|unique:riders,name',
     'rider_id' => 'nullable|unique:riders,rider_id',
+    'personal_contact' => 'nullable|string|max:191',
+    'company_contact' => 'nullable|string|max:191',
     'email' => 'nullable|string|max:191',
     'nationality' => 'nullable',
     'doj' => 'nullable',
@@ -127,6 +144,8 @@ class Riders extends BaseModel
     'person_code' => 'nullable|string|max:50',
     'labor_card_number' => 'nullable|string|max:100',
     'labor_card_expiry' => 'nullable',
+    'residency_number' => 'nullable|string|max:100',
+    'residency_expiry' => 'nullable',
     'recuriter' => 'nullable|string|max:255',
     'recruiter_id' => 'nullable|integer|exists:recruiters,id'
   ];
@@ -152,6 +171,69 @@ class Riders extends BaseModel
         'badge' => 'bg-label-secondary',
       ],
     };
+  }
+
+  /**
+   * Built-in employment/lifecycle labels used by status filters (Active, Inactive, Vacation, Absconded).
+   *
+   * @return list<string>
+   */
+  public static function employmentStatusFilterLabels(): array
+  {
+    $labels = [];
+    $seen = [];
+
+    foreach ([1, 3, 4, 5] as $code) {
+      $label = trim((string) (self::employmentStatusDisplay($code)['label'] ?? ''));
+      $key = strtolower($label);
+      if ($label === '' || in_array($key, $seen, true)) {
+        continue;
+      }
+      $seen[] = $key;
+      $labels[] = $label;
+    }
+
+    return $labels;
+  }
+
+  /**
+   * Status filter dropdown options: built-in employment labels, then active rider_status top options.
+   *
+   * @return list<array{value: string, label: string}>
+   */
+  public static function statusFilterOptions(): array
+  {
+    $options = [];
+    $seen = [];
+
+    foreach (self::employmentStatusFilterLabels() as $label) {
+      $key = strtolower($label);
+      $seen[] = $key;
+      $options[] = ['value' => $label, 'label' => $label];
+    }
+
+    $category = RiderTopCategory::where('rider_column', 'rider_status')->first();
+    if (! $category) {
+      return $options;
+    }
+
+    $dynamic = RiderTopOption::where('category_id', $category->id)
+      ->where('is_active', true)
+      ->orderBy('display_order')
+      ->orderBy('id')
+      ->get(['name']);
+
+    foreach ($dynamic as $option) {
+      $name = trim((string) $option->name);
+      $key = strtolower($name);
+      if ($name === '' || in_array($key, $seen, true)) {
+        continue;
+      }
+      $seen[] = $key;
+      $options[] = ['value' => $name, 'label' => $name];
+    }
+
+    return $options;
   }
 
   /**

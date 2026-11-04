@@ -16,14 +16,19 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
 
     protected int $companyId;
 
-    protected float $defaultVatPercent;
-
     protected array $columnMap;
+
+    /** @var array<int, array{item_id:int,col:int,rate:float}> */
+    protected array $itemDefs;
+
+    protected float $vatPercent;
+
+    protected int $headerRowsToSkip;
 
     /** @var array<string, Sims> */
     protected array $simsByNumber = [];
 
-    /** @var array<int, array{sim_id:int,rental_amount:float,additional_charges:float,international_usage_charges:float,tax_rate:float}> */
+    /** @var array<int, array{sim_id:int,item_id:int,qty:float,rate:float,discount:float,tax:float}> */
     public array $items = [];
 
     /** @var array<int, string> */
@@ -31,11 +36,22 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
 
     public int $importedCount = 0;
 
-    public function __construct(int $companyId, array $columnMap, $defaultVatPercent = 0)
-    {
+    /**
+     * @param  array{sim_number:int}  $columnMap
+     * @param  array<int, array{item_id:int,col:int,rate:float}>  $itemDefs
+     */
+    public function __construct(
+        int $companyId,
+        array $columnMap,
+        array $itemDefs,
+        float $vatPercent = 0.0,
+        int $headerRowsToSkip = 1
+    ) {
         $this->companyId = $companyId;
         $this->columnMap = $columnMap;
-        $this->defaultVatPercent = (float) $defaultVatPercent;
+        $this->itemDefs = $itemDefs;
+        $this->vatPercent = max(0.0, $vatPercent);
+        $this->headerRowsToSkip = max(0, $headerRowsToSkip);
     }
 
     public function bindValue(Cell $cell, $value)
@@ -59,7 +75,7 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
         $consecutiveEmpty = 0;
 
         foreach ($rows as $index => $row) {
-            if ($index === 0) {
+            if ($index < $this->headerRowsToSkip) {
                 continue;
             }
 
@@ -78,7 +94,7 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
             $consecutiveEmpty = 0;
 
             $sim = $this->findSim($simNumberRaw);
-            if (!$sim) {
+            if (! $sim) {
                 $this->skippedLog[] = "Row {$excelRowNumber}: SIM {$this->displaySimNumber($simNumberRaw)} was not found.";
                 continue;
             }
@@ -98,21 +114,38 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
                 continue;
             }
 
-            $monthlyCharges = $this->parseNumber($this->cell($row, 'monthly_charges'));
-            $additionalCharges = $this->isMapped('additional_charges')
-                ? $this->parseNumber($this->cell($row, 'additional_charges'))
-                : 0.0;
-            $intlCharges = $this->isMapped('intl_usage_charges')
-                ? $this->parseNumber($this->cell($row, 'intl_usage_charges'))
-                : 0.0;
+            $rowHasLines = false;
+            foreach ($this->itemDefs as $def) {
+                $qty = $this->parseQty($row[((int) $def['col']) - 1] ?? null);
+                if ($qty == 0.0) {
+                    continue;
+                }
 
-            $this->items[] = [
-                'sim_id' => (int) $sim->id,
-                'rental_amount' => $monthlyCharges,
-                'additional_charges' => $additionalCharges,
-                'international_usage_charges' => $intlCharges,
-                'tax_rate' => $this->resolveVat($row),
-            ];
+                $rate = (float) $def['rate'];
+                $discount = 0.0;
+                $lineExcl = round(($qty * $rate) - $discount, 2);
+                $tax = $this->vatPercent > 0 ? round($lineExcl * ($this->vatPercent / 100), 2) : 0.0;
+                $amount = round($lineExcl + $tax, 2);
+                if (abs($amount) < 0.00001) {
+                    continue;
+                }
+
+                $this->items[] = [
+                    'sim_id' => (int) $sim->id,
+                    'item_id' => (int) $def['item_id'],
+                    'qty' => $qty,
+                    'rate' => $rate,
+                    'discount' => $discount,
+                    'tax' => $tax,
+                ];
+                $rowHasLines = true;
+            }
+
+            if (! $rowHasLines) {
+                $this->skippedLog[] = "Row {$excelRowNumber}: SIM {$sim->number} has no quantity for any mapped item.";
+                continue;
+            }
+
             $seenSimIds[$sim->id] = true;
             $this->importedCount++;
         }
@@ -128,11 +161,11 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
             if ($normalized === '') {
                 continue;
             }
-            if (!isset($this->simsByNumber[$normalized])) {
+            if (! isset($this->simsByNumber[$normalized])) {
                 $this->simsByNumber[$normalized] = $sim;
             }
             $lastNine = strlen($normalized) > 9 ? substr($normalized, -9) : null;
-            if ($lastNine && !isset($this->simsByNumber[$lastNine])) {
+            if ($lastNine && ! isset($this->simsByNumber[$lastNine])) {
                 $this->simsByNumber[$lastNine] = $sim;
             }
         }
@@ -159,18 +192,6 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
         return $this->simsByNumber['0' . $normalized] ?? null;
     }
 
-    private function resolveVat($row): float
-    {
-        if ($this->isMapped('vat')) {
-            $raw = $this->cell($row, 'vat');
-            if (!$this->isBlank($raw)) {
-                return $this->parseNumber($raw);
-            }
-        }
-
-        return round((float) ($this->defaultVatPercent ?: 0), 2);
-    }
-
     private function cell($row, string $key)
     {
         $col = $this->columnMap[$key] ?? null;
@@ -183,21 +204,9 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
         return $row[$index] ?? null;
     }
 
-    private function isMapped(string $key): bool
+    private function parseQty($value): float
     {
-        $col = $this->columnMap[$key] ?? null;
-
-        return $col !== null && $col !== '';
-    }
-
-    private function isBlank($value): bool
-    {
-        return $value === null || (is_string($value) && trim($value) === '');
-    }
-
-    private function parseNumber($value): float
-    {
-        if ($this->isBlank($value)) {
+        if ($value === null || (is_string($value) && trim($value) === '')) {
             return 0.0;
         }
 
@@ -210,13 +219,18 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
         return ($cleaned !== '' && is_numeric($cleaned)) ? round((float) $cleaned, 2) : 0.0;
     }
 
+    private function isBlank($value): bool
+    {
+        return $value === null || (is_string($value) && trim($value) === '');
+    }
+
     private function normalizeSimNumber($value): string
     {
         if ($this->isBlank($value)) {
             return '';
         }
 
-        if (is_numeric($value) && !is_string($value)) {
+        if (is_numeric($value) && ! is_string($value)) {
             $value = number_format((float) $value, 0, '', '');
         }
 
@@ -229,7 +243,7 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
             return '';
         }
 
-        if (is_numeric($value) && !is_string($value)) {
+        if (is_numeric($value) && ! is_string($value)) {
             return number_format((float) $value, 0, '', '');
         }
 

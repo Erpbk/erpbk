@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 
+use App\Traits\TracksUserAttribution;
+
 class SimInvoice extends BaseModel
 {
-    use SoftDeletes, LogsActivity;
+    use SoftDeletes, LogsActivity, TracksUserAttribution;
 
     public $table = 'sim_invoices';
 
@@ -24,9 +26,14 @@ class SimInvoice extends BaseModel
         'vat',
         'total_amount',
         'notes',
+        'terms_and_conditions',
+        'customer_note',
         'attachment',
         'status',
         'partial_paid_amount',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [
@@ -76,6 +83,69 @@ class SimInvoice extends BaseModel
     public function items()
     {
         return $this->hasMany(SimInvoiceItem::class, 'inv_id', 'id');
+    }
+
+    /**
+     * Build show/edit pivot: unique charge items as columns, one row per SIM.
+     *
+     * @return array{columns: \Illuminate\Support\Collection, rows: array<int, array{sim_id:int,sim:?Sims,charges:array<int,float>,vat:float,total:float,vat_percent:float}>}
+     */
+    public function pivotChargeGrid(): array
+    {
+        $this->loadMissing(['items.item', 'items.sim']);
+
+        $columns = $this->items
+            ->pluck('item')
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
+
+        if ($columns->isEmpty()) {
+            $itemIds = $this->items->pluck('item_id')->unique()->filter()->values();
+            $columns = Items::whereIn('id', $itemIds)->orderBy('name')->get();
+        }
+
+        $rows = [];
+        foreach ($this->items->groupBy('sim_id') as $simId => $lines) {
+            $charges = [];
+            $qtys = [];
+            $vat = 0.0;
+            $total = 0.0;
+            $excl = 0.0;
+            foreach ($lines as $line) {
+                $itemId = (int) $line->item_id;
+                $lineExcl = ((float) $line->qty * (float) $line->rate) - (float) $line->discount;
+                $charges[$itemId] = round($lineExcl, 2);
+                $qtys[$itemId] = round((float) $line->qty, 2);
+                $vat += (float) $line->tax;
+                $total += (float) $line->amount;
+                $excl += $lineExcl;
+            }
+
+            // Ensure every charge column has a value (0 when this SIM has no line for that item).
+            foreach ($columns as $col) {
+                $itemId = (int) $col->id;
+                if (! array_key_exists($itemId, $charges)) {
+                    $charges[$itemId] = 0.0;
+                }
+            }
+
+            $rows[] = [
+                'sim_id' => (int) $simId,
+                'sim' => $lines->first()->sim,
+                'charges' => $charges,
+                'qtys' => $qtys,
+                'vat' => round($vat, 2),
+                'total' => round($total, 2),
+                'vat_percent' => $excl > 0 ? round(($vat / $excl) * 100, 2) : 0.0,
+            ];
+        }
+
+        return [
+            'columns' => $columns,
+            'rows' => $rows,
+        ];
     }
 
     public static function getIdFromInvoiceNumber($invoiceNumber)

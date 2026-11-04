@@ -34,10 +34,15 @@ return [
         'Verdana',
         'Courier New',
         'Segoe UI',
+        // Arabic (Naskh)
+        'Noto Naskh Arabic',
+        'Amiri',
+        'Scheherazade New',
     ],
 
     /**
      * Word/CSS aliases → canonical family name.
+     * Former Urdu product fonts map onto Amiri so stored docs still render.
      *
      * @var array<string, string>
      */
@@ -62,5 +67,18 @@ return [
         'monospace' => 'Courier New',
         'aptos' => 'Calibri',
         'arial unicode ms' => 'Arial',
+        'google sans' => 'Calibri',
+        'noto naskh arabic' => 'Noto Naskh Arabic',
+        'notonaskharabic' => 'Noto Naskh Arabic',
+        'amiri' => 'Amiri',
+        'scheherazade' => 'Scheherazade New',
+        'scheherazade new' => 'Scheherazade New',
+        'scheherazadenew' => 'Scheherazade New',
+        // Retired Urdu product fonts → Arabic Naskh
+        'noto nastaliq urdu' => 'Amiri',
+        'notonastaliqurdu' => 'Amiri',
+        'nastaliq' => 'Amiri',
+        'lateef' => 'Amiri',
+        'harmattan' => 'Amiri',
     ],
 ];

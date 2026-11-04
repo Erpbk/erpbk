@@ -43,3 +43,5 @@
 
     </div>
 </div>
+@include('invoices.partials.party_invoice_note_fields', ['party' => $leasingCompanies ?? $leasing_company ?? null, 'defaultsModule' => 'leasing_company_invoices'])
+

@@ -1,12 +1,7 @@
 @php
-    $bike = $record->bike;
-    $isOwnedBike = $bike && (
-        strcasecmp((string) ($bike->bike_owner ?? ''), 'Owned') === 0
-        || !$bike->leasingCompany
-    );
-    if (!$bike) {
-        $companyLabel = '-';
-    } elseif ($isOwnedBike) {
+    if ($record->leasing_company_id) {
+        $companyLabel = $record->leasingCompany?->name ?? '-';
+    } else {
         $companyLabel = trim((string) (\App\Helpers\Common::getSetting('company_name') ?: ''));
         if ($companyLabel === '') {
             $currentCompany = view()->shared('currentCompany');
@@ -15,8 +10,6 @@
         if ($companyLabel === '') {
             $companyLabel = '-';
         }
-    } else {
-        $companyLabel = $bike->leasingCompany?->name ?? '-';
     }
     $riderLabel = $record->rider
         ? trim(($record->rider->rider_id ?? '') . ' - ' . ($record->rider->name ?? ''))

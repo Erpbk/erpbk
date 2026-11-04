@@ -65,16 +65,21 @@
     text-decoration: none !important;
     cursor: default;
     vertical-align: middle;
+    color: var(--company-brand-accent, #818cf8) !important;
   }
   a.rider-doc-expiry-badge {
     cursor: pointer;
+    color: var(--company-brand-accent, #818cf8) !important;
   }
-  a.rider-doc-expiry-badge:hover {
+  a.rider-doc-expiry-badge:hover,
+  a.rider-doc-expiry-badge:focus,
+  a.rider-doc-expiry-badge:visited {
+    color: var(--company-brand-accent, #818cf8) !important;
     filter: brightness(0.96);
   }
   /* Red - Already Expired */
   .rider-doc-expiry-badge.is-expired {
-    color: #fff;
+    color: var(--company-brand-accent, #818cf8) !important;
     background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
     border-color: #991b1b;
     animation: rider-doc-badge-blink 0.8s ease-in-out infinite;
@@ -82,7 +87,7 @@
   
   /* Dark Red - Critical (Expiring within 7 days) */
   .rider-doc-expiry-badge.is-critical {
-    color: #fff;
+    color: var(--company-brand-accent, #818cf8) !important;
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     border-color: #dc2626;
     animation: rider-doc-badge-blink 1s ease-in-out infinite;
@@ -90,7 +95,7 @@
   
   /* Orange - Expiring Soon (8-30 days) */
   .rider-doc-expiry-badge.is-expiring {
-    color: #fff;
+    color: var(--company-brand-accent, #818cf8) !important;
     background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
     border-color: #ea580c;
     animation: rider-doc-badge-pulse 1.5s ease-in-out infinite;
@@ -98,21 +103,21 @@
   
   /* Yellow - Warning (31-60 days) */
   .rider-doc-expiry-badge.is-warning {
-    color: #fff;
+    color: var(--company-brand-accent, #818cf8) !important;
     background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
     border-color: #f59e0b;
   }
   
   /* Green - Valid (60+ days) */
   .rider-doc-expiry-badge.is-valid {
-    color: #fff;
+    color: var(--company-brand-accent, #818cf8) !important;
     background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
     border-color: #16a34a;
   }
   
   /* Gray - No Date */
   .rider-doc-expiry-badge.is-none {
-    color: #fff;
+    color: var(--company-brand-accent, #818cf8) !important;
     background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
     border-color: #6b7280;
   }

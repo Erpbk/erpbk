@@ -18,6 +18,11 @@ document.addEventListener('DOMContentLoaded', function () {
         linkPanel.style.display = mode === 'link' ? 'block' : 'none';
         createPanel.style.display = mode === 'create' ? 'block' : 'none';
 
+        var unlinkNote = document.getElementById('unlinkAccountNote');
+        if (unlinkNote) {
+            unlinkNote.style.display = mode === 'unlink' ? 'block' : 'none';
+        }
+
         accountIdSelect.required = mode === 'link';
         document.getElementById('account_name').required = mode === 'create';
     }

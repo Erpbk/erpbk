@@ -1,4 +1,4 @@
-{!! Form::open(['route' => 'riders.storeadvanceloan','id'=>'formajax']) !!}
+{!! Form::open(['route' => 'riders.storeadvanceloan', 'id' => 'formajax', 'enctype' => 'multipart/form-data']) !!}
 
 <input type="hidden" id="reload_page" value="1">
 

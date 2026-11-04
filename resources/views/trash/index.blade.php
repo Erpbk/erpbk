@@ -227,6 +227,16 @@
                             <!-- Record ID (clickable like Voucher ID) -->
                             <td>
                                 <a href="javascript:void(0);" @if($item['module']=='vouchers' ) data-action="{{ route($trashRoute . '.show', ['module' => 'vouchers', 'id' => $item['id']]) }}" data-title="Voucher Details - {{ $item['id'] }} (Deleted)" data-size="xl" @endif class="text-primary show-modal">{{ $item['module_name'] }} #{{ $item['id'] }}</a>
+                                @if(!empty($item['cascaded_to']) && count($item['cascaded_to']) > 0)
+                                @php
+                                    $linkedLabels = collect($item['cascaded_to'])
+                                        ->map(fn ($c) => class_basename($c->related_model))
+                                        ->unique()
+                                        ->values()
+                                        ->implode(', ');
+                                @endphp
+                                <div class="small text-muted mt-1">Also linked: {{ $linkedLabels }}</div>
+                                @endif
                             </td>
 
                             <!-- Display Columns -->

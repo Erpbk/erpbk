@@ -19,6 +19,25 @@ class AgreementSettingsModuleAssignmentTest extends TestCase
         $this->assertFalse($validator->fails());
     }
 
+    public function test_validation_accepts_general_module(): void
+    {
+        $keys = ['general', 'riders', 'employees'];
+        $validator = Validator::make(
+            ['assigned_modules' => 'general'],
+            ['assigned_modules' => ['required', 'string', Rule::in($keys)]]
+        );
+
+        $this->assertFalse($validator->fails());
+    }
+
+    public function test_create_view_offers_general_module(): void
+    {
+        $blade = file_get_contents(resource_path('views/settings/agreements/create.blade.php'));
+
+        $this->assertStringContainsString('Choose <strong>General</strong>', $blade);
+        $this->assertStringContainsString('system placeholders', $blade);
+    }
+
     public function test_validation_rejects_multiple_modules_array(): void
     {
         $keys = ['riders', 'employees'];

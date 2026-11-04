@@ -41,7 +41,7 @@
                         <div class="text-center p-3 border rounded-4">
                             <i class="fa fa-coins fa-2x text-success mb-2"></i>
                             <h5 class="mb-0 fw-bold">{{ number_format($totalValue, 2) }}</h5>
-                            <small class="text-muted">Total Value (AED)</small>
+                            <small class="text-muted">Total Value ({{ \App\Helpers\Currency::code() }})</small>
                         </div>
                     </div>
                     <div class="col-md-3 col-6">
@@ -185,11 +185,11 @@
                                     </div>
                                     <div class="d-flex justify-content-between mb-2">
                                         <small class="text-muted">Unit Cost:</small>
-                                        <strong>{{ number_format($purchase->unit_cost, 2) }} AED</strong>
+                                        <strong>{{ \App\Helpers\Currency::format($purchase->unit_cost) }}</strong>
                                     </div>
                                     <div class="d-flex justify-content-between">
                                         <small class="text-muted">Total Cost:</small>
-                                        <strong class="text-primary">{{ number_format($purchase->quantity * $purchase->unit_cost, 2) }} AED</strong>
+                                        <strong class="text-primary">{{ \App\Helpers\Currency::format($purchase->quantity * $purchase->unit_cost) }}</strong>
                                     </div>
                                 </div>
                             </div>

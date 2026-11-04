@@ -476,11 +476,11 @@
                         <table class="no-border" style="width: 100%; margin: 0;">
                             <tr class="no-border">
                                 <td class="no-border inv-label" style="text-align: right; padding-right: 12px; width: 45%;">From</td>
-                                <td class="no-border">{{ \Carbon\Carbon::parse($fromMonth . '-01')->format('M Y') }}</td>
+                                <td class="no-border">{{ \Carbon\Carbon::parse($fromMonth . '-01')->format('M-Y') }}</td>
                             </tr>
                             <tr class="no-border">
                                 <td class="no-border inv-label" style="text-align: right; padding-right: 12px;">To</td>
-                                <td class="no-border">{{ \Carbon\Carbon::parse($toMonth . '-01')->format('M Y') }}</td>
+                                <td class="no-border">{{ \Carbon\Carbon::parse($toMonth . '-01')->format('M-Y') }}</td>
                             </tr>
                             <tr class="no-border">
                                 <td class="no-border inv-label" style="text-align: right; padding-right: 12px;">Generated</td>

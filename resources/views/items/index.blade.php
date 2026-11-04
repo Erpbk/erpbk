@@ -67,6 +67,7 @@
                         <option value="">Select</option>
                         <option value="customer">Customer</option>
                         <option value="leasingCompany">Leasing Company</option>
+                        <option value="sim">SIM</option>
                         <option value="supplier">Supplier</option>
                         <option value="garage">Garage</option>
                         <option value="rider">Rider</option>

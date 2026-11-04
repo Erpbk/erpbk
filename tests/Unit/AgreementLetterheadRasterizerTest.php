@@ -47,6 +47,68 @@ class AgreementLetterheadRasterizerTest extends TestCase
         }
     }
 
+    public function test_default_html_header_renders_company_logo_and_contact(): void
+    {
+        $header = $this->app->make(\App\Services\Agreements\AgreementLetterheadPdfPainter::class)
+            ->defaultHtmlHeader(new \App\Models\AgreementCategory([
+                'letterhead_mode' => 'default',
+                'company_id' => 1,
+            ]));
+
+        $this->assertNotNull($header);
+        $this->assertTrue(
+            str_contains($header, 'company-logo-img') || str_contains($header, 'company-logo-fallback')
+        );
+        $this->assertStringNotContainsString('letterhead-overlay--fixed', $header);
+        if (str_contains($header, '@')) {
+            $this->assertDoesNotMatchRegularExpression('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', $header);
+        }
+
+        $none = $this->app->make(\App\Services\Agreements\AgreementLetterheadPdfPainter::class)
+            ->defaultHtmlHeader(new \App\Models\AgreementCategory([
+                'letterhead_mode' => 'none',
+            ]));
+        $this->assertNull($none);
+    }
+
+    public function test_page_header_shows_company_name_left_aligned_not_email(): void
+    {
+        $html = view('agreements.pdf.partials.page-header', [
+            'branding' => [
+                'name' => 'Fast Delivery',
+                'email' => 'office@example.com',
+                'phone' => '0500000000',
+                'address' => 'Corniche',
+                'city' => 'Abu Dhabi',
+                'country' => 'UAE',
+                'secondary_color' => '#2563eb',
+            ],
+        ])->render();
+
+        $this->assertStringContainsString('Fast Delivery', $html);
+        $this->assertStringContainsString('page-header-name', $html);
+        $this->assertStringContainsString('0500000000', $html);
+        $this->assertStringNotContainsString('office@example.com', $html);
+        $this->assertStringNotContainsString('text-align: right', $html);
+    }
+
+    public function test_prepared_mpdf_logo_uses_fixed_letterhead_box(): void
+    {
+        $branding = $this->app->make(\App\Services\Agreements\AgreementPdfBranding::class);
+        $logo = $branding->preparedMpdfLogo(1);
+        if ($logo === null || ! is_readable($logo['src'])) {
+            $this->markTestSkipped('Company 1 has no readable logo on disk');
+        }
+
+        $box = $branding->letterheadLogoBoxPx();
+        $this->assertLessThanOrEqual($box['width'], $logo['width_px']);
+        $this->assertLessThanOrEqual($box['height'], $logo['height_px']);
+        $this->assertTrue(
+            $logo['width_px'] === $box['width'] || $logo['height_px'] === $box['height'],
+            'Fitted logo should use the full letterhead plate on at least one axis'
+        );
+    }
+
     public function test_page_chrome_uses_uploaded_design_instead_of_company_header(): void
     {
         $withDesign = view('agreements.pdf.partials.page-chrome', [

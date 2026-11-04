@@ -19,12 +19,12 @@
          @foreach($invoices as $invoice)
          <tr class="text-center">
             <td>
-               <a href="javascript:void(0);" data-action="{{ route('customer_invoices.show', $invoice) }}" class="show-modal-right">
+               <a href="javascript:void(0);" data-action="{{ route('customer_invoices.show', $invoice) }}" data-size="xl" class="show-modal-right">
                   {{ $invoice->invoice_number ?? '-' }}
                </a>
          </td>
             <td>{{ \Carbon\Carbon::parse($invoice->inv_date)->format('d M Y') }}</td>
-            <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}</td>
+            <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M-Y') }}</td>
             <td>{{ $invoice->Customer->name ?? '-' }}</td>
             <td>{{ \App\Helpers\Currency::format($invoice->subtotal ?? 0) }}</td>
             <td>{{ \App\Helpers\Currency::format($invoice->vat ?? 0) }}</td>
@@ -39,13 +39,13 @@
                @endif
             </td>
             <td>
-               @if($invoice->status == 'paid')
-                  <span class="badge bg-success">Paid</span>
-               @elseif($invoice->status == 'partially_paid')
-                  <span class="badge bg-warning">Partially Paid</span>
+               @if($invoice->status == 'paid' || (int) $invoice->status === 1)
+                  @include('invoices.partials.status_badge', ['status' => 'paid'])
+               @elseif($invoice->status == 'partially_paid' || (int) $invoice->status === 3)
+                  @include('invoices.partials.status_badge', ['status' => 'partial'])
                   <small>({{ \App\Helpers\Currency::format(($invoice->total - array_sum($invoice->partial_paid_amount ?? []))) }} due)</small>
                @else
-                  <span class="badge bg-secondary">Unpaid</span>
+                  @include('invoices.partials.status_badge', ['status' => 'unpaid'])
                @endif
             </td>
             <td>
@@ -84,23 +84,3 @@
 @if(method_exists($invoices, 'links'))
 {!! $invoices->links('components.global-pagination') !!}
 @endif
-@section('page-script')
-<script>
-    $('#dataTableBuilder').DataTable({
-        "paging": true, // Enable DataTables pagination
-        "pageLength": 50, // Items per page
-        "searching": true, // Enable search
-        "ordering": false, // Enable column sorting
-        "info": true, // Show "Showing X of Y entries"
-        "autoWidth": true, // Better column width handling
-        "dom": "<'row'<'col-md-12'tr>>" +
-            "<'row mt-2'<'col-md-6'i><'col-md-6 d-flex justify-content-end'p>>",
-        "language": {
-            "emptyTable": "No invoices found."
-        }
-    });
-    $('#quickSearch').on('keyup change', function() {
-        $('#dataTableBuilder').DataTable().search(this.value).draw();
-    });
-</script>
-@endsection

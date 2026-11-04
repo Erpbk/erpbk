@@ -3,7 +3,20 @@
 @section('title', 'Employee Profile')
 
 @section('content')
+@include('partials.entity_profile_styles')
+<link rel="stylesheet" href="{{ asset('css/employees-demo.css') }}?v=20261102notes">
+@if(isset($employee) && !request()->routeIs('employees.edit') && !request()->routeIs('employees.create'))
+  <a href="{{ route('employees.index') }}" class="emp-back ghost-back">‹ Back to Employees</a>
+@endif
 <style>
+  .emp-back.ghost-back {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 34px; padding: 0 12px; margin: 0 0 12px;
+    border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;
+    color: #3A4256; font: 500 13px Inter, system-ui, sans-serif;
+    text-decoration: none !important;
+  }
+  .emp-back.ghost-back:hover { background: #F7F8FB; color: #1e1ec8; border-color: #c7d2fe; }
   .myform .required:after {
     content: " *";
     color: red;
@@ -16,164 +29,213 @@
     }
   }
 
-  /* Status Cards Styling */
-  .status-card {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border: 2px solid #dee2e6;
-    border-radius: 12px;
-    padding: 16px;
-    min-width: 180px;
-    flex: 1;
-    max-width: 220px;
-    transition: all 0.3s ease;
-    position: relative;
+  /* Status cards — matches rider profile (after shared styles so these win) */
+  .entity-view-card #employee-status-cards {
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid #eef0f3;
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.85rem;
+    grid-template-columns: none !important;
+  }
+
+  .entity-view-card #employee-status-cards .employee-status-group {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .entity-view-card #employee-status-cards .employee-status-group-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 0.4rem;
+    padding-left: 0.1rem;
+  }
+
+  .entity-view-card #employee-status-cards .employee-status-group-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+  }
+
+  .entity-view-card #employee-status-cards .status-card {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    flex: unset;
+    padding: 0 !important;
+    background: #f8fafc;
+    border: 1px solid #e8edf3;
+    border-radius: 0.65rem;
+    box-shadow: none;
+    color: #1e293b;
     overflow: hidden;
+    cursor: pointer;
   }
 
-  .status-card.active-success {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    border-color: #28a745;
-    color: white;
+  .entity-view-card #employee-status-cards .status-card-main {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.65rem 0.7rem;
+    min-height: 2.75rem;
   }
 
-  .status-card.active-info {
-    background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
-    border-color: #17a2b8;
-    color: white;
+  .entity-view-card #employee-status-cards .status-card:hover {
+    background: #fff;
+    border-color: #c5d0de;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
   }
 
-  .status-card.active-danger {
-    background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
-    border-color: #dc3545;
-    color: white;
+  .entity-view-card #employee-status-cards .status-card.active,
+  .entity-view-card #employee-status-cards .status-card.active-success,
+  .entity-view-card #employee-status-cards .status-card.active-info,
+  .entity-view-card #employee-status-cards .status-card.active-danger {
+    background: linear-gradient(135deg, #1e4b8e 0%, #2a5fa8 100%);
+    border-color: #1e4b8e;
+    box-shadow: 0 4px 12px rgba(30, 75, 142, 0.22);
+    color: #fff;
   }
 
-  .status-card .status-icon {
+  .entity-view-card #employee-status-cards .status-icon {
+    flex: 0 0 1.85rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    font-size: 20px;
+    width: 1.85rem;
+    height: 1.85rem;
+    font-size: 0.9rem;
+    margin-bottom: 0;
+    border-radius: 0.45rem;
+    background: #fff;
+    color: #64748b;
+    border: 1px solid #e8edf3;
   }
 
-  .status-card.active-success .status-icon,
-  .status-card.active-info .status-icon,
-  .status-card.active-danger .status-icon {
-    background: rgba(255, 255, 255, 0.3);
+  .entity-view-card #employee-status-cards .status-card.active .status-icon,
+  .entity-view-card #employee-status-cards .status-card.active-success .status-icon,
+  .entity-view-card #employee-status-cards .status-card.active-info .status-icon,
+  .entity-view-card #employee-status-cards .status-card.active-danger .status-icon {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.28);
+    color: #fff;
   }
 
-  .status-card .status-content {
-    flex: 1;
+  .entity-view-card #employee-status-cards .status-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-bottom: 0;
   }
 
-  .status-card .status-title {
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: #495057;
+  .entity-view-card #employee-status-cards .status-title {
+    font-size: 0.78rem;
+    font-weight: 650;
+    line-height: 1.25;
+    color: #1e293b;
+    margin-bottom: 0.05rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .status-card.active-success .status-title,
-  .status-card.active-info .status-title,
-  .status-card.active-danger .status-title {
-    color: white;
-  }
-
-  .status-card .status-subtitle {
-    font-size: 12px;
-    color: #6c757d;
+  .entity-view-card #employee-status-cards .status-subtitle {
+    font-size: 0.65rem;
     font-weight: 500;
+    color: #94a3b8;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .status-card.active-success .status-subtitle,
-  .status-card.active-info .status-subtitle,
-  .status-card.active-danger .status-subtitle {
-    color: rgba(255, 255, 255, 0.9);
+  .entity-view-card #employee-status-cards .status-card.active .status-title,
+  .entity-view-card #employee-status-cards .status-card.active-success .status-title,
+  .entity-view-card #employee-status-cards .status-card.active-info .status-title,
+  .entity-view-card #employee-status-cards .status-card.active-danger .status-title {
+    color: #fff;
   }
 
-  .status-options {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  .entity-view-card #employee-status-cards .status-card.active .status-subtitle,
+  .entity-view-card #employee-status-cards .status-card.active-success .status-subtitle,
+  .entity-view-card #employee-status-cards .status-card.active-info .status-subtitle,
+  .entity-view-card #employee-status-cards .status-card.active-danger .status-subtitle {
+    color: rgba(255, 255, 255, 0.75);
   }
 
-  .status-option {
-    padding: 4px 0;
-  }
-
-  .status-option span {
-    font-size: 13px;
-    font-weight: 500;
-  }
-
-  .status-card.active-success .status-option span,
-  .status-card.active-info .status-option span,
-  .status-card.active-danger .status-option span {
-    color: white;
-  }
-
-  .status-toggle {
+  .entity-view-card #employee-status-cards .status-toggle {
+    flex: 0 0 auto;
+    margin: 0;
     display: flex;
     align-items: center;
   }
 
-  .status-radio {
+  .entity-view-card #employee-status-cards .status-radio,
+  .entity-view-card #employee-status-cards .employee-top-option-checkbox {
     display: none;
   }
 
-  .toggle-switch {
+  .entity-view-card #employee-status-cards .toggle-switch {
     position: relative;
-    width: 40px;
-    height: 20px;
-    background: #ccc;
-    border-radius: 10px;
+    width: 34px;
+    height: 18px;
+    background: #dbe3ee;
+    border-radius: 999px;
     cursor: pointer;
-    transition: background 0.3s ease;
     display: inline-block;
+    transition: background 0.2s ease;
   }
 
-  .toggle-switch::after {
-    content: '';
+  .entity-view-card #employee-status-cards .toggle-switch::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .entity-view-card #employee-status-cards .toggle-slider {
     position: absolute;
     top: 2px;
     left: 2px;
-    width: 16px;
-    height: 16px;
-    background: white;
+    width: 14px;
+    height: 14px;
+    background: #fff;
     border-radius: 50%;
-    transition: transform 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+    transition: transform 0.2s ease;
   }
 
-  .status-radio:checked+.toggle-switch::after {
-    transform: translateX(20px);
+  .entity-view-card #employee-status-cards .status-radio:checked+.toggle-switch,
+  .entity-view-card #employee-status-cards .employee-top-option-checkbox:checked+.toggle-switch {
+    background: rgba(255, 255, 255, 0.9);
   }
 
-  .status-radio-active:checked+.toggle-switch {
-    background: #28a745;
+  .entity-view-card #employee-status-cards .status-radio:checked+.toggle-switch .toggle-slider,
+  .entity-view-card #employee-status-cards .employee-top-option-checkbox:checked+.toggle-switch .toggle-slider {
+    background: #1e4b8e;
+    transform: translateX(16px);
   }
 
-  .status-radio-leave:checked+.toggle-switch {
-    background: #17a2b8;
+  .entity-view-card #employee-status-cards .status-card:not(.active) .status-radio:checked+.toggle-switch,
+  .entity-view-card #employee-status-cards .status-card:not(.active) .employee-top-option-checkbox:checked+.toggle-switch {
+    background: #1e4b8e;
   }
 
-  .status-radio-inactive:checked+.toggle-switch {
-    background: #dc3545;
+  .entity-view-card #employee-status-cards .status-card:not(.active) .status-radio:checked+.toggle-switch .toggle-slider,
+  .entity-view-card #employee-status-cards .status-card:not(.active) .employee-top-option-checkbox:checked+.toggle-switch .toggle-slider {
+    background: #fff;
   }
 
-  .status-card.loading {
+  .entity-view-card #employee-status-cards .status-card.loading {
     opacity: 0.7;
     pointer-events: none;
   }
 
-  .status-card.loading .toggle-switch {
-    animation: pulse 1s infinite;
+  .entity-view-card #employee-status-cards .status-card.loading .toggle-switch {
+    animation: emp-status-pulse 1s infinite;
   }
 
-  @keyframes pulse {
+  @keyframes emp-status-pulse {
     0% {
       opacity: 1;
     }
@@ -187,69 +249,16 @@
     }
   }
 
-  /* Responsive design */
-  @media (max-width: 768px) {
-    .status-card {
-      min-width: 150px;
-      max-width: 180px;
-      padding: 12px;
-      flex: 1;
-    }
-
-    .status-title {
-      font-size: 14px;
-    }
-
-    .status-subtitle {
-      font-size: 11px;
-    }
+  .entity-view-card .user_list_content .is-whatsapp,
+  .entity-view-card .user_list_content .is-whatsapp a {
+    color: #16a34a;
   }
 
-  @media (max-width: 576px) {
-    .status-card {
-      min-width: 140px;
-      max-width: 160px;
-      padding: 10px;
-    }
-
-    .status-title {
-      font-size: 13px;
-    }
-
-    .status-subtitle {
-      font-size: 10px;
-    }
-
-    .status-icon {
-      width: 35px;
-      height: 35px;
-      font-size: 18px;
-    }
-  }
-
-  .info-container .user_list {
-    align-items: flex-start;
-  }
-
-  .info-container .user_list .icons {
-    flex-shrink: 0;
-  }
-
-  .info-container .user_list_content {
-    flex: 1;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-  }
-
-  .info-container .user_list_content b {
-    display: block;
-    float: none;
-    margin-top: 2px;
+  .entity-view-card .user_list_content .is-phone,
+  .entity-view-card .user_list_content .is-phone a {
+    color: #2f6fed;
   }
 </style>
-@include('partials.entity_profile_styles')
-
 @php
 $employee = $employee ?? null;
 if ($employee && !isset($result)) {
@@ -277,47 +286,97 @@ return $category;
 }
 $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : 'active';
 $employeeStatusLabel = match ($currentStatus) {
-  'on_leave' => 'On Leave',
-  'inactive' => 'Inactive',
-  default => isset($employee) ? 'Active' : 'New',
+'on_leave' => 'On Leave',
+'inactive' => 'Inactive',
+default => isset($employee) ? 'Active' : 'New',
 };
 $employeeStatusClass = $currentStatus === 'on_leave' ? 'is-vacation' : ($currentStatus === 'inactive' || !isset($employee) ? 'is-inactive' : '');
 $employeeExpiry = isset($employee)
-  ? \App\Support\EntityExpiry::countsFor('employee', $employee)
-  : ['info_expired' => 0, 'info_expiring' => 0, 'files_expired' => 0, 'files_expiring' => 0];
+? \App\Support\EntityExpiry::countsFor('employee', $employee)
+: ['info_expired' => 0, 'info_expiring' => 0, 'files_expired' => 0, 'files_expiring' => 0];
 if (isset($employee)) {
-  $profile = company_table('files')
-    ->where('type', 'employee')
-    ->where('type_id', $employee->id)
-    ->where(function ($query) {
-      $query->where('name', 'LIKE', '%photo%')
-        ->orWhere('name', 'LIKE', '%Photo%')
-        ->orWhere('name', 'LIKE', '%picture%')
-        ->orWhere('name', 'LIKE', '%Picture%')
-        ->orWhere('name', 'LIKE', '%profile%')
-        ->orWhere('name', 'LIKE', '%Profile%');
-    })
-    ->first();
-  if ($employee->profile_image) {
-    $image_name = $employee->profile_image_url;
-  } elseif (isset($profile)) {
-    $image_name = storage_url($profile->type . '/' . $profile->type_id . '/' . $profile->file_name);
-  } else {
-    $image_name = asset('uploads/default.png');
-  }
+$profile = company_table('files')
+->where('type', 'employee')
+->where('type_id', $employee->id)
+->where(function ($query) {
+$query->where('name', 'LIKE', '%photo%')
+->orWhere('name', 'LIKE', '%Photo%')
+->orWhere('name', 'LIKE', '%picture%')
+->orWhere('name', 'LIKE', '%Picture%')
+->orWhere('name', 'LIKE', '%profile%')
+->orWhere('name', 'LIKE', '%Profile%');
+})
+->first();
+if ($employee->profile_image) {
+$image_name = $employee->profile_image_url;
+} elseif (isset($profile)) {
+$image_name = storage_url($profile->type . '/' . $profile->type_id . '/' . $profile->file_name);
 } else {
-  $image_name = asset('uploads/default.png');
+$image_name = asset('uploads/default.png');
+}
+} else {
+$image_name = asset('uploads/default.png');
 }
 $whatsappHtml = 'N/A';
 if ($employee?->company_contact) {
-  $phone = preg_replace('/[^0-9]/', '', $employee->company_contact);
-  $whatsappNumber = '+971' . ltrim($phone, '0');
-  $whatsappHtml = '<a href="https://wa.me/' . $whatsappNumber . '" target="_blank" class="text-success">' . e($employee->company_contact) . '</a>';
+$phone = preg_replace('/[^0-9]/', '', $employee->company_contact);
+$whatsappNumber = '+971' . ltrim($phone, '0');
+$whatsappHtml = '<a href="https://wa.me/' . $whatsappNumber . '" target="_blank">' . e($employee->company_contact) . '</a>';
+}
+$cardPhone = $employee?->personal_contact ?? $employee?->company_contact ?? null;
+$cardEmail = $employee?->company_email ?? $employee?->personal_email ?? null;
+$cardNationality = $employee?->nationality?->name ?? null;
+$cardDob = !empty($employee?->dob) ? \App\Helpers\General::DateFormat($employee->dob) : null;
+$cardAge = null;
+if (!empty($employee?->dob)) {
+try {
+$dobDate = $employee->dob instanceof \Carbon\CarbonInterface
+? $employee->dob->copy()->startOfDay()
+: null;
+if (! $dobDate) {
+$dobRaw = trim((string) $employee->dob);
+if ($dobRaw !== '' && $dobRaw !== '0000-00-00') {
+if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dobRaw)) {
+$dobDate = \Carbon\Carbon::createFromFormat('Y-m-d', substr($dobRaw, 0, 10))->startOfDay();
+} elseif (preg_match('/^\d{2}-\d{2}-\d{4}$/', $dobRaw)) {
+$dobDate = \Carbon\Carbon::createFromFormat('d-m-Y', $dobRaw)->startOfDay();
+} elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $dobRaw)) {
+$dobDate = \Carbon\Carbon::createFromFormat('d/m/Y', $dobRaw)->startOfDay();
+} else {
+$dobDate = \Carbon\Carbon::parse($dobRaw)->startOfDay();
+}
+}
+}
+if ($dobDate && $dobDate->isValid() && ! $dobDate->isFuture()) {
+$years = (int) $dobDate->age;
+$cardAge = $years . ($years === 1 ? ' Year' : ' Years');
+}
+} catch (\Throwable $e) {
+$cardAge = null;
+}
+}
+$cardDoj = !empty($employee?->doj) ? \App\Helpers\General::DateFormat($employee->doj) : null;
+$cardAddress = trim((string) ($employee?->address ?? ''));
+if ($cardAddress === '') {
+$cardAddress = null;
 }
 @endphp
 
-<div class="row">
-  <div class="col-xl-3 col-md-5 col-lg-5 order-1 order-md-0">
+@php
+  $employeeBalance = (isset($account) && $account)
+    ? (App\Helpers\Accounts::getBalance($account->id) . ' ' . \App\Helpers\Currency::code())
+    : ('0.00 ' . \App\Helpers\Currency::code());
+  $employeeBalanceHtml = isset($employee)
+    ? '<a href="' . e(route('employee.ledger', $employee->id)) . '">' . e($employeeBalance) . '</a>'
+    : e($employeeBalance);
+  $dash = '—';
+  $branchLabel = $employee?->branch
+    ? trim($employee->branch->name . (isset($employee->branch->code) ? ' (' . $employee->branch->code . ')' : ''))
+    : $dash;
+  $isEmpShowChrome = isset($employee) && ! request()->routeIs(['employees.edit', 'employees.create']);
+@endphp
+<div class="emp-demo {{ $isEmpShowChrome ? 'emp-prof' : 'row mb-5' }}">
+  <div class="{{ $isEmpShowChrome ? 'emp-prof-side' : 'col-xl-3 col-md-5 col-lg-5 order-1 order-md-0' }}">
     <x-entity-profile-card
       icon="ti ti-user"
       :photo="$image_name"
@@ -327,9 +386,10 @@ if ($employee?->company_contact) {
       status-id="employee-status-value-badge"
       name-id="employee-profile-name"
       :name="$employee?->name ?? 'New Employee'"
-      :subtitle="$employee?->employee_id ?? ($empId ?? 'not-set')"
+      :subtitle="$employee?->employee_id ?? ($empId ?? '—')"
+      :edit-href="null"
       edit-title="Edit Employee Details"
-    >
+      section-title="Basic Information">
       <x-slot name="photoAction">
         @if(isset($employee))
         <button type="button" class="entity-view-card-camera" id="employee-photo-edit-btn" title="Change photo" aria-label="Change photo">
@@ -338,7 +398,7 @@ if ($employee?->company_contact) {
         @endif
       </x-slot>
       <x-slot name="meta">
-        <span class="badge bg-label-primary mt-2" id="employee-designation-badge">{{ $employee?->designation ?? 'Not Set' }}</span>
+        <span class="badge bg-label-primary mt-2" id="employee-designation-badge">{{ $employee?->designation ?: '—' }}</span>
       </x-slot>
       <x-slot name="afterHero">
         @if(isset($employee))
@@ -358,25 +418,31 @@ if ($employee?->company_contact) {
         </div>
         @endif
       </x-slot>
-      <x-entity-profile-info-row icon="ti ti-mail" label="Company Email" :value="$employee?->company_email" field-key="company_email" />
-      <x-entity-profile-info-row icon="ti ti-phone" label="WhatsApp" :value="$whatsappHtml" :html="true" field-key="company_contact_html" />
-      <x-entity-profile-info-row icon="ti ti-flag" label="Nationality" :value="$employee?->nationality?->name" field-key="nationality" />
-      <x-entity-profile-info-row icon="ti ti-cake" label="Age" :value="$employee?->dob ? \Carbon\Carbon::parse($employee->dob)->age : null" field-key="age" />
-      <x-entity-profile-info-row icon="ti ti-calendar-due" label="Date of Joining" :value="$employee?->doj ? \Carbon\Carbon::parse($employee->doj)->format('d M Y') : null" field-key="doj" />
-      <x-entity-profile-info-row icon="ti ti-cash-banknote" label="Balance" :value="(isset($account) && $account) ? (App\Helpers\Accounts::getBalance($account->id) . ' ' . \App\Helpers\Currency::code()) : ('0.00 ' . \App\Helpers\Currency::code())" />
+      {{-- HTML demo Basic Information set --}}
+      <x-entity-profile-info-row icon="ti ti-phone" label="Phone" :value="$cardPhone ?: $dash" field-key="personal_contact" value-class="is-phone" />
+      <x-entity-profile-info-row icon="ti ti-brand-whatsapp" label="WhatsApp" :value="$whatsappHtml === 'N/A' ? $dash : $whatsappHtml" :html="$whatsappHtml !== 'N/A'" field-key="company_contact_html" value-class="is-whatsapp" />
+      <x-entity-profile-info-row icon="ti ti-mail" label="Email" :value="$cardEmail ?: $dash" field-key="company_email" />
+      <x-entity-profile-info-row icon="ti ti-briefcase" label="Department" :value="$employee?->department?->name ?: $dash" field-key="department" />
+      <x-entity-profile-info-row icon="ti ti-building" label="Branch" :value="$branchLabel" field-key="branch" />
+      <x-entity-profile-info-row icon="ti ti-cash-banknote" label="Balance" :value="$employeeBalanceHtml" :html="true" />
+      @unless($isEmpShowChrome)
       <x-entity-profile-info-row icon="ti ti-cash" label="Salary" :value="number_format($employee?->salary ?? 0, 2) . ' ' . \App\Helpers\Currency::code()" field-key="salary" />
+      <x-entity-profile-info-row icon="ti ti-flag" label="Nationality" :value="$cardNationality" field-key="nationality" />
+      <x-entity-profile-info-row icon="ti ti-calendar" label="Date of Birth" :value="$cardDob" field-key="dob" />
+      <x-entity-profile-info-row icon="ti ti-cake" label="Age" :value="$cardAge" field-key="age" />
+      <x-entity-profile-info-row icon="ti ti-calendar-due" label="Date of Joining" :value="$cardDoj" field-key="doj" />
       <x-entity-profile-info-row icon="ti ti-id" label="Emirates ID" :value="$employee?->emirate_id" field-key="emirate_id" />
-      <x-entity-profile-info-row icon="ti ti-building" label="Department" :value="$employee?->department?->name ?? $employee?->department_id" field-key="department" />
-      <x-entity-profile-info-row icon="ti ti-briefcase" label="Branch" :value="$employee?->branch?->name" field-key="branch" />
       <x-slot name="footer">
         @if(isset($employee))
         @include('employees._status_cards', ['employee' => $employee, 'employeeTopViewCategories' => $employeeTopViewCategories])
         @endif
       </x-slot>
+      @endunless
     </x-entity-profile-card>
   </div>
 
-  <div class="col-xl-9 col-md-7 col-lg-7 order-0 order-md-1 position-relative">
+  <div class="{{ $isEmpShowChrome ? 'emp-prof-main' : 'col-xl-9 col-md-7 col-lg-7 order-0 order-md-1 position-relative' }}">
+    <div class="{{ $isEmpShowChrome ? 'emp-prof-main-stack' : '' }}">
     <x-entity-profile-tabs>
       <li class="nav-item nav-priority-1">
         <a class="nav-link @if(request()->routeIs('employees.show') || request()->routeIs('employees.edit') || request()->routeIs('employees.create')) active @endif"
@@ -388,7 +454,7 @@ if ($employee?->company_contact) {
       @if(isset($employee))
       @can('employees_document_view')
       <li class="nav-item nav-priority-2">
-        <a class="nav-link @if(request()->segment(5) == 'files') active @endif"
+        <a class="nav-link @if(request()->routeIs('employee.files')) active @endif"
           href="{{ route('employee.files', $employee->id) }}">
           <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
           @include('riders._document_status_badges', ['expiredCount' => $employeeExpiry['files_expired'], 'expiringCount' => $employeeExpiry['files_expiring']])
@@ -403,33 +469,42 @@ if ($employee?->company_contact) {
         </a>
       </li>
       @endcan
+      @can('employees_invoice_view')
+      <li class="nav-item nav-priority-3b">
+        <a class="nav-link @if(request()->routeIs('employee.invoices')) active @endif"
+          href="{{ route('employee.invoices', $employee->id) }}">
+          <i class="ti ti-file-invoice ti-sm me-1_5"></i>Invoices
+        </a>
+      </li>
+      @endcan
       <li class="nav-item nav-priority-4">
-        <a class="nav-link @if(request()->segment(5) == 'salary') active @endif"
+        <a class="nav-link @if(request()->routeIs('employee.salary')) active @endif"
           href="{{ route('employee.salary', $employee->id) }}">
           <i class="ti ti-cash-banknote ti-sm me-1"></i>Salary
         </a>
       </li>
       @can('employees_attendance_view')
       <li class="nav-item nav-priority-5">
-        <a class="nav-link @if(request()->segment(5) == 'attendance') active @endif"
+        <a class="nav-link @if(request()->routeIs('employee.attendance')) active @endif"
           href="{{ route('employee.attendance', $employee->id) }}">
-          <i class="ti ti-activity-heartbeat ti-sm me-1_5"></i>Activities
+          <i class="ti ti-calendar-check ti-sm me-1_5"></i>Attendance
         </a>
       </li>
       @endcan
       <li class="nav-item nav-priority-7">
         <a class="nav-link @if(request()->routeIs('employee.history')) active @endif"
           href="{{ route('employee.history', $employee->id) }}">
-          <i class="ti ti-history ti-sm me-1_5"></i>Employee history
+          <i class="ti ti-history ti-sm me-1_5"></i>History
         </a>
       </li>
-      @can('employees_voucher_view')
-      <li class="nav-item nav-priority-8 nav-action-item">
+      @can('email_create')
+      <li class="nav-item nav-priority-7b">
         <a href="javascript:void(0);"
-          data-action="{{ route('employees.voucher', $employee->id) }}"
-          data-size="xl" data-title="Voucher"
-          class='nav-link show-modal'>
-          <i class="ti ti-file-invoice ti-sm me-1_5"></i>Voucher
+          data-action="{{ route('employee.sendemail', ['company_slug' => request()->route('company_slug'), 'id' => $employee->id]) }}"
+          data-size="md"
+          data-title="{{ ($employee->name ?? 'Employee') . ' (' . ($employee->employee_id ?? '') . ')' }}"
+          class="nav-link show-modal">
+          <i class="ti ti-mail ti-sm me-1_5"></i>Emails
         </a>
       </li>
       @endcan
@@ -440,6 +515,7 @@ if ($employee?->company_contact) {
       @yield('page_content')
       @yield('page-content')
     </div>
+    </div>{{-- /.emp-prof-main-stack --}}
   </div>
 </div>
 @include('partials.entity_profile_nav_script')
@@ -456,6 +532,7 @@ if ($employee?->company_contact) {
         image.src = URL.createObjectURL(event.target.files[0]);
       }
     };
+
     function refreshEmployeeSidebar(emp) {
       if (!emp) return;
       const nameEl = document.getElementById('employee-profile-name');
@@ -610,12 +687,13 @@ if ($employee?->company_contact) {
         Object.keys(map).forEach((key) => {
           const card = document.getElementById(map[key]);
           const radio = card ? card.querySelector('input[name="employee_status_toggle"]') : null;
+          const subtitle = card ? card.querySelector('.status-subtitle') : null;
           if (!card) return;
           const isActive = activeStatus === key;
-          card.classList.toggle('active-success', key === 'active' && isActive);
-          card.classList.toggle('active-info', key === 'on_leave' && isActive);
-          card.classList.toggle('active-danger', key === 'inactive' && isActive);
+          card.classList.toggle('active', isActive);
+          card.classList.remove('active-success', 'active-info', 'active-danger');
           if (radio) radio.checked = isActive;
+          if (subtitle) subtitle.textContent = isActive ? 'Assigned' : 'Tap to set';
         });
         const badge = document.getElementById('employee-status-value-badge');
         if (badge) {
@@ -631,7 +709,11 @@ if ($employee?->company_contact) {
       function syncEmployeeTopOptionCards(column) {
         employeeStatusCards.querySelectorAll('.employee-top-option-card[data-column="' + column + '"]').forEach((c) => {
           const cb = c.querySelector('.employee-top-option-checkbox');
-          c.classList.toggle('active-success', !!(cb && cb.checked));
+          const subtitle = c.querySelector('.status-subtitle');
+          const isActive = !!(cb && cb.checked);
+          c.classList.toggle('active', isActive);
+          c.classList.remove('active-success', 'active-info', 'active-danger');
+          if (subtitle) subtitle.textContent = isActive ? 'Assigned' : 'Tap to set';
         });
       }
 

@@ -121,6 +121,8 @@ class BanksController extends AppBaseController
 
       //Adding Account and setting reference
       $parentId = \App\Support\GlobalAccounts::id('BANK');
+      $openingBalance = round((float) ($input['balance'] ?? $banks->balance ?? 0), 2);
+
       $account = new Accounts();
       $account->account_code = 'BK' . str_pad($banks->id, 4, "0", STR_PAD_LEFT);
       $account->account_type = 'Asset';
@@ -130,9 +132,15 @@ class BanksController extends AppBaseController
       $account->ref_id = $banks->id;
       $account->status = $banks->status;
       $account->branch_id = $banks->branch_id;
+      $account->opening_balance = $openingBalance;
+      $account->is_locked = true;
       $account->save();
       $banks->account_id = $account->id;
       $banks->save();
+
+      app(\App\Services\AccountOpeningBalanceJvService::class)
+        ->postForNewAccount($account, $openingBalance, $banks->branch_id ? (int) $banks->branch_id : null);
+
       DB::commit();
       if ($request->ajax()) {
         return response()->json([
@@ -207,7 +215,9 @@ class BanksController extends AppBaseController
 
     $banks = $this->banksRepository->update($request->all(), $id);
     if ($banks->account) {
-      $banks->account->status = $banks->status;
+      $banks->account->name = $banks->name;
+      $banks->account->status = (int) $banks->status;
+      $banks->account->branch_id = $banks->branch_id;
       $banks->account->save();
     }
 
@@ -236,13 +246,8 @@ class BanksController extends AppBaseController
       return delete_error_response('Bank not found!', route('banks.index'), 404);
     }
 
-    // Check if bank has transactions
-    $transactionCount = $banks->transactions()->count();
-    if ($transactionCount > 0) {
-      return delete_error_response(
-        'Cannot delete bank. Bank has ' . $transactionCount . ' transaction(s). Please deactivate instead.',
-        route('banks.index')
-      );
+    if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($banks), 'Bank')) {
+      return delete_error_response($blockReason, route('banks.index'));
     }
 
     // Track cascaded deletions
@@ -454,22 +459,36 @@ class BanksController extends AppBaseController
     $fundOut += $credit;
     $banks->update(['balance' => $balance]);
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Payment::query()->latest('id');
-    $query->where('bank_id', $id);
+    $query = Payment::query()
+      ->with(['payeeAccount', 'voucher', 'bank.account'])
+      ->latest('id')
+      ->where('bank_id', $id)
+      ->applyListFilters($request);
 
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
+
+    if ($request->ajax()) {
+      $tableData = view('payments.table', compact('data'))->render();
+
+      return response()->json([
+        'tableData' => $tableData,
+      ]);
+    }
+
     return view('banks.payments', ['data' => $data, 'banks' => $banks, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
   }
 
   public function cheques(Request $request, $company_slug, $id)
   {
+    \App\Support\ChequeClearEditGuard::markChequesModuleContext();
     $banks = Banks::find($id);
     $query = Cheques::query()->latest('issue_date');
     $query->where('bank_id', $id);
 
     // Apply pagination using the trait
     $data = $query->get();
+    Cheques::attachClearVouchersTo($data);
     return view('banks.cheques', compact('data', 'banks'));
   }
 }

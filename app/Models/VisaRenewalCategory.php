@@ -2,10 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+use App\Traits\TracksUserAttribution;
 
 class VisaRenewalCategory extends BaseModel
 {
+    use SoftDeletes, TracksUserAttribution;
+
     protected $fillable = [
         'name',
         'display_order',
@@ -13,6 +19,7 @@ class VisaRenewalCategory extends BaseModel
         'is_active',
         'created_by',
         'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [
@@ -26,8 +33,15 @@ class VisaRenewalCategory extends BaseModel
         return $this->hasMany(visa_expenses::class, 'renewal_category_id');
     }
 
-    public function visaStatuses(): HasMany
+    public function visaStatuses(): BelongsToMany
     {
-        return $this->hasMany(VisaStatus::class, 'visa_renewal_category_id');
+        return $this->belongsToMany(
+            VisaStatus::class,
+            'visa_renewal_category_visa_status',
+            'visa_renewal_category_id',
+            'visa_status_id'
+        )->withPivot('display_order')->withTimestamps()
+            ->orderByPivot('display_order')
+            ->orderBy('visa_statuses.name');
     }
 }

@@ -61,24 +61,23 @@
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             @can('accounts_coa_edit')
+                            @if(!($account->is_locked ?? false))
                             <li>
                                 <a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-size="lg" data-title="Edit Account">
                                     <i class="fa fa-edit me-2"></i> Edit
                                 </a>
                             </li>
-                            <li>
-                                <a class="dropdown-item toggle-lock" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleLock', ['company_slug' => $__companySlug, 'id' => $account->id]) }}">
-                                    <i class="fa fa-{{ $account->is_locked ? 'unlock' : 'lock' }} me-2"></i> {{ $account->is_locked ? 'Unlock' : 'Lock' }}
-                                </a>
-                            </li>
+                            @endif
                             @endcan
                             @can('accounts_coa_delete')
+                            @if(!($account->is_locked ?? false))
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <a class="dropdown-item text-danger delete-account" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.destroy', ['company_slug' => $__companySlug, 'id' => $account->id]) }}">
                                     <i class="fa fa-trash me-2"></i> Delete
                                 </a>
                             </li>
+                            @endif
                             @endcan
                         </ul>
                     </div>
@@ -113,27 +112,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.appendChild(form);
             form.submit();
         }
-    });
-
-    $(document).on('click', '.toggle-lock', function(e) {
-        e.preventDefault();
-        var url = $(this).data('url');
-        var $row = $(this).closest('tr');
-        $.post(url, { _token: '{{ csrf_token() }}' })
-            .done(function(res) {
-                if (res.success && res.icon) {
-                    var $link = $row.find('.toggle-lock');
-                    $link.find('i').attr('class', 'fa ' + res.icon + ' me-2');
-                    $link.text(res.is_locked ? ' Unlock' : ' Lock');
-                    var $nameCell = $row.find('.account-name-wrap');
-                    var $lockIcon = $nameCell.find('.fa-lock');
-                    if (res.is_locked && !$lockIcon.length) {
-                        $nameCell.find('.account-checkbox').first().after('<i class="fa fa-lock text-muted small" title="Locked"></i>');
-                    } else if (!res.is_locked) {
-                        $nameCell.find('.fa-lock').remove();
-                    }
-                }
-            });
     });
 });
 </script>

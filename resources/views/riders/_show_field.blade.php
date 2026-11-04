@@ -50,16 +50,38 @@ $docRider = $rider ?? $riders ?? null;
 $expiryBadge = ($item->kind === 'fixed' && $docRider instanceof \App\Models\Riders)
   ? \App\Support\RiderDocumentReplacement::expiryBadgeForField($docRider, (string) ($item->field_key ?? ''), $value)
   : null;
+$fieldType = $item->kind === 'fixed'
+  ? (string) ($spec['type'] ?? 'text')
+  : (string) ($item->field->data_type ?? 'text');
+$fieldLabel = (string) ($item->kind === 'fixed' ? ($item->label ?? '') : ($item->field->label ?? ''));
+$fieldKeyLower = strtolower((string) ($item->kind === 'fixed' ? ($item->field_key ?? '') : ''));
+$labelLower = strtolower($fieldLabel);
+$isReferenceField = $fieldKeyLower === 'rider_reference'
+  || str_contains($fieldKeyLower, 'rider_reference')
+  || str_contains($labelLower, 'reference of rider')
+  || $labelLower === 'reference rider'
+  || $labelLower === 'rider reference';
+$plainLength = mb_strlen(trim(strip_tags((string) $displayValue)));
+$isMultiline = $isReferenceField
+  || in_array($fieldType, ['textarea', 'text_area', 'longtext'], true)
+  || $plainLength > 64;
+$fieldClasses = 'rider-info-field';
+if ($isMultiline) {
+  $fieldClasses .= ' is-multiline';
+}
+if ($isReferenceField) {
+  $fieldClasses .= ' is-full-row';
+}
 @endphp
 @if (field_visible('rider', (string) $rfpField))
-<div class="col-md-3 form-group col-3 rider-info-field">
-  <label>{{ $item->kind === 'fixed' ? $item->label : $item->field->label }}</label>
-  <p class="mb-0">
+<div class="{{ $fieldClasses }}">
+  <label>{{ $fieldLabel }}</label>
+  <div class="rider-info-field-value">
     @if ($expiryBadge)
       @include('riders._document_expiry_badge', ['badge' => $expiryBadge])
     @else
       <span>{{ $displayValue }}</span>
     @endif
-  </p>
+  </div>
 </div>
 @endif

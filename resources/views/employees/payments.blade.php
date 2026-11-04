@@ -1,49 +1,70 @@
-@extends('layouts.app')
-@section('title', 'Employee Payments')
+@extends('layouts.app', ['hideModuleTopBarSlider' => true])
+@section('title', 'Payment Out Sent')
+@push('third_party_stylesheets')
+<link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
+<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
+<style>
+  .table-responsive { max-height: calc(100vh - 280px); }
+</style>
+@endpush
 @section('content')
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
-<section class="content-header">
-    <div class="px-2">
-        <div class="row mb-4">
-            <div class="col-sm-6 d-flex gap-2">
-            </div>
-            <div class="col-sm-6">
-            <div class="action-buttons d-flex justify-content-end">
-                <div class="action-dropdown-container">
-                    <button class="action-dropdown-btn" id="addBikeDropdownBtn">
-                        <i class="ti ti-plus"></i>
-                        <span>Add New</span>
-                        <i class="ti ti-chevron-down"></i>
-                    </button>
-                    <div class="action-dropdown-menu" id="addBikeDropdown">
-                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Employee Payment" data-action="{{ route('payments.create') }}?employee_payment=1">
-                            <i class="ti ti-plus"></i>
-                            <div>
-                                <div class="action-dropdown-item-text">New</div>
-                                <div class="action-dropdown-item-desc">Add a new Employee Payment</div>
-                            </div>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-<div class="contenst">
+@canany(['employees_payment_view', 'employees_payments_view', 'employees_payments_create'])
+<div class="riders-list-demo">
+  <div class="rl-wrap">
     @include('flash::message')
-    <div class="clearfix"></div>
+
+    <div class="rl-toolbar">
+      <div class="rl-tb-left">
+        <div class="rl-dd">
+          <button type="button" class="rl-btn" id="empPayActBtn" aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+            Payment Actions
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="rl-menu" id="empPayActMenu" hidden role="menu">
+            @can('employees_payments_create')
+            <a role="menuitem" class="show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Employee Payment" data-action="{{ route('payments.create') }}?employee_payment=1">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>
+              <span><strong>Salary Payment</strong><em>Record a payment against employee invoices</em></span>
+            </a>
+            @endcan
+          </div>
+        </div>
+        <a class="rl-btn" href="{{ route('employee.payment') }}">All Payments</a>
+      </div>
+    </div>
 
     <div class="card">
-        <div class="card-header d-flex justify-content-between">
-            <div class="card-search">
-                <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
-            </div>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Employee Payments</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          @include('payments.table')
         </div>
-        <div class="card-body table-responsive px-2 py-0" id="table-data">
-            @include('payments.table')
-        </div>
+      </div>
     </div>
+  </div>
 </div>
+<script>
+(function () {
+  var btn = document.getElementById('empPayActBtn');
+  var menu = document.getElementById('empPayActMenu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', function () {
+    var open = menu.hidden;
+    menu.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function (e) {
+    if (btn.contains(e.target) || menu.contains(e.target)) return;
+    menu.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+  });
+})();
+</script>
+@endcanany
 @endsection

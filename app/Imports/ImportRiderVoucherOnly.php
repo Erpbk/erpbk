@@ -7,10 +7,10 @@ use App\Models\Accounts;
 use App\Models\Riders;
 use App\Models\Vouchers;
 use App\Services\TransactionService;
+use App\Support\ExcelDate;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use Carbon\Carbon;
 use DB;
 
@@ -18,13 +18,7 @@ class ImportRiderVoucherOnly implements ToCollection
 {
     private function parseDate($value)
     {
-        if ($value === null || $value === '') {
-            return null;
-        }
-        if (is_numeric($value)) {
-            return Carbon::instance(ExcelDate::excelToDateTimeObject($value))->format('Y-m-d');
-        }
-        return Carbon::parse($value)->format('Y-m-d');
+        return ExcelDate::format($value);
     }
 
     public function collection(Collection $rows)

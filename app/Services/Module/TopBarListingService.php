@@ -3,14 +3,17 @@
 namespace App\Services\Module;
 
 use App\Models\Bikes;
+use App\Models\BikeTopOption;
 use App\Models\ErpModuleTopCategory;
 use App\Models\ErpModuleTopOption;
 use App\Models\Employee;
+use App\Models\LeasingCompanies;
 use App\Models\RiderTopOption;
 use App\Models\Riders;
 use App\Services\Permissions\RiderStatusPermissionSync;
 use App\Services\Permissions\TopBarOptionPermissionSync;
 use App\Services\Permissions\TopBarPermissionSync;
+use App\Support\CompanyContext;
 use App\Support\ErpModuleRegistry;
 use App\Support\TopBarNumericStatus;
 use Illuminate\Database\Eloquent\Builder;
@@ -71,8 +74,9 @@ class TopBarListingService
                 ->orderBy('id')
                 ->get();
 
-            if ($categories->isEmpty() && ($config['preset_categories'] ?? []) !== []) {
-                app(ModuleTopBarSettingsService::class)->seedPresetCategories($moduleKey);
+            if ($categories->isEmpty()) {
+                // Migrates legacy Settings keys / seeds presets when configured.
+                app(ModuleTopBarSettingsService::class)->categoriesForModule($moduleKey);
                 $categories = ErpModuleTopCategory::query()
                     ->with(['options' => fn($q) => $this->applyListingOptionsConstraint($q, ErpModuleTopOption::class)])
                     ->where('module_key', $moduleKey)
@@ -82,7 +86,10 @@ class TopBarListingService
                     ->get();
             }
 
-            return $this->filterCategoriesForUser($moduleKey, $categories);
+            return $this->ensureBikeOwnCompanyOption(
+                $moduleKey,
+                $this->filterCategoriesForUser($moduleKey, $categories)
+            );
         }
 
         $modelClass = $config['category_model'] ?? null;
@@ -98,7 +105,87 @@ class TopBarListingService
             ->orderBy('id')
             ->get();
 
-        return $this->filterCategoriesForUser($moduleKey, $categories);
+        return $this->ensureBikeOwnCompanyOption(
+            $moduleKey,
+            $this->filterCategoriesForUser($moduleKey, $categories)
+        );
+    }
+
+    /**
+     * Company top-bar: always include an "own" card labeled with the tenant company name.
+     * Stats/filters use bikes.bike_owner = Owned (same as the bike form company select).
+     *
+     * @param  Collection<int, Model>  $categories
+     * @return Collection<int, Model>
+     */
+    protected function ensureBikeOwnCompanyOption(string $moduleKey, Collection $categories): Collection
+    {
+        if (! in_array($moduleKey, ['bike_list', 'bikes'], true)) {
+            return $categories;
+        }
+
+        return $categories->map(function (Model $category) {
+            $column = trim((string) ($category->getAttribute('bike_column') ?? ''));
+            if ($column !== 'company') {
+                return $category;
+            }
+
+            $options = $category->relationLoaded('options') ? $category->options : collect();
+            $own = $options->first(
+                fn ($o) => LeasingCompanies::isOwnOptionValue((string) ($o->name ?? ''))
+            );
+
+            if ($own === null) {
+                $own = BikeTopOption::query()
+                    ->where('category_id', (int) $category->getKey())
+                    ->whereRaw('LOWER(TRIM(name)) = ?', [LeasingCompanies::OWN_OPTION_VALUE])
+                    ->first();
+
+                if ($own === null) {
+                    $payload = [
+                        'category_id' => (int) $category->getKey(),
+                        'name' => LeasingCompanies::OWN_OPTION_VALUE,
+                        'display_order' => 0,
+                        'is_active' => true,
+                        'show_in_top_bar' => true,
+                        'show_in_view_cards' => false,
+                    ];
+                    $companyId = (int) (CompanyContext::id() ?? auth()->user()->company_id ?? 0);
+                    if ($companyId > 0 && Schema::hasColumn('bike_top_options', 'company_id')) {
+                        $payload['company_id'] = $companyId;
+                    }
+                    $own = BikeTopOption::create($payload);
+                } else {
+                    $dirty = false;
+                    if (! $own->is_active) {
+                        $own->is_active = true;
+                        $dirty = true;
+                    }
+                    if (isset($own->show_in_top_bar) && ! $own->show_in_top_bar) {
+                        $own->show_in_top_bar = true;
+                        $dirty = true;
+                    }
+                    if ((int) ($own->display_order ?? 1) !== 0) {
+                        $own->display_order = 0;
+                        $dirty = true;
+                    }
+                    if ($dirty) {
+                        $own->save();
+                    }
+                }
+
+                $own->setRelation('category', $category);
+            }
+
+            $rest = $options
+                ->reject(fn ($o) => (int) $o->getKey() === (int) $own->getKey()
+                    || LeasingCompanies::isOwnOptionValue((string) ($o->name ?? '')))
+                ->values();
+
+            $category->setRelation('options', collect([$own])->concat($rest)->values());
+
+            return $category;
+        })->values();
     }
 
     /**
@@ -293,14 +380,18 @@ class TopBarListingService
 
         $base = $this->bikeStatsBaseQuery($option, $category);
         if ($base === null) {
-            return ['active' => 0, 'inactive' => 0];
+            return ['on_road' => 0, 'off_road' => 0];
         }
 
+        $onRoad = clone $base;
+        Bikes::applyTopBarRoadStatusConstraint($onRoad, 'on_road');
+
+        $offRoad = clone $base;
+        Bikes::applyTopBarRoadStatusConstraint($offRoad, 'off_road');
+
         return [
-            'active' => (int) (clone $base)->where('bikes.status', 1)->count(),
-            'inactive' => (int) (clone $base)
-                ->where('bikes.status', '!=', 1)
-                ->count(),
+            'on_road' => (int) $onRoad->count(),
+            'off_road' => (int) $offRoad->count(),
         ];
     }
 
@@ -326,6 +417,11 @@ class TopBarListingService
             return null;
         }
 
+        // Own vehicles card: company select value "own" → bike_owner Owned (not a leasing company id).
+        if ($column === 'company' && LeasingCompanies::isOwnOptionValue($value)) {
+            return $base->where('bikes.bike_owner', 'Owned');
+        }
+
         // FK / integer columns (company, branch_id, customer_id, …) store ids in option name.
         if (
             in_array($column, ['company', 'branch_id', 'customer_id', 'rider_id', 'rental_company_id', 'vehicle_type', 'leased_return_company_id'], true)
@@ -336,7 +432,7 @@ class TopBarListingService
             }
 
             if ($column === 'company') {
-                $companyId = \App\Models\LeasingCompanies::query()
+                $companyId = LeasingCompanies::query()
                     ->where('name', $value)
                     ->value('id');
                 if ($companyId !== null) {
@@ -459,7 +555,11 @@ class TopBarListingService
         }
 
         return match ($moduleKey) {
-            'riders', 'bike_list', 'bikes', 'employees' => TopBarNumericStatus::listingStatDefinitions(),
+            'riders', 'employees' => TopBarNumericStatus::listingStatDefinitions(),
+            'bike_list', 'bikes' => [
+                'on_road' => ['label' => 'On Road', 'icon' => 'ti-road'],
+                'off_road' => ['label' => 'Off Road', 'icon' => 'ti-ban'],
+            ],
             default => [
                 'total' => ['label' => 'Total', 'icon' => 'ti-list'],
             ],

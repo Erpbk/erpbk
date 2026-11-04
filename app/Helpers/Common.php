@@ -5,6 +5,7 @@ namespace App\Helpers;
 use App\Models\Dropdowns;
 use App\Models\Settings;
 use App\Models\User;
+use App\Support\CompanyGlobalPreferences;
 
 class Common
 {
@@ -67,17 +68,45 @@ class Common
 
     public static function DateFormat($date)
     {
-        return date('d-M-Y', strtotime($date));
+        if ($date === null || $date === '') {
+            return '';
+        }
+
+        $timestamp = strtotime((string) $date);
+        if ($timestamp === false) {
+            return (string) $date;
+        }
+
+        return date(CompanyGlobalPreferences::phpDateFormat(), $timestamp);
     }
 
     public static function MonthFormat($date)
     {
-        return date('M Y', strtotime($date));
+        if ($date === null || $date === '') {
+            return '';
+        }
+
+        $timestamp = strtotime((string) $date);
+        if ($timestamp === false) {
+            return (string) $date;
+        }
+
+        // Display as Nov-2026 across voucher/payment documents and related views.
+        return date('M-Y', $timestamp);
     }
 
     public static function DateTimeFormat($date)
     {
-        return date('d M Y h:i A', strtotime($date));
+        if ($date === null || $date === '') {
+            return '';
+        }
+
+        $timestamp = strtotime((string) $date);
+        if ($timestamp === false) {
+            return (string) $date;
+        }
+
+        return date(CompanyGlobalPreferences::phpDateFormat() . ' h:i A', $timestamp);
     }
 
     public static function Dropdowns($key)

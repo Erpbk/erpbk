@@ -1,79 +1,80 @@
 @php
 $amountEditVoucherTypes = ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC'];
+$isAmountEditType = in_array($voucherType ?? '', $amountEditVoucherTypes);
 @endphp
-<div id="rows-container" style="width: 98%;">
-    @isset($data)
-        @foreach($data as $entry)
-        <div class="row">
-            <div class="form-group col-md-3">
-                <label for="exampleInputEmail1">Select Account</label>
-                @if (in_array($voucherType, $amountEditVoucherTypes))
-                <input type="hidden" name="account_id[]" value="{{ $entry->account_id ?? '' }}" />
-                {!! Form::select('account_id_display[]', $accounts, $entry->account_id??null, ['class' => 'form-control form-select select2', 'disabled' => true]) !!}
-                @else
-                {!! Form::select('account_id[]', $accounts, $entry->account_id ?? null, [
-                'class' => 'form-control form-select select2',
-                'required' => true
-                ]) !!}
 
-                @endif
-            </div>
-            <div class="form-group col-md-4">
-                <label>Narration</label>
-                <textarea name="narration[]" class="form-control " rows="10" placeholder="Narration" style="height: 40px !important;">{{$entry->narration}}</textarea>
-            </div>
-            <div class="form-group col-md-2">
-                <label>Dr Amount</label>
-                <input type="number" step="any" name="dr_amount[]" value="{{$entry->debit}}" class="form-control  dr_amount" onchange="getTotal();" placeholder="Paid Amount">
-            </div>
-            <div class="form-group col-md-2">
-                <label>Cr Amount</label>
-                <input type="number" step="any" name="cr_amount[]" value="{{$entry->credit}}" class="form-control  cr_amount" onchange="getTotal();" placeholder="Paid Amount">
-            </div>
-            @if (in_array($voucherType, $amountEditVoucherTypes))
+<div class="table-responsive rpf-invoice-scroll mb-2">
+    <table class="table table-bordered uvf-lines-table rpf-invoice-table mb-0" id="uvf-lines-table">
+        <thead>
+            <tr>
+                <th>Account</th>
+                <th>Narration</th>
+                <th class="text-end" style="width:120px">Dr</th>
+                <th class="text-end" style="width:120px">Cr</th>
+                @unless($isAmountEditType)
+                <th style="width:44px"></th>
+                @endunless
+            </tr>
+        </thead>
+        <tbody id="rows-container">
+            @isset($data)
+                @foreach($data as $entry)
+                <tr class="uvf-line-row">
+                    <td>
+                        @if ($isAmountEditType)
+                        <input type="hidden" name="account_id[]" value="{{ $entry->account_id ?? '' }}" />
+                        {!! Form::select('account_id_display[]', $accounts, $entry->account_id ?? null, ['class' => 'form-control form-select select2 rpf-input', 'disabled' => true]) !!}
+                        @else
+                        {!! Form::select('account_id[]', $accounts, $entry->account_id ?? null, [
+                            'class' => 'form-control form-select select2 rpf-input',
+                            'required' => true,
+                        ]) !!}
+                        @endif
+                    </td>
+                    <td>
+                        <textarea name="narration[]" class="form-control rpf-input" rows="1" placeholder="Narration">{{ $entry->narration }}</textarea>
+                    </td>
+                    <td>
+                        <input type="number" step="any" name="dr_amount[]" value="{{ $entry->debit }}" class="form-control rpf-input dr_amount text-end" onchange="getTotal();" placeholder="0.00">
+                    </td>
+                    <td>
+                        <input type="number" step="any" name="cr_amount[]" value="{{ $entry->credit }}" class="form-control rpf-input cr_amount text-end" onchange="getTotal();" placeholder="0.00">
+                    </td>
+                    @unless($isAmountEditType)
+                    <td class="text-center">
+                        <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
+                    </td>
+                    @endunless
+                </tr>
+                @endforeach
             @else
-            <div class="form-group col-md-1 d-flex align-items-end">
-                <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
-            </div>
-            @endif
-            {{-- <div class="form-group col-md-1">
-                <label style="visibility: hidden">plus</label>
-                <button type="button" class="btn btn-primary btn-xs new_line"><i class="fa fa-plus"></i> </button>
-            </div> --}}
-        </div>
-        @endforeach
-    @else
-
-    <div class="row">
-        <div class="form-group col-md-3">
-            <label for="exampleInputEmail1">Select Account</label>
-            {!! Form::select('account_id[]', $accounts, null, [
-            'class' => 'form-control form-select select2',
-            'required' => true
-            ]) !!}
-        </div>
-        <div class="form-group col-md-4">
-            <label>Narration</label>
-            <textarea name="narration[]" class="form-control" rows="10" placeholder="Narration" style="height: 40px !important;"></textarea>
-        </div>
-        <div class="form-group col-md-2">
-            <label>Dr Amount</label>
-            <input type="number" step="any" name="dr_amount[]" class="form-control dr_amount" placeholder="Paid Amount" onchange="getTotal();">
-        </div>
-        <div class="form-group col-md-2">
-            <label>Cr Amount</label>
-            <input type="number" step="any" name="cr_amount[]" class="form-control cr_amount" placeholder="Paid Amount" onchange="getTotal();">
-        </div>
-        <div class="form-group col-md-1 d-flex align-items-end">
-            <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
-        </div>
-    </div>
-
-
-    @endisset
-
+                <tr class="uvf-line-row">
+                    <td>
+                        {!! Form::select('account_id[]', $accounts, null, [
+                            'class' => 'form-control form-select select2 rpf-input',
+                            'required' => true,
+                        ]) !!}
+                    </td>
+                    <td>
+                        <textarea name="narration[]" class="form-control rpf-input" rows="1" placeholder="Narration"></textarea>
+                    </td>
+                    <td>
+                        <input type="number" step="any" name="dr_amount[]" class="form-control rpf-input dr_amount text-end" placeholder="0.00" onchange="getTotal();">
+                    </td>
+                    <td>
+                        <input type="number" step="any" name="cr_amount[]" class="form-control rpf-input cr_amount text-end" placeholder="0.00" onchange="getTotal();">
+                    </td>
+                    <td class="text-center">
+                        <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
+                    </td>
+                </tr>
+            @endisset
+        </tbody>
+    </table>
 </div>
-@if (in_array($voucherType, $amountEditVoucherTypes))
-@else
-<button type="button" id="add-new-row" class="btn btn-success btn-sm mt-3 mb-3">Add New</button>
-@endif
+
+@unless($isAmountEditType)
+<button type="button" id="add-new-row" class="btn btn-outline-primary btn-sm mt-1 mb-2">
+    <i class="fa fa-plus"></i> Add line
+</button>
+@endunless

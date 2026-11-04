@@ -4,15 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\TracksUserAttribution;
+
 class InventoryPurchase extends BaseModel
 {
-    use SoftDeletes;
+    use SoftDeletes, TracksUserAttribution;
     protected $table = 'inventory_purchases';
     
     protected $fillable = [
         'item_id', 'supplier_id', 'item_name' , 'purchase_date', 'inv_id',
         'quantity', 'remaining_quantity', 'unit_cost', 'batch_no',
-        'notes', 'created_by', 'deleted_at', 'garage_id'
+        'notes', 'created_by', 'deleted_at', 'garage_id',
+        'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [
@@ -44,12 +48,7 @@ class InventoryPurchase extends BaseModel
         return $this->belongsTo(Garages::class, 'garage_id');
     }
 
-    public function createdBy()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function invoice()
+public function invoice()
     {
         return $this->belongsTo(SupplierInvoices::class, 'inv_id');
     }

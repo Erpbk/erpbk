@@ -118,31 +118,13 @@
           @endif
           @endif
           <small class="text-muted d-block mt-1">Used in PDFs and outbound emails for this company only.</small>
-        </div>
-        <div class="col-md-2 mb-3">
-          <label>Email header color</label>
-          <input type="color" name="company_primary_color" class="form-control form-control-color w-100"
-            value="{{ old('company_primary_color', $currentCompany->primary_color ?? '#2563eb') }}" />
-        </div>
-        <div class="col-md-2 mb-3">
-          <label>Email accent color</label>
-          <input type="color" name="company_secondary_color" class="form-control form-control-color w-100"
-            value="{{ old('company_secondary_color', $currentCompany->secondary_color ?? '#1e3a8a') }}" />
+          <small class="text-muted d-block mt-1">
+            Brand colors and currency are managed under
+            <a href="{{ route('settings-panel.global', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) }}">Global Settings</a>.
+          </small>
         </div>
         @endif
 
-        <!-- <div class="col-md-4 mb-3">
-          <label class="">Currency Code</label>
-          <div class="input-group ">
-            <input type="text" name="settings[currency_code]" class="form-control" value="{{ $settings['currency_code'] ?? ($appCurrencyCode ?? 'AED') }}" placeholder="{{ $appCurrencyCode ?? 'AED' }}, USD, PKR" />
-          </div>
-        </div> -->
-        <div class="col-md-4 mb-3">
-          <label class="">Currency</label>
-          <div class="input-group ">
-            <input type="text" name="settings[currency_symbol]" class="form-control" value="{{ $settings['currency_symbol'] ?? ($appCurrencySymbol ?? 'AED') }}" placeholder="{{ $appCurrencySymbol ?? 'AED' }}, $, Rs" />
-          </div>
-        </div>
         <div class="col-md-4 mb-3">
           <label class="">VAT Number</label>
           <div class="input-group ">
@@ -385,10 +367,61 @@
   document.addEventListener('DOMContentLoaded', async function() {
     const countrySelect = document.getElementById('company_country');
     const citySelect = document.getElementById('company_city');
-    const currencyCodeInput = document.querySelector('input[name="settings[currency_code]"]');
-    const currencySymbolInput = document.querySelector('input[name="settings[currency_symbol]"]');
+    const currencyCodeSelect = document.getElementById('company_currency_code');
+    const currencySymbolInput = document.getElementById('company_currency_symbol');
+    const currencySymbolPreview = document.getElementById('company_currency_symbol_preview');
+    const currencyIconModeDefault = document.getElementById('currency_icon_mode_default');
+    const currencyIconModeCustom = document.getElementById('currency_icon_mode_custom');
+    const currencyIconUploadWrap = document.getElementById('currency_icon_upload_wrap');
     const rtaFeeCurrencyText = document.querySelector('input[name="settings[rta_admin_fee]"]')?.closest('.input-group')?.querySelector('.input-group-text');
     const hasSelect2 = !!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2);
+
+    function syncCurrencySymbolFromSelect() {
+      if (!currencyCodeSelect) {
+        return;
+      }
+      const selectedOption = currencyCodeSelect.options[currencyCodeSelect.selectedIndex];
+      const symbol = selectedOption ? (selectedOption.getAttribute('data-symbol') || selectedOption.value || 'AED') : 'AED';
+      if (currencySymbolInput) {
+        currencySymbolInput.value = symbol;
+      }
+      if (currencySymbolPreview) {
+        currencySymbolPreview.textContent = symbol;
+      }
+      if (rtaFeeCurrencyText) {
+        rtaFeeCurrencyText.textContent = symbol;
+      }
+    }
+
+    function toggleCurrencyIconUpload() {
+      if (!currencyIconUploadWrap) {
+        return;
+      }
+      const useCustom = !!(currencyIconModeCustom && currencyIconModeCustom.checked);
+      currencyIconUploadWrap.classList.toggle('d-none', !useCustom);
+    }
+
+    if (currencyCodeSelect) {
+      if (hasSelect2) {
+        window.jQuery(currencyCodeSelect).select2({
+          width: '100%',
+          placeholder: currencyCodeSelect.dataset.placeholder || 'Select currency',
+          allowClear: false
+        });
+        window.jQuery(currencyCodeSelect).on('change', syncCurrencySymbolFromSelect);
+      } else {
+        currencyCodeSelect.addEventListener('change', syncCurrencySymbolFromSelect);
+      }
+      syncCurrencySymbolFromSelect();
+    }
+
+    if (currencyIconModeDefault) {
+      currencyIconModeDefault.addEventListener('change', toggleCurrencyIconUpload);
+    }
+    if (currencyIconModeCustom) {
+      currencyIconModeCustom.addEventListener('change', toggleCurrencyIconUpload);
+    }
+    toggleCurrencyIconUpload();
 
     if (!countrySelect || !citySelect) {
       return;
@@ -424,46 +457,42 @@
       'Ras Al Khaimah',
       'Fujairah'
     ];
-    const currencySymbols = {
-      AED: 'AED',
-      USD: '$',
-      EUR: 'EUR',
-      GBP: 'GBP',
-      PKR: 'Rs',
-      INR: 'Rs',
-      SAR: 'SAR',
-      QAR: 'QAR',
-      KWD: 'KWD',
-      BHD: 'BHD',
-      OMR: 'OMR',
-      JPY: 'JPY',
-      CNY: 'CNY'
-    };
-
     function getCurrencySymbolByCode(code) {
+      if (!currencyCodeSelect) {
+        return (code || '').trim().toUpperCase() || 'AED';
+      }
       const normalizedCode = (code || '').trim().toUpperCase();
-      return currencySymbols[normalizedCode] || normalizedCode || 'AED';
+      const option = Array.from(currencyCodeSelect.options).find(function(item) {
+        return item.value === normalizedCode;
+      });
+      return option ? (option.getAttribute('data-symbol') || option.value) : (normalizedCode || 'AED');
     }
 
     function applyCurrencyForCountry(countryName, forceUpdate) {
       const normalizedCountry = (countryName || '').trim().toLowerCase();
       const code = countryCurrencyMap[normalizedCountry];
 
-      if (!code) {
+      if (!code || !currencyCodeSelect) {
         return;
       }
 
-      if (currencyCodeInput && (forceUpdate || !currencyCodeInput.value.trim())) {
-        currencyCodeInput.value = code;
+      const optionExists = Array.from(currencyCodeSelect.options).some(function(item) {
+        return item.value === code;
+      });
+      if (!optionExists) {
+        return;
       }
 
-      const symbol = getCurrencySymbolByCode(code);
-      if (currencySymbolInput && (forceUpdate || !currencySymbolInput.value.trim())) {
-        currencySymbolInput.value = symbol;
-      }
-
-      if (rtaFeeCurrencyText) {
-        rtaFeeCurrencyText.textContent = symbol;
+      const currentCode = (currencyCodeSelect.value || '').trim().toUpperCase();
+      if (forceUpdate || !currentCode) {
+        if (hasSelect2) {
+          window.jQuery(currencyCodeSelect).val(code).trigger('change');
+        } else {
+          currencyCodeSelect.value = code;
+          syncCurrencySymbolFromSelect();
+        }
+      } else if (rtaFeeCurrencyText) {
+        rtaFeeCurrencyText.textContent = getCurrencySymbolByCode(currentCode);
       }
     }
 

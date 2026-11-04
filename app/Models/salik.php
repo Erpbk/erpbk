@@ -9,9 +9,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class salik extends BaseModel
 {
-    use HasFactory, LogsActivity, SoftDeletes, BranchScope;
+    use HasFactory, LogsActivity, SoftDeletes, BranchScope, TracksUserAttribution;
     
     protected $table = 'saliks';
     
@@ -35,6 +37,7 @@ class salik extends BaseModel
         'rider_id',
         'rental_company_id',
         'bike_id',
+        'leasing_company_id',
         'admin_charges',
         'admin_vat',
         'admin_vat_amount',
@@ -47,6 +50,7 @@ class salik extends BaseModel
         'payment_voucher_id',
         'created_by',
         'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [
@@ -237,6 +241,11 @@ class salik extends BaseModel
     public function bike()
     {
         return $this->belongsTo(Bikes::class, 'bike_id');
+    }
+
+    public function leasingCompany()
+    {
+        return $this->belongsTo(LeasingCompanies::class, 'leasing_company_id');
     }
 
     public function rider()

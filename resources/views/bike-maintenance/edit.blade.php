@@ -1,21 +1,33 @@
 {!! Form::open(['route' => ['bikeMaintenance.update',$maintenance], 'method' => 'patch', 'id' => 'formajax', 'files' => true]) !!}
     @csrf
-    
-    <div class="card-body">
-        <div class="row">
+
+@php
+$currencyCode = \App\Helpers\Currency::code();
+$invItemsCols = '1.8fr .7fr .8fr .6fr 1fr 1fr .5fr';
+@endphp
+@include('invoices.partials.invoice_form_styles', ['invItemsCols' => $invItemsCols])
+
+<div class="inv-form-wrap">
+    <div class="row g-3">
+        <div class="col-12">
+            <div class="inv-card">
+                <h6 class="inv-card-title"><i class="fa fa-wrench"></i> Maintenance Details</h6>
+                <div class="row g-3">
             {{-- Bike Information (Read-only) --}}
             <div class="form-group col-md-2">
-                {!! Form::label('bike_info', 'Bike') !!}
+                {!! Form::label('bike_info', 'Bike', ['class' => 'form-label']) !!}
                 {!! Form::text('bike_info', $bike->emirates .'-'. $bike->plate, ['class'=>'form-control', 'readonly' => true ]) !!}
                 <input type="hidden" name="bike_id" value="{{ $bike->id }}"/>
             </div>
 
-            {{-- Rider Information (Read-only) --}}
+            {{-- Assigned users from bike history + current assignment --}}
             <div class="form-group col-md-4">
-                {!! Form::label('rider_info', 'User') !!}
-                {!! Form::hidden('rider_id',$bike->rider? $bike->rider->id :null) !!}
-                {!! Form::hidden('rental_company_id',$bike->rentalCompany? $bike->rentalCompany->id :null) !!}
-                {!! Form::text('rider_info', $bike->rider? ($bike->rider->rider_id.'-'.$bike->rider->name) : ($bike->rentalCompany? $bike->rentalCompany->name: 'No User Assigned'), ['class' => 'form-control', 'readonly' => true]) !!}
+                {!! Form::label('assignee_select', 'User') !!}
+                {!! Form::hidden('rider_id', $maintenance->rider_id, ['id' => 'rider_id_hidden']) !!}
+                {!! Form::hidden('rental_company_id', $maintenance->rental_company_id, ['id' => 'rental_id_hidden']) !!}
+                <select id="assignee_select" class="form-control bm-assignee-select" data-placeholder="Select assigned user">
+                    <option value="">No User Assigned</option>
+                </select>
             </div>
 
             {{-- Maintenance Date --}}
@@ -26,11 +38,14 @@
 
             {{-- Attachment --}}
             <div class="form-group col-md-3">
-                {!! Form::label('attachment', 'Attachment') !!}
-                {!! Form::file('attachment', [
-                    'class' => 'form-control',
-                    'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx'
-                ]) !!}
+                @include('partials.universal_document_upload', [
+                  'name' => 'attachment',
+                  'label' => 'Attachment',
+                  'required' => false,
+                  'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
+                  'inputClass' => 'form-control',
+                  'showHint' => true,
+                ])
             </div>
 
             {{-- Billing Month --}}
@@ -39,16 +54,11 @@
                 {!! Form::month('billing_month', $maintenance->billing_month ?? now(), ['class' => 'form-control', 'required' => true]) !!}
             </div>
 
-            {{-- Garage --}}
-            <div class="form-group col-md-3">
-                {!! Form::label('garage', 'Garage:') !!}
-                <select name="garage_id" class="form-control select2" required>
-                    <option value="">Select</option>
-                    @foreach ($garages as $garage)
-                        <option value="{{ $garage->id }}" @if($garage->id == $maintenance->garage_id) selected @endif>{{ $garage->name }}</option>
-                    @endforeach
-                </select>
-            </div>
+            @include('bike-maintenance.partials.performer_select', [
+                'garages' => $garages ?? collect(),
+                'leasingCompanies' => $leasingCompanies ?? collect(),
+                'maintenance' => $maintenance,
+            ])
 
             {{-- Maintenance Type --}}
             <div class="form-group col-md-3">
@@ -63,21 +73,19 @@
                 </select>
             </div>
 
-            {{-- Description --}}
-            <div class="form-group col-md-6">
-                {!! Form::label('description', 'Notes') !!}
-                {!! Form::textarea('description', $maintenance->description ?? null, [
-                    'class' => 'form-control', 
-                    'rows' => 3,
-                    'placeholder' => 'Notes about maintenance performed...'
-                ]) !!}
+            {{-- Description moved to Notes card below --}}
+            </div>
             </div>
         </div>
-        <div class="row my-5" id="odometer-fields" @if($selectedType !== 'Scheduled') style="display: none;" @endif>
+
+        <div class="col-12" id="odometer-fields" @if($selectedType !== 'Scheduled') style="display: none;" @endif>
+            <div class="inv-card">
+                <h6 class="inv-card-title"><i class="fa fa-tachometer-alt"></i> Odometer</h6>
+                <div class="row g-3">
 
             {{-- Previous KM --}}
             <div class="form-group col-md-2">
-                {!! Form::label('previous_km', 'Previous Reading') !!}
+                {!! Form::label('previous_km', 'Previous Reading', ['class' => 'form-label']) !!}
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
                     {!! Form::number('previous_km', $maintenance->previous_km ?? null, [
@@ -170,38 +178,30 @@
                 </div>
             </div>
         </div>
-    </div>
-    
-    <h5 class="my-3">Maintenance Items</h5>
-    <div class="scrollbar p-2 border rounded">
-        <div class="row">
-            <div class="form-group col-md-2">
-                {!! Form::label('item', 'Item') !!}
-            </div>
-            <div class="form-group col-md-2">
-                {!! Form::label('qty', 'Qty') !!}
-            </div>
-            <div class="form-group col-md-2">
-                {!! Form::label('rate', 'Rate') !!}
-            </div>
-            <div class="form-group col-md-1">
-                {!! Form::label('vat', 'VAT(%)') !!}
-            </div>
-            <div class="form-group col-md-2">
-                {!! Form::label('amount', 'Total Amount:') !!}
-            </div>
-            <div class="form-group col-md-2">
-                {!! Form::label('charge_to', 'Charge To') !!}
+                </div>
             </div>
         </div>
-        <div id="rows-container">  
+
+        <div class="col-12">
+            <div class="inv-card">
+                <h6 class="inv-card-title"><i class="fa fa-list"></i> Maintenance Items</h6>
+                <div class="inv-items-head">
+                    <span>Item</span>
+                    <span>Qty</span>
+                    <span>Rate</span>
+                    <span>VAT %</span>
+                    <span>Total</span>
+                    <span>Charge To</span>
+                    <span>Action</span>
+                </div>
+        <div id="rows-container">
             @foreach ($items as $index => $item)
             <div class="row mt-1">
                 <div class="form-group col-md-2">
                     <select name="item_id[]" class="form-control select2 item">
                         <option value="">Select</option>
-                        @foreach(\App\Models\Items::dropdown('garage') as $i)
-                        <option data-price="{{ $i->price }}" data-vat="{{ $i->vat }}" value="{{ $i->id }}" @if($i->id === $item->item_id) selected @endif>{{ $i->name }}</option>
+                        @foreach(($catalogItems ?? []) as $i)
+                        <option data-price="{{ $i->price }}" data-cost="{{ $i->cost }}" data-vat="{{ $i->vat }}" value="{{ $i->id }}" @if($i->id === $item->item_id) selected @endif>{{ $i->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -211,10 +211,6 @@
                 <div class="form-group col-md-2">
                     {!! Form::number('rate[]', $item->rate ?? null, ['class' => 'form-control rate', 'step' => 'any']) !!}
                 </div>
-                {{-- <div class="form-group col-md-1">
-                    {!! Form::label('discount', 'Discount') !!}
-                    {!! Form::number('discount[]', $item->discount ?? null, ['class' => 'form-control discount', 'step' => 'any']) !!}
-                </div> --}}
                 <div class="form-group col-md-1">
                     {!! Form::number('vat[]', $item->vat ?? null, ['class' => 'form-control vat', 'step' => 'any']) !!}
                 </div>
@@ -229,76 +225,102 @@
                         <option value="User" @if($item->charge_to == 'User') selected @endif>User</option>
                     </select>
                 </div>
-                <div class="form-group col-md-1 d-flex align-items-end">
-                    <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
+                <div class="form-group col-md-1 d-flex align-items-center justify-content-center">
+                    <a href="javascript:void(0);" class="btn-remove-row" title="Remove"><i class="fa fa-trash"></i></a>
                 </div>
             </div>
             @endforeach
         </div>
-    </div>
-    <div>
-        <button type="button" id="add-new-row" class="btn btn-success btn-sm">Add Item</button>
-    </div>
-    <br>
+                <div class="mt-2">
+                    <button type="button" id="add-new-row" class="btn inv-add-item btn-sm">
+                        <i class="fa fa-plus"></i> Add Item
+                    </button>
+                </div>
+            </div>
+        </div>
 
-    <div class="d-flex justify-content-between align-items-center gap-3">
-        <div>
-        </div>
-        <div class="d-flex align-items-center gap-3">
-            <div class="input-group">
-                <span class="input-group-text bg-light">Subtotal</span>
-                <input type="number" name="subtotal" class="form-control" id="subtotal" readonly style="min-width: 150px;">
-            </div>
-            <div class="input-group">
-                <span class="input-group-text bg-light">VAT Amount</span>
-                <input type="number" name="vat_total" class="form-control" id="vat_total" readonly style="min-width: 150px;">
-            </div>
-            <div class="input-group">
-                <span class="input-group-text bg-primary text-white">Total</span>
-                <input type="number" name="total_cost" class="form-control" id="total" readonly style="min-width: 150px; font-weight: bold;" >
+        <div class="col-12">
+            <div class="inv-totals-area">
+                <div class="inv-totals-notes">
+                    <h4>Notes</h4>
+                    {!! Form::textarea('description', $maintenance->description ?? null, [
+                        'class' => 'form-control',
+                        'rows' => 4,
+                        'placeholder' => 'Notes about maintenance performed...'
+                    ]) !!}
+                </div>
+                <div class="inv-totals">
+                    <div class="inv-summary-row">
+                        <span>Subtotal (excl. VAT)</span>
+                        <span class="inv-summary-value"><span id="subtotal_display">0.00</span></span>
+                    </div>
+                    <div class="inv-summary-row">
+                        <span>VAT Amount</span>
+                        <span class="inv-summary-value"><span id="vat_total_display">0.00</span></span>
+                    </div>
+                    <div class="inv-summary-row inv-summary-total">
+                        <span>Total Due</span>
+                        <span class="inv-summary-value"><span id="total_display">0.00</span> {{ $currencyCode }}</span>
+                    </div>
+                    <input type="hidden" name="subtotal" id="subtotal" value="0">
+                    <input type="hidden" name="vat_total" id="vat_total" value="0">
+                    <input type="hidden" name="total_cost" id="total" value="0">
+                </div>
             </div>
         </div>
     </div>
+</div>
 
     <div class="action-btn pt-3">
         {!! Form::submit('Save Maintenance Record', ['class' => 'btn btn-primary']) !!}
     </div>
 
 
+@include('bike-maintenance.partials.assignee_select_script')
+@include('bike-maintenance.partials.performer_charge_script')
+
 <script>
 $(document).ready(function() {
-    // Initialize select2
-    $('.select2').select2({
+    function syncSummaryDisplay() {
+        var subtotal = parseFloat($('#subtotal').val()) || 0;
+        var vat = parseFloat($('#vat_total').val()) || 0;
+        var total = parseFloat($('#total').val()) || 0;
+        $('#subtotal_display').text(subtotal.toFixed(2));
+        $('#vat_total_display').text(vat.toFixed(2));
+        $('#total_display').text(total.toFixed(2));
+    }
+
+    if (typeof window.setTotal === 'function' && !window.setTotal._invPatched) {
+        var originalSetTotal = window.setTotal;
+        window.setTotal = function() {
+            originalSetTotal.apply(this, arguments);
+            syncSummaryDisplay();
+        };
+        window.setTotal._invPatched = true;
+    }
+
+    $('.select2').not('#assignee_select, .bm-assignee-select').select2({
         allowClear: true,
         dropdownParent: $('#formajax'),
     });
-    
-    // Store jQuery objects for calculations
+
     const previousKm = $('#previous_km');
     const currentKm = $('#current_km');
     const maintenanceKm = $('#maintenance_km');
     const overdueKm = $('#overdue_km');
     const costPerKm = $('#cost_per_km');
     const overdueCost = $('#overdue_cost');
-    const riderInfo = $('#rider_info');
-    const riderIdHidden = $('#rider_id_hidden');
-    const isGarageCustomer = @json(($bike->rentalCompany?->customer_type) == 'garage');
-    
-    function calculateOverdue() {
+
+    window.calculateOverdue = function () {
         const prev = parseFloat(previousKm.val());
         const current = parseFloat(currentKm.val());
         const maintenanceInterval = parseFloat(maintenanceKm.val());
         overdueCost.val('');
         overdueKm.val('');
-        
+
         if (!isNaN(prev) && !isNaN(current) && !isNaN(maintenanceInterval)) {
-            // Calculate overdue: Current - Previous - Maintenance Interval
             const overdue = current - prev - maintenanceInterval;
-            
-            // Only show positive overdue (if overdue > 0)
             overdueKm.val(overdue > 0 ? overdue.toFixed(3) : '0.000');
-            
-            // Calculate total cost if cost per km is provided
             const cost = parseFloat(costPerKm.val()) || 0;
             if (cost && overdue > 0) {
                 overdueCost.val((overdue * cost).toFixed(2));
@@ -306,16 +328,13 @@ $(document).ready(function() {
                 overdueCost.val('0.00');
             }
         }
-    }
-    
-    // Add event listeners to all calculation fields
-    previousKm.on('input change', calculateOverdue);
-    currentKm.on('input change', calculateOverdue);
-    maintenanceKm.on('input change', calculateOverdue);
-    costPerKm.on('input change', calculateOverdue);
-    
-    // Initial calculations
-    calculateOverdue();
+    };
+
+    previousKm.on('input change', window.calculateOverdue);
+    currentKm.on('input change', window.calculateOverdue);
+    maintenanceKm.on('input change', window.calculateOverdue);
+    costPerKm.on('input change', window.calculateOverdue);
+    window.calculateOverdue();
 
     function toggleOdometerFields() {
         const type = $('#maintenance_type').val();
@@ -344,38 +363,43 @@ $(document).ready(function() {
         setItemTotal($(this));
     });
     setTotal();
+    syncSummaryDisplay();
 
-    toggleRiderChargeOption(isGarageCustomer);
-});
+    window.toggleRiderChargeOption = function (garageCustomer = false, noAssignee = false, preserveChargeTo = false) {
+        $('select[name="charge_to[]"]').each(function () {
+            const riderOption = $(this).find('option[value="User"]');
+            const companyOption = $(this).find('option[value="Company"]');
 
-function toggleRiderChargeOption(garageCustomer = false) {
-    const riderText = $('#rider_info').val().trim();
-    const noRider = riderText === 'No User Assigned';
-
-    $('select[name="charge_to[]"]').each(function () {
-        const riderOption = $(this).find('option[value="User"]');
-        const companyOption = $(this).find('option[value="Company"]');
-
-
-        if (noRider) {
-            riderOption.prop('disabled', true);
-
-            // If currently selected, reset it
-            if ($(this).val() === 'User') {
-                $(this).val('').trigger('change');
+            if (noAssignee) {
+                riderOption.prop('disabled', true);
+                if (!preserveChargeTo && $(this).val() === 'User') {
+                    $(this).val('').trigger('change');
+                }
+            } else {
+                riderOption.prop('disabled', false);
             }
-        } else {
-            riderOption.prop('disabled', false);
-        }
-        if(garageCustomer) {
-            companyOption.prop('disabled', true);
-            $(this).val('User').trigger('change');
-        }else {
-            companyOption.prop('disabled', false);
+
+            if (garageCustomer) {
+                companyOption.prop('disabled', true);
+                if (!preserveChargeTo && $(this).val() !== 'User') {
+                    $(this).val('User').trigger('change');
+                }
+            } else {
+                companyOption.prop('disabled', false);
+            }
+        });
+    };
+
+    BikeMaintenanceAssignees.bind({
+        fixedBikeId: @json($bike->id),
+        selectedRiderId: @json($maintenance->rider_id),
+        selectedRentalCompanyId: @json($maintenance->rental_company_id),
+        preserveChargeTo: true,
+        onBikeLoaded: function () {
+            window.calculateOverdue();
         }
     });
-}
-
+});
 </script>
 
 {!! Form::close() !!}

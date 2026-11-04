@@ -22,7 +22,7 @@
                         <td>{{ $inst->loan?->loan_number }}</td>
                         <td>#{{ $inst->installment_no }}</td>
                         <td>{{ $inst->paid_date?->format('d M Y') }}</td>
-                        <td>{{ $inst->paid_date?->format('M Y') }}</td>
+                        <td>{{ $inst->paid_date?->format('M-Y') }}</td>
                         <td>{{ number_format($inst->interest_amount, 2) }}</td>
                     </tr>
                     @endforeach

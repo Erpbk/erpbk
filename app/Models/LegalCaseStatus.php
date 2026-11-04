@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\TracksUserAttribution;
+
 class LegalCaseStatus extends BaseModel
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, TracksUserAttribution;
 
     protected $table = 'legal_case_statuses';
 
@@ -21,6 +23,7 @@ class LegalCaseStatus extends BaseModel
         'display_order',
         'created_by',
         'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

@@ -76,6 +76,21 @@ class ModuleAgreementController extends Controller
         $recordModel = $this->moduleService->resolveRecord($module, $record);
         AgreementCategory::ensureDefaultsForCompany();
 
+        if ($request->ajax() || $request->boolean('modal')) {
+            $agreements = $this->moduleService->agreementsForModule($module);
+            $pageTitle = $this->moduleService->recordAgreementsTitle($module, $recordModel);
+            $meta = $this->moduleService->recordMeta($module, $recordModel);
+
+            return view('agreements.module.record-list-modal', compact(
+                'agreements',
+                'module',
+                'record',
+                'recordModel',
+                'pageTitle',
+                'meta'
+            ));
+        }
+
         $baseQuery = AgreementCategory::query()->assignedToModule($module);
         $assignedCount = (clone $baseQuery)->count();
 

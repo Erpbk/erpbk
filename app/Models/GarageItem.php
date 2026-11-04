@@ -7,9 +7,11 @@ use App\Traits\LogsActivity;
 use App\Models\Accounts;
 use Illuminate\Support\Str;
 
+use App\Traits\TracksUserAttribution;
+
 class GarageItem extends BaseModel
 {
-    use LogsActivity;
+    use LogsActivity, TracksUserAttribution;
 
     /**
      * The "booted" method of the model.

@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Import Paid Rider Vouchers')
+@section('title', 'Import Rider Salary Payments')
 @push('third_party_stylesheets')
 <style>
     #filePreviewTable td, #filePreviewTable th { white-space: nowrap; font-size: 12px; padding: 4px 8px; vertical-align: middle; }
@@ -27,7 +27,7 @@
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
-            <div class="col-sm-6"><h1>Import Paid Vouchers</h1></div>
+            <div class="col-sm-6"><h1>Import Rider Salary Payments</h1></div>
             <div class="col-sm-6">
                 <div class="d-flex justify-content-end">
                     <a class="btn btn-primary" href="{{ route('riderInvoices.index') }}">Back to Invoices</a>
@@ -41,9 +41,12 @@
     <div class="card">
         <div class="card-body">
             <div class="alert alert-info">
-                Each row finds the unpaid rider invoice for that <strong>Rider ID + Billing Month</strong> and creates a
-                payment voucher the same way as recording a payment on the invoice. Any amount marks the invoice paid.
-                The credit (paying) account is matched by <strong>account code</strong>.
+                Each row creates a salary payment against the rider invoice identified by <strong>Invoice Number</strong>
+                (e.g. <code>RINV-0012</code>), using the same accounting and balance logic as a manual salary payment.
+                The payment amount must not exceed the invoice outstanding balance. Partial payments leave the invoice
+                partially paid. The credit (paying) account is matched by <strong>account code</strong>.
+                Narration / description is saved on the payment (e.g.
+                <em>Nasir Masood Haji Zafar Masood Salary Advance Processed By C3 FMO Sep-26</em>).
             </div>
 
             <form id="paidVoucherImportForm" action="{{ route('riderInvoices.importPaid') }}" method="POST" enctype="multipart/form-data">
@@ -53,7 +56,7 @@
                         <div class="form-group">
                             <label for="file">Import File</label>
                             <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.csv,.xls" required>
-                            <small class="text-muted">One row = one payment against the matching rider invoice.</small>
+                            <small class="text-muted">One row = one salary payment against the invoice number.</small>
                         </div>
                     </div>
                 </div>
@@ -64,8 +67,10 @@
                 <div id="mappingHelpBox" class="alert alert-info mb-4" style="display:none;">
                     <h6 class="alert-heading mb-2"><i class="fas fa-info-circle"></i> How to map columns</h6>
                     <ul class="mb-0 pl-3">
-                        <li>Select a file to preview columns, then map every field below.</li>
-                        <li>Rows missing any mapped value, or without a matching unpaid invoice, are skipped.</li>
+                        <li>Select a file to preview columns, then map every required field below.</li>
+                        <li>Invoice Number is required and must match an existing unpaid or partially paid rider invoice.</li>
+                        <li>Rows with a missing invoice, a fully paid invoice, or an amount above outstanding are skipped with an error.</li>
+                        <li>Rider ID and Billing Month are optional; when mapped, they must match the invoice.</li>
                     </ul>
                 </div>
 
@@ -91,19 +96,14 @@
                     </div>
 
                     <div class="col-lg-5 mb-3">
-                        <h5 class="mb-3">Required Columns</h5>
+                        <h5 class="mb-3">Column Mapping</h5>
                         <div class="row">
-                            <div class="form-group col-md-6 map-field" data-field="rider_id" data-required="1">
-                                <label for="col_rider_id">Rider ID</label>
-                                <select name="col_rider_id" id="col_rider_id" class="form-control map-select" required disabled>
+                            <div class="form-group col-md-6 map-field" data-field="invoice_number" data-required="1">
+                                <label for="col_invoice_number">Invoice Number</label>
+                                <select name="col_invoice_number" id="col_invoice_number" class="form-control map-select" required disabled>
                                     <option value="">Select a file first…</option>
                                 </select>
-                            </div>
-                            <div class="form-group col-md-6 map-field" data-field="billing_month" data-required="1">
-                                <label for="col_billing_month">Billing Month</label>
-                                <select name="col_billing_month" id="col_billing_month" class="form-control map-select" required disabled>
-                                    <option value="">Select a file first…</option>
-                                </select>
+                                <small class="text-muted">e.g. RINV-0012</small>
                             </div>
                             <div class="form-group col-md-6 map-field" data-field="account_code" data-required="1">
                                 <label for="col_account_code">Paying Account Code</label>
@@ -125,8 +125,20 @@
                                 </select>
                             </div>
                             <div class="form-group col-md-6 map-field" data-field="description" data-required="1">
-                                <label for="col_description">Description</label>
+                                <label for="col_description">Narration / Description</label>
                                 <select name="col_description" id="col_description" class="form-control map-select" required disabled>
+                                    <option value="">Select a file first…</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-6 map-field" data-field="rider_id" data-required="0">
+                                <label for="col_rider_id">Rider ID <span class="text-muted">(optional)</span></label>
+                                <select name="col_rider_id" id="col_rider_id" class="form-control map-select" disabled>
+                                    <option value="">Select a file first…</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-6 map-field" data-field="billing_month" data-required="0">
+                                <label for="col_billing_month">Billing Month <span class="text-muted">(optional)</span></label>
+                                <select name="col_billing_month" id="col_billing_month" class="form-control map-select" disabled>
                                     <option value="">Select a file first…</option>
                                 </select>
                             </div>
@@ -135,7 +147,7 @@
                 </div>
 
                 <div class="form-group text-center mt-3">
-                    <button type="submit" class="btn btn-success" id="importBtn" disabled><i class="fas fa-upload"></i> Import Paid Vouchers</button>
+                    <button type="submit" class="btn btn-success" id="importBtn" disabled><i class="fas fa-upload"></i> Import Salary Payments</button>
                 </div>
 
                 <div id="importProgressWrap" class="mt-3" style="display:none;">
@@ -177,12 +189,12 @@
 
     function startProcessingAnimation() {
         var pct = 55;
-        setProgress(pct, 'Creating payment vouchers...');
+        setProgress(pct, 'Importing salary payments...');
         clearInterval(processTimer);
         processTimer = setInterval(function () {
             if (pct >= 92) return;
             pct += Math.max(0.4, (92 - pct) * 0.04);
-            setProgress(pct, 'Creating payment vouchers...');
+            setProgress(pct, 'Importing salary payments...');
         }, 400);
     }
 
@@ -241,14 +253,14 @@
                 if (response && response.skipped_log) {
                     skippedLog = Array.isArray(response.skipped_log) ? response.skipped_log : Object.values(response.skipped_log);
                 }
-                var countLabel = imported + ' payment' + (imported === 1 ? '' : 's') + ' created';
-                if (skipped > 0) countLabel += ', ' + skipped + ' skipped';
+                var countLabel = imported + ' imported';
+                if (skipped > 0) countLabel += ', ' + skipped + ' failed';
                 stopProgress(true, countLabel);
 
-                var message = (response && response.message) ? response.message : ('Import finished. Created: ' + imported + '.');
+                var message = (response && response.message) ? response.message : ('Import finished. Successfully imported: ' + imported + '.');
                 var html = '<div class="alert alert-success mb-2">' + $('<div>').text(message).html() + '</div>';
                 if (skippedLog.length || skipped > 0) {
-                    html += '<div class="alert alert-warning mb-2"><strong>Skipped rows (' + (skippedLog.length || skipped) + '):</strong>';
+                    html += '<div class="alert alert-warning mb-2"><strong>Failed records (' + (skippedLog.length || skipped) + '):</strong>';
                     if (skippedLog.length) {
                         html += '<ul class="mb-0 mt-2 pl-3" style="max-height:240px;overflow:auto;">';
                         skippedLog.forEach(function (line) {
@@ -285,12 +297,13 @@
 
 (function () {
     var FIELDS = [
-        { key: 'rider_id', label: 'Rider ID', required: true, match: [/rider id/, /rider_id/, /\bid\b/] },
-        { key: 'billing_month', label: 'Billing Month', required: true, match: [/billing/, /\bmonth\b/] },
+        { key: 'invoice_number', label: 'Invoice Number', required: true, match: [/invoice number/, /invoice_number/, /invoice no/, /\binv\b/, /rinv/] },
         { key: 'account_code', label: 'Account Code', required: true, match: [/account code/, /account_code/, /acc(ount)?\s*code/, /\bcode\b/] },
         { key: 'amount', label: 'Amount', required: true, match: [/amount/, /\bpaid\b/, /payment amt/] },
         { key: 'payment_date', label: 'Payment Date', required: true, match: [/payment date/, /date of payment/, /\bdate\b/] },
-        { key: 'description', label: 'Description', required: true, match: [/description/, /narration/, /remarks/] }
+        { key: 'description', label: 'Narration', required: true, match: [/description/, /narration/, /remarks/] },
+        { key: 'rider_id', label: 'Rider ID', required: false, match: [/rider id/, /rider_id/] },
+        { key: 'billing_month', label: 'Billing Month', required: false, match: [/billing/, /\bmonth\b/] }
     ];
     var TOTAL_REQUIRED = FIELDS.filter(function (f) { return f.required; }).length;
     var MAX_COLS = 60;
@@ -381,7 +394,7 @@
     function requiredDuplicates(mapping) {
         var byCol = {};
         FIELDS.forEach(function (f) {
-            if (!f.required || !mapping[f.key]) return;
+            if (!mapping[f.key]) return;
             (byCol[mapping[f.key]] = byCol[mapping[f.key]] || []).push(f);
         });
         var dups = [];

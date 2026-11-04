@@ -30,7 +30,7 @@
     <input type="hidden" name="trans_date" value="{{ $data->trans_date ?? $data->date }}">
     <input type="hidden" name="trans_code" value="{{ $data->trans_code }}">
     <input type="hidden" name="billing_month" value="{{ $data->billing_month }}">
-    <input type="hidden" name="voucher_type" value="BR">
+    <input type="hidden" name="voucher_type" value="VR">
     <input type="hidden" name="amount" id="br_pay_amount" value="{{ number_format($baseAmount, 2, '.', '') }}">
     <input type="hidden" name="Created_By" value="{{ Auth::user()->id }}">
     <input type="hidden" name="payment_type" id="br_pay_payment_type" value="Asset">
@@ -67,12 +67,14 @@
 
         <div class="row mb-2">
             <div class="form-group col-md-4">
-                <label for="br_pay_attach_file">Document</label>
-                <input type="file"
-                       name="attach_file"
-                       id="br_pay_attach_file"
-                       class="form-control"
-                       accept=".pdf,.jpg,.jpeg,.png">
+                @include('partials.universal_document_upload', [
+                  'name' => 'attach_file',
+                  'label' => 'Document',
+                  'required' => false,
+                  'accept' => '.pdf,.jpg,.jpeg,.png',
+                  'inputClass' => 'form-control',
+                  'showHint' => true,
+                ])
             </div>
 
             <div class="form-group col-md-3">

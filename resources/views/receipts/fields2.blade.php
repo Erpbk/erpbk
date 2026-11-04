@@ -112,8 +112,13 @@
 
         <!-- Voucher Attachment Field -->
         <div class="form-group col-md-3">
-            {!! Form::label('attachment', 'Attachment:') !!}
-            {!! Form::file('attachment', ['class' => 'form-control']) !!} 
+            @include('partials.universal_document_upload', [
+              'name' => 'attachment',
+              'label' => 'Attachment:',
+              'required' => false,
+              'inputClass' => 'form-control',
+              'showHint' => true,
+            ])
         </div>
     </div>
 
@@ -153,7 +158,7 @@
                                 </td>
                                 <td>{{ $invoice->invoice_number }}</td>
                                 <td>{{ $invoice->customer->name ?? $invoice->leasingCompany->name ?? '-' }}</td>
-                                <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
+                                <td>{{ $invoice->billing_month ? date('M-Y', strtotime($invoice->billing_month)) : '-' }}</td>
                                 <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
                                 <td class="text-right">{{ number_format($invoice->paid_amount - $invoice->partial_paid_amount[$receipt->id], 2) }}</td>
                                 <td class="text-right text-danger">{{ number_format($invoice->balance + $invoice->partial_paid_amount[$receipt->id], 2) }}</td>
@@ -179,7 +184,7 @@
                             </td>
                             <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
                             <td>{{ $invoice->customer->name ?? $invoice->leasingCompany->name ?? '-' }}</td>
-                            <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
+                            <td>{{ $invoice->billing_month ? date('M-Y', strtotime($invoice->billing_month)) : '-' }}</td>
                             <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
                             <td class="text-right">{{ number_format($invoice->paid_amount ?? 0, 2) }}</td>
                             <td class="text-right text-danger">{{ number_format($invoice->balance, 2) }}</td>

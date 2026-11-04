@@ -4,6 +4,7 @@ namespace App\Services\Agreements;
 
 use App\Models\AdminAgreementAssignableModule;
 use App\Models\AdminAgreementPlaceholder;
+use App\Models\AgreementCategory;
 use App\Models\AgreementPlaceholder;
 use App\Support\CompanyModuleVisibility;
 use App\Support\ModuleFieldSource;
@@ -55,6 +56,15 @@ class AgreementPlaceholderCatalog
         ));
     }
 
+    public function isSystemOnlyModule(?string $moduleKey): bool
+    {
+        $moduleKey = $moduleKey !== null ? trim($moduleKey) : '';
+
+        return $moduleKey === ''
+            || $moduleKey === 'system'
+            || $moduleKey === AgreementCategory::GENERAL_MODULE;
+    }
+
     /**
      * Placeholders grouped for the editor sidebar.
      *
@@ -67,10 +77,10 @@ class AgreementPlaceholderCatalog
         try {
             if (Schema::connection('mysql_admin')->hasTable('admin_agreement_placeholders')) {
                 $query = AdminAgreementPlaceholder::query()->orderBy('sort_order');
-                if ($moduleKey !== '') {
-                    $query->whereIn('module_key', [$moduleKey, 'system']);
-                } else {
+                if ($this->isSystemOnlyModule($moduleKey)) {
                     $query->where('module_key', 'system');
+                } else {
+                    $query->whereIn('module_key', [$moduleKey, 'system']);
                 }
 
                 $items = $query->get();
@@ -97,8 +107,11 @@ class AgreementPlaceholderCatalog
                 return [];
             }
 
+            $moduleKey = trim($moduleKey);
+            $keys = $this->isSystemOnlyModule($moduleKey) ? ['system'] : [$moduleKey, 'system'];
+
             return AdminAgreementPlaceholder::query()
-                ->whereIn('module_key', [trim($moduleKey), 'system'])
+                ->whereIn('module_key', $keys)
                 ->orderBy('sort_order')
                 ->get()
                 ->all();
@@ -151,16 +164,22 @@ class AgreementPlaceholderCatalog
             'label' => 'System',
             'options' => [
                 'company_name' => 'Company name',
+                'company_contact' => 'Company contact',
+                'company_address' => 'Company address',
                 'current_date' => 'Current date',
             ],
         ];
 
-        if ($moduleKey === '' || $moduleKey === 'system') {
+        if ($this->isSystemOnlyModule($moduleKey)) {
             return [$system];
         }
 
         $fkMap = config('agreement_modules.foreign_key_sources', []);
         $fkExclude = config('agreement_modules.foreign_key_exclude', []);
+        $suppressRelated = config('agreement_modules.suppress_related_fks.'.$moduleKey, []);
+        if (! is_array($suppressRelated)) {
+            $suppressRelated = [];
+        }
         $expandableOnModule = [];
 
         $fields = [];
@@ -170,7 +189,9 @@ class AgreementPlaceholderCatalog
             }
             $fkMeta = $this->resolveForeignKeyMeta($column, $moduleKey);
             if ($fkMeta !== null && ! $this->isSelfIdentityFk($moduleKey, $column, $fkMeta)) {
-                $expandableOnModule[$column] = $fkMeta;
+                if (! in_array($column, $suppressRelated, true)) {
+                    $expandableOnModule[$column] = $fkMeta;
+                }
                 continue;
             }
             $fields[$column] = ModuleFieldSource::defaultAssignmentFieldLabel($column).' (DB)';
@@ -195,7 +216,104 @@ class AgreementPlaceholderCatalog
             ];
         }
 
+        $assignedTo = $this->assignedToSourceOptions($moduleKey);
+        if ($assignedTo !== []) {
+            $groups[] = [
+                'label' => $moduleKey === 'bikes' ? 'Assigned To:' : 'Related: Assigned To',
+                'options' => $assignedTo,
+            ];
+        }
+
+        $assignee = $this->assigneeSourceOptions($moduleKey);
+        if ($assignee !== []) {
+            $groups[] = [
+                'label' => 'Related: Assignee',
+                'options' => $assignee,
+            ];
+        }
+
+        $lostBy = $this->lostBySourceOptions($moduleKey);
+        if ($lostBy !== []) {
+            $groups[] = [
+                'label' => 'Related: Lost By',
+                'options' => $lostBy,
+            ];
+        }
+
+        $groups[] = [
+            'label' => 'Related: Other',
+            'options' => $this->relatedOtherSourceOptions($moduleKey),
+        ];
+
         return $groups;
+    }
+
+    /**
+     * Custom computed / cross-table sources for the "Related: Other" optgroup.
+     *
+     * @return array<string, string>
+     */
+    public function relatedOtherSourceOptions(string $moduleKey): array
+    {
+        $all = config('agreement_modules.related_other_sources', []);
+        if (! is_array($all)) {
+            return [];
+        }
+
+        $options = $all[$moduleKey] ?? [];
+
+        return is_array($options) ? $options : [];
+    }
+
+    /**
+     * Unified assignee sources (e.g. bike → rider or rental customer).
+     *
+     * @return array<string, string>
+     */
+    public function assignedToSourceOptions(string $moduleKey): array
+    {
+        $all = config('agreement_modules.assigned_to_sources', []);
+        if (! is_array($all)) {
+            return [];
+        }
+
+        $options = $all[$moduleKey] ?? [];
+
+        return is_array($options) ? $options : [];
+    }
+
+    /**
+     * Fixed Related: Assignee sources (e.g. SIM → rider or employee).
+     *
+     * @return array<string, string>
+     */
+    public function assigneeSourceOptions(string $moduleKey): array
+    {
+        $all = config('agreement_modules.assignee_sources', []);
+        if (! is_array($all)) {
+            return [];
+        }
+
+        $options = $all[$moduleKey] ?? [];
+
+        return is_array($options) ? $options : [];
+    }
+
+    /**
+     * Fixed Related: Lost By sources (e.g. fuel card / SIM → person charged for loss).
+     *
+     * @return array<string, string>
+     */
+    public function lostBySourceOptions(string $moduleKey): array
+    {
+        $all = config('agreement_modules.lost_by_sources', []);
+        if (! is_array($all)) {
+            return [];
+        }
+
+        $options = $all[$moduleKey] ?? [];
+
+        return is_array($options) ? $options : [];
     }
 
     /**
@@ -224,7 +342,7 @@ class AgreementPlaceholderCatalog
                         if ($leaf === '' || str_contains($leaf, '.')) {
                             continue;
                         }
-                        if (in_array($leaf, ['company_name', 'current_date'], true)) {
+                        if (in_array($leaf, ['company_name', 'company_contact', 'company_address', 'current_date'], true)) {
                             continue;
                         }
                         $key = $relation.'.'.$leaf;

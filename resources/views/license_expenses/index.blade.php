@@ -5,76 +5,253 @@
 $accountId = $account->rider_id;
 $categoryId = (int) ($activeLicenseCategory->id ?? 0);
 $categoryExpenseQuery = \App\Support\LicenseCategoryService::expensesForAccountQuery(
-    (int) $account->id,
-    $accountId ? (int) $accountId : null,
-    $categoryId
+(int) $account->id,
+$accountId ? (int) $accountId : null,
+$categoryId
 );
 $totalUnpaid = (clone $categoryExpenseQuery)->where('payment_status', 'unpaid')->sum('amount');
 $totalPaid = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->sum('amount');
 $unpaidCount = (clone $categoryExpenseQuery)->where('payment_status', 'unpaid')->count();
 $paidCount = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->count();
 
+$licenseCategoryAccounts = collect($licenseCategoryAccounts ?? (
+    isset($siblingAccounts)
+        ? collect([$account])->merge($siblingAccounts)->unique('id')->sortBy('id')->values()
+        : collect([$account])
+));
+$visaCategoryAccounts = collect($visaCategoryAccounts ?? (
+    isset($visaAccount)
+        ? collect([$visaAccount])->merge($visaSiblingAccounts ?? [])->unique('id')->sortBy('id')->values()
+        : collect()
+));
+$showVisaSection = !empty($showVisaExpenseSection) && $visaCategoryAccounts->isNotEmpty();
+$licInstallmentData = $licInstallmentData ?? collect();
+$licInstallmentStats = $licInstallmentStats ?? ['unpaid_amount'=>0,'paid_amount'=>0,'paid_count'=>0,'unpaid_count'=>0];
+
+$requestedTab = request('tab', 'license');
+$activeTab = ($requestedTab === 'visa' && $showVisaSection) ? 'visa' : 'license';
+// When a visa category was picked via visa_account_id, keep visa tab active
+if (request()->filled('visa_account_id') && $showVisaSection) {
+    $activeTab = 'visa';
+}
+$activeLicenseName = $activeLicenseCategory->name ?? 'License';
 @endphp
 
-<div class="content">
+@include('partials.expense_panel_styles')
+
+<div class="content exp-panel">
   @include('flash::message')
 
-  @include('visa_expenses._embedded_on_license')
+  {{-- ── Dynamic category tabs (only accounts that exist for this rider) ── --}}
+  <div class="exp-tab-nav" id="expenseTabs" role="tablist">
+    <ul class="nav nav-pills mb-0 flex-grow-1 flex-wrap">
+      @foreach($licenseCategoryAccounts as $licAccount)
+      @php
+        $isActiveLic = $activeTab === 'license' && (int) $licAccount->id === (int) $account->id;
+        $licLabel = $licAccount->licenseCategory->name ?? ('Account #'.$licAccount->id);
+        $licUnpaid = \App\Support\LicenseCategoryService::unpaidCountForAccount($licAccount);
+        $licUrl = route('LicenseExpense.generatentries', ['id' => $licAccount->id, 'tab' => 'license']);
+      @endphp
+      <li class="nav-item">
+        <a class="nav-link {{ $isActiveLic ? 'active' : '' }}"
+          href="{{ $licUrl }}"
+          id="tab-license-cat-{{ $licAccount->id }}">
+          <i class="fa fa-id-card me-1"></i>
+          {{ $licLabel }}
+          @if($licUnpaid > 0)
+          <span class="badge rounded-pill ms-1">{{ $licUnpaid }}</span>
+          @endif
+        </a>
+      </li>
+      @endforeach
 
-  @if(isset($siblingAccounts) && $siblingAccounts->count() > 0)
-  <div class="alert alert-light border mb-3">
-    <span class="text-muted me-2">Other license accounts for this rider:</span>
-    @foreach($siblingAccounts as $sibling)
-    <a href="{{ route('LicenseExpense.generatentries', $sibling->id) }}" class="btn btn-sm btn-outline-secondary me-1 mb-1">
-      {{ $sibling->licenseCategory->name ?? 'Account #' . $sibling->id }}
-    </a>
-    @endforeach
+      @foreach($visaCategoryAccounts as $visaCat)
+      @php
+        $isActiveVisaCat = $activeTab === 'visa' && isset($visaAccount) && (int) $visaCat->id === (int) $visaAccount->id;
+        $visaLabel = $visaCat->renewalCategory->name ?? ('Account #'.$visaCat->id);
+        $visaCatUnpaid = \App\Support\VisaRenewalCategoryService::unpaidCountForAccount($visaCat);
+        $visaUrl = request()->fullUrlWithQuery([
+          'tab' => 'visa',
+          'visa_account_id' => $visaCat->id,
+        ]);
+      @endphp
+      <li class="nav-item">
+        <a class="nav-link {{ $isActiveVisaCat ? 'active' : '' }}"
+          href="{{ $visaUrl }}"
+          id="tab-visa-cat-{{ $visaCat->id }}">
+          <i class="fa fa-passport me-1"></i>
+          {{ $visaLabel }}
+          @if($visaCatUnpaid > 0)
+          <span class="badge rounded-pill ms-1">{{ $visaCatUnpaid }}</span>
+          @endif
+        </a>
+      </li>
+      @endforeach
+    </ul>
+  </div>
+
+  {{-- ════════════════════════════════════════════════════════════
+       LICENSE TAB
+  ════════════════════════════════════════════════════════════ --}}
+  <div id="pane-license" class="{{ $activeTab==='license' ? '' : 'd-none' }}">
+
+    {{-- ── License Expenses card ── --}}
+    <div class="card exp-card mb-4">
+      <div class="section-header">
+        <div class="section-icon">
+          <i class="fa fa-file-invoice-dollar"></i>
+        </div>
+        <div class="flex-grow-1">
+          <h5>
+            {{ $activeLicenseCategory->name ?? 'License Expense' }}
+          </h5>
+        </div>
+        @can('license_expense_create')
+        <a class="btn btn-sm btn-primary action-btn show-modal"
+          href="javascript:void(0);"
+          data-action="{{ route('LicenseExpense.create', $account->id) }}"
+          data-size="lg"
+          data-title="New expense entry — {{ $activeLicenseCategory->name ?? 'License' }}">
+          <i class="fa fa-plus me-1"></i> Add New Expense
+        </a>
+        @endcan
+      </div>
+
+      <div class="stat-strip">
+        <div class="stat-pill danger">
+          <div class="sp-icon"><i class="fa fa-arrow-down"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Unpaid Amount</span>
+            <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$totalUnpaid,2) }}</span>
+          </div>
+        </div>
+        <div class="stat-pill success">
+          <div class="sp-icon"><i class="fa fa-check"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Paid Amount</span>
+            <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$totalPaid,2) }}</span>
+          </div>
+        </div>
+        <div class="stat-pill warning">
+          <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Unpaid Expenses</span>
+            <span class="sp-value">{{ $unpaidCount }}</span>
+          </div>
+        </div>
+        <div class="stat-pill info">
+          <div class="sp-icon"><i class="fa fa-check"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Paid Expenses</span>
+            <span class="sp-value">{{ $paidCount }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body table-responsive px-2 py-0" id="table-data">
+        @include('license_expenses.table', ['data' => $data])
+      </div>
+    </div>
+
+    {{-- ── License Installments card ── --}}
+    <div class="card exp-card mb-4">
+      <div class="section-header">
+        <div class="section-icon">
+          <i class="fa fa-calendar-check"></i>
+        </div>
+        <div class="flex-grow-1">
+          <h5>License Installments</h5>
+        </div>
+        <div class="d-flex gap-2">
+          @if(user_can('license_expense_create') || user_can('licenseexpense_create'))
+          <a class="btn btn-sm btn-primary action-btn show-modal"
+            href="javascript:void(0);"
+            data-action="{{ route('LicenseExpense.createInstallmentPlanForm', $account->id) }}"
+            data-size="lg"
+            data-title="Create License Installment Plan">
+            <i class="fa fa-plus me-1"></i> Installment Plan
+          </a>
+          @endif
+          @if($licInstallmentData->count() > 0)
+          <a class="btn btn-sm btn-outline-primary action-btn show-modal-right"
+            href="javascript:void(0);"
+            data-action="{{ route('LicenseExpense.generateInstallmentInvoice', ['riderId' => $account->id]) }}"
+            data-size="xl"
+            data-title="License Installment Invoice — {{ $account->name }}">
+            <i class="fa fa-file-invoice me-1"></i> Invoice
+          </a>
+          @endif
+        </div>
+      </div>
+
+      <div class="stat-strip">
+        <div class="stat-pill danger">
+          <div class="sp-icon"><i class="fa fa-arrow-down"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Unpaid Amount</span>
+            <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$licInstallmentStats['unpaid_amount'],2) }}</span>
+          </div>
+        </div>
+        <div class="stat-pill success">
+          <div class="sp-icon"><i class="fa fa-check"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Paid Amount</span>
+            <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$licInstallmentStats['paid_amount'],2) }}</span>
+          </div>
+        </div>
+        <div class="stat-pill warning">
+          <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Unpaid Installments</span>
+            <span class="sp-value">{{ (int)$licInstallmentStats['unpaid_count'] }}</span>
+          </div>
+        </div>
+        <div class="stat-pill info">
+          <div class="sp-icon"><i class="fa fa-check"></i></div>
+          <div class="sp-body">
+            <span class="sp-label">Paid Installments</span>
+            <span class="sp-value">{{ (int)$licInstallmentStats['paid_count'] }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body table-responsive px-2 py-0">
+        @include('visa_expenses.installmentPlanTable', [
+        'data' => $licInstallmentData,
+        'account' => $account,
+        'installmentPayRoute' => 'LicenseExpense.payInstallment',
+        'installmentUpdateFieldRoute' => 'LicenseExpense.updateInstallmentField',
+        'installmentDeleteRoute' => 'LicenseExpense.deleteInstallment',
+        'installmentPaymentReceivingRoute' => 'LicenseExpense.paymentReceivingModal',
+        'installmentPlanModel' => \App\Models\license_installment_plan::class,
+        'canEditInstallment' => user_can('license_expense_edit') || user_can('licenseexpense_edit'),
+        'canDeleteInstallment' => user_can('license_expense_delete') || user_can('licenseexpense_delete'),
+        ])
+      </div>
+    </div>
+
+  </div>{{-- /pane-license --}}
+
+  {{-- ════════════════════════════════════════════════════════════
+       VISA TAB
+  ════════════════════════════════════════════════════════════ --}}
+  @if($showVisaSection)
+  <div id="pane-visa" class="{{ $activeTab==='visa' ? '' : 'd-none' }}">
+    @include('visa_expenses._embedded_on_license')
   </div>
   @endif
 
-  <div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <h3 class="mb-0">License Expense - {{ $account->name }}@if(!empty($activeLicenseCategory)) <span class="text-muted">({{ $activeLicenseCategory->name }})</span>@endif</h3>
-      @can('license_expense_create')
-      <a class="btn btn-primary action-btn show-modal"
-        href="javascript:void(0);" data-action="{{ route('LicenseExpense.create' , $account->id) }}" data-size="lg" data-title="New expense entry — {{ $activeLicenseCategory->name ?? 'License' }}">
-        Add New Expense
-      </a>
-      @endcan
-    </div>
-    <div class="totals-cards pt-3">
-      <div class="total-card total-red">
-        <div class="label">Total Unpaid Amount</div>
-        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $totalUnpaid, 2) }}</div>
-      </div>
-      <div class="total-card total-green">
-        <div class="label">Total Paid Amount</div>
-        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $totalPaid, 2) }}</div>
-      </div>
-      <div class="total-card total-red">
-        <div class="label">Unpaid Expenses</div>
-        <div class="value">{{ $unpaidCount }}</div>
-      </div>
-      <div class="total-card total-green">
-        <div class="label">Paid Expenses</div>
-        <div class="value">{{ $paidCount }}</div>
-      </div>
-    </div>
-    <div class="card-body table-responsive px-2 py-0" id="table-data">
-      @include('license_expenses.table', ['data' => $data])
-    </div>
-  </div>
-</div>
+</div>{{-- /content --}}
 
 @endsection
 @section('page-script')
 
 @include('delete_requests._confirm_delete_script', [
-    'entityName' => 'License Expense',
-    'confirmText' => 'This will submit a delete request or move the license expense to the Recycle Bin.',
-    'method' => 'GET',
+'entityName' => 'License Expense',
+'confirmText' => 'This will submit a delete request or move the license expense to the Recycle Bin.',
+'method' => 'GET',
 ])
-<script type="text/javascript">
+<script>
   $(document).ready(function() {
     $('#payment_status').select2({
       dropdownParent: $('#searchTopbody'),
@@ -91,161 +268,104 @@ $paidCount = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->cou
       placeholder: "Filter By Bike Plate",
       allowClear: true
     });
-  });
-</script>
 
-<script type="text/javascript">
-  $(document).ready(function() {
+    // ── Ajax filter ────────────────────────────────────────────
     $('#filterForm').on('submit', function(e) {
       e.preventDefault();
-
       $('#loading-overlay').show();
       $('#searchModal').modal('hide');
-
-      const loaderStartTime = Date.now();
-
-      // Exclude _token and empty fields
-      let filteredFields = $(this).serializeArray().filter(field => field.name !== '_token' && field.value.trim() !== '');
-      let formData = $.param(filteredFields);
-
+      const loaderStart = Date.now();
+      const filteredFields = $(this).serializeArray().filter(f => f.name !== '_token' && f.value.trim() !== '');
+      const formData = $.param(filteredFields);
       $.ajax({
         url: "{{ route('LicenseExpense.generatentries', ['id' => $account->id]) }}",
-        type: "GET",
+        type: 'GET',
         data: formData,
         success: function(data) {
           $('#table-data').html(data.tableData);
-
-          // Update URL
-          let newUrl = "{{ route('LicenseExpense.generatentries', ['id' => $account->id]) }}" + (formData ? '?' + formData : '');
+          const newUrl = "{{ route('LicenseExpense.generatentries', ['id' => $account->id]) }}" + (formData ? '?' + formData : '');
           history.pushState(null, '', newUrl);
-
-
-          // Ensure loader is visible at least 3s
-          const elapsed = Date.now() - loaderStartTime;
-          const remaining = 1000 - elapsed;
+          const remaining = 1000 - (Date.now() - loaderStart);
           setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
         },
-        error: function(xhr, status, error) {
-          console.error(error);
-
-          const elapsed = Date.now() - loaderStartTime;
-          const remaining = 1000 - elapsed;
+        error: function() {
+          const remaining = 1000 - (Date.now() - loaderStart);
           setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
         }
       });
     });
   });
-</script>
-<script>
+
+  // ── Client-side column sort ────────────────────────────────
   document.addEventListener('DOMContentLoaded', function() {
     const table = document.querySelector('#LicenseExpensesDataTable');
     if (!table) return;
     const headers = table.querySelectorAll('th.sorting');
     const tbody = table.querySelector('tbody');
-
     headers.forEach((header, colIndex) => {
       header.addEventListener('click', () => {
         const rows = Array.from(tbody.querySelectorAll('tr'));
         const isAsc = header.classList.contains('sorted-asc');
-
-        // Clear previous sort classes
         headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
-
-        // Add new sort direction
         header.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
-
-        // Sort logic
         rows.sort((a, b) => {
           let aText = a.children[colIndex]?.textContent.trim().toLowerCase();
           let bText = b.children[colIndex]?.textContent.trim().toLowerCase();
-
           const aVal = isNaN(aText) ? aText : parseFloat(aText);
           const bVal = isNaN(bText) ? bText : parseFloat(bText);
-
           if (aVal < bVal) return isAsc ? 1 : -1;
           if (aVal > bVal) return isAsc ? -1 : 1;
           return 0;
         });
-
-        // Re-append sorted rows
         rows.forEach(row => tbody.appendChild(row));
       });
     });
   });
-</script>
 
-<script>
+  // ── Inline row update ──────────────────────────────────────
   document.addEventListener('click', function(e) {
-    var btn = e.target.closest('.js-inline-update-btn');
+    const btn = e.target.closest('.js-inline-update-btn');
     if (!btn) return;
-
-    var row = btn.closest('tr[data-row-id]');
+    const row = btn.closest('tr[data-row-id]');
     if (!row) return;
-
-    var updateUrl = btn.getAttribute('data-update-url');
-    var id = btn.getAttribute('data-id');
-    var amount = row.querySelector('.js-inline-amount')?.value || '';
-    var date = row.querySelector('.js-inline-date')?.value || '';
-    var billingMonth = row.querySelector('.js-inline-billing-month')?.value || '';
-
-    var formData = new FormData();
+    const formData = new FormData();
     formData.append('_token', '{{ csrf_token() }}');
-    formData.append('id', id);
-    formData.append('amount', amount);
-    formData.append('date', date);
-    formData.append('billing_month', billingMonth);
-
-    fetch(updateUrl, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      })
-      .then(function(res) {
-        return res.json();
-      })
-      .then(function(data) {
-        if (data.success && typeof Swal !== 'undefined') {
-          Swal.fire({
-            icon: 'success',
-            title: 'Saved',
-            text: data.message || 'Updated successfully',
-            timer: 1200,
-            showConfirmButton: false
-          });
-          return;
-        }
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: data.message || 'Could not update row.'
-          });
-        }
-      })
-      .catch(function() {
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Could not update row.'
-          });
-        }
+    formData.append('id', btn.getAttribute('data-id'));
+    formData.append('amount', row.querySelector('.js-inline-amount')?.value || '');
+    formData.append('date', row.querySelector('.js-inline-date')?.value || '');
+    formData.append('billing_month', row.querySelector('.js-inline-billing-month')?.value || '');
+    fetch(btn.getAttribute('data-update-url'), {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    }).then(r => r.json()).then(data => {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: data.success ? 'success' : 'error',
+          title: data.success ? 'Saved' : 'Error',
+          text: data.message || (data.success ? 'Updated successfully' : 'Could not update row.'),
+          timer: data.success ? 1200 : undefined,
+          showConfirmButton: !data.success
+        });
+      }
+    }).catch(() => {
+      if (typeof Swal !== 'undefined') Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Could not update row.'
       });
+    });
   });
-</script>
 
-<script>
+  // ── Delete visa expense ────────────────────────────────────
   document.addEventListener('click', function(e) {
-    var deleteLink = e.target.closest('.js-delete-visa-expense');
-    if (!deleteLink) return;
-    var url = deleteLink.getAttribute('data-delete-url');
-    if (url) {
-      confirmDelete(url);
-    }
+    const link = e.target.closest('.js-delete-visa-expense');
+    if (!link) return;
+    const url = link.getAttribute('data-delete-url');
+    if (url) confirmDelete(url);
   });
 </script>
-
 @endsection

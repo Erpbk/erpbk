@@ -127,4 +127,34 @@ class AgreementAssignableModulesTest extends TestCase
 
         $this->assertSame('Workshop Clients', $label);
     }
+
+    public function test_assignment_option_keys_include_general_first(): void
+    {
+        $catalog = Mockery::mock(AgreementPlaceholderCatalog::class);
+        $catalog->shouldReceive('companyAssignableModuleKeys')
+            ->once()
+            ->andReturn(['riders', 'customers']);
+
+        $this->app->instance(AgreementPlaceholderCatalog::class, $catalog);
+
+        $keys = $this->app->make(AgreementModuleService::class)->assignmentOptionKeys();
+
+        $this->assertSame(['general', 'riders', 'customers'], $keys);
+        $this->assertSame('General', $this->app->make(AgreementModuleService::class)->moduleLabel('general'));
+    }
+
+    public function test_assignable_module_keys_do_not_include_general(): void
+    {
+        $catalog = Mockery::mock(AgreementPlaceholderCatalog::class);
+        $catalog->shouldReceive('companyAssignableModuleKeys')
+            ->once()
+            ->andReturn(['riders']);
+
+        $this->app->instance(AgreementPlaceholderCatalog::class, $catalog);
+
+        $keys = $this->app->make(AgreementModuleService::class)->assignableModuleKeys();
+
+        $this->assertSame(['riders'], $keys);
+        $this->assertNotContains('general', $keys);
+    }
 }

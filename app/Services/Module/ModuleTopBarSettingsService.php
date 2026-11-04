@@ -4,6 +4,8 @@ namespace App\Services\Module;
 
 use App\Models\ErpModuleTopCategory;
 use App\Models\ErpModuleTopOption;
+use App\Models\Settings;
+use App\Models\VisaStatus;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
 use App\Support\ErpModuleRegistry;
@@ -54,6 +56,7 @@ class ModuleTopBarSettingsService
 
         if ($categories->isEmpty()) {
             $this->migrateLegacyRtaFinesCategories($moduleKey);
+            $this->migrateLegacyVisaExpenseTopCategories($moduleKey);
             $categories = ErpModuleTopCategory::query()
                 ->with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
                 ->where('module_key', $moduleKey)
@@ -148,6 +151,87 @@ class ModuleTopBarSettingsService
                     'show_in_view_cards' => $option->show_in_view_cards,
                 ]);
             }
+        }
+    }
+
+    /**
+     * One-time migrate Settings-based Visa Expense Top status IDs into erp_module_top_*.
+     */
+    protected function migrateLegacyVisaExpenseTopCategories(string $moduleKey): void
+    {
+        if ($moduleKey !== 'visa_expense') {
+            return;
+        }
+
+        $companyId = auth()->user()->company_id ?? null;
+
+        $alreadyMigrated = ErpModuleTopCategory::query()
+            ->where('module_key', $moduleKey)
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->exists();
+
+        if ($alreadyMigrated) {
+            return;
+        }
+
+        $idsRaw = (string) (Settings::query()
+            ->where('name', 'visa_expense_top_status_ids')
+            ->value('value') ?? '');
+        $statusIds = collect(json_decode($idsRaw, true))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($statusIds === []) {
+            return;
+        }
+
+        $enabledRaw = (string) (Settings::query()
+            ->where('name', 'visa_expense_top_enabled')
+            ->value('value') ?? '1');
+        $showInTopBar = in_array(strtolower(trim($enabledRaw)), ['1', 'true', 'yes', 'on'], true);
+
+        $statuses = VisaStatus::query()
+            ->whereIn('id', $statusIds)
+            ->get()
+            ->keyBy('id');
+
+        $orderedNames = collect($statusIds)
+            ->map(fn ($id) => trim((string) ($statuses->get($id)->name ?? '')))
+            ->filter(fn ($name) => $name !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($orderedNames === []) {
+            return;
+        }
+
+        $category = ErpModuleTopCategory::create([
+            'module_key' => $moduleKey,
+            'company_id' => $companyId,
+            'name' => 'Visa Status',
+            'db_column' => 'visa_status',
+            'filter_type' => 'exact_match',
+            'display_order' => 1,
+            'is_active' => true,
+            'show_in_top_bar' => $showInTopBar,
+            'show_in_view_cards' => false,
+        ]);
+
+        $order = 1;
+        foreach ($orderedNames as $name) {
+            ErpModuleTopOption::create([
+                'category_id' => $category->id,
+                'company_id' => $companyId,
+                'name' => $name,
+                'display_order' => $order++,
+                'is_active' => true,
+                'show_in_top_bar' => true,
+                'show_in_view_cards' => false,
+            ]);
         }
     }
 

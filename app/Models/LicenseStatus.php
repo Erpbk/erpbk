@@ -10,9 +10,11 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Unique;
 
+use App\Traits\TracksUserAttribution;
+
 class LicenseStatus extends BaseModel
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, TracksUserAttribution;
 
     protected $fillable = [
         'name',
@@ -26,6 +28,7 @@ class LicenseStatus extends BaseModel
         'display_order',
         'created_by',
         'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

@@ -6,10 +6,14 @@ use App\Models\CustomerInvoices;
 use App\Models\Customers;
 use App\Models\Transactions;
 use App\Models\Branch;
-use Illuminate\Http\Request;
-use \Illuminate\Support\Facades\DB;
-use \Illuminate\Support\Facades\Storage;
+use App\Services\Email\CompanyEmailBrandingService;
+use App\Services\Email\UserEmailService;
 use App\Support\GlobalAccounts;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CustomerInvoicesController extends Controller
 {
@@ -64,6 +68,8 @@ class CustomerInvoicesController extends Controller
             'date_to' => 'required|date|after_or_equal:date_from',
             'description' => 'required|string',
             'notes' => 'nullable|string',
+            'customer_note' => 'nullable|string',
+            'terms_and_conditions' => 'nullable|string',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'item_ids' => 'required|array|min:1',
             'item_ids.*' => 'exists:items,id',
@@ -117,6 +123,9 @@ class CustomerInvoicesController extends Controller
                 ];
             }
 
+            $customer = Customers::find($request->customer_id);
+            $defaults = \App\Support\CustomerInvoiceDefaults::all();
+
             // Create invoice
             $invoice = CustomerInvoices::create([
                 'customer_id' => $request->customer_id, // Assuming company_id maps to customer_id
@@ -126,11 +135,17 @@ class CustomerInvoicesController extends Controller
                 'date_to' => $request->date_to,
                 'description' => $request->description,
                 'notes' => $request->notes,
+                'customer_note' => $request->customer_note
+                    ?: ($customer->customer_note ?? null)
+                    ?: ($defaults['customer_notes'] ?: null),
+                'terms_and_conditions' => $request->terms_and_conditions
+                    ?: ($customer->terms_and_conditions ?? null)
+                    ?: ($defaults['terms_and_conditions'] ?: null),
                 'subtotal' => $subtotal,
                 'vat' => $vatTotal,
                 'total' => $grandTotal,
                 'attachment' => $attachmentPath,
-                'branch_id' => Customers::where('id', $request->customer_id)->value('branch_id'),
+                'branch_id' => $customer?->branch_id,
             ]);
 
             // Create invoice items
@@ -224,6 +239,23 @@ class CustomerInvoicesController extends Controller
         return view('customer_invoices.show', compact('invoice'));
     }
 
+    public function download(Request $request, $company_slug, $id)
+    {
+        $invoice = CustomerInvoices::with(['items', 'customer'])->find($id);
+        if (!$invoice) {
+            abort(404, 'Customer Invoice not found');
+        }
+
+        $invoiceNumber = $invoice->invoice_number
+            ?? ('CI-' . str_pad((string) $invoice->id, 6, '0', STR_PAD_LEFT));
+
+        return \App\Support\InvoicePdf::download(
+            'customer_invoices.show',
+            ['invoice' => $invoice],
+            'Customer-Invoice-' . $invoiceNumber . '.pdf'
+        );
+    }
+
     /**
      * Show the form for editing the specified resource.
      */
@@ -237,14 +269,14 @@ class CustomerInvoicesController extends Controller
             Flash::error('Invoice not found');
             return redirect()->back();
         }
-        $invoice->load('items');
+        $invoice->load(['items', 'customer']);
         return view('customer_invoices.edit', compact('invoice'));
     }
 
     public function clone($company_slug, $id)
     {
         $invoice = CustomerInvoices::find($id);
-        $invoice->load('items');
+        $invoice->load(['items', 'customer']);
         return view('customer_invoices.create', compact('invoice'));
     }
 
@@ -261,6 +293,8 @@ class CustomerInvoicesController extends Controller
             'date_to' => 'required|date|after_or_equal:date_from',
             'description' => 'required|string',
             'notes' => 'nullable|string',
+            'customer_note' => 'nullable|string',
+            'terms_and_conditions' => 'nullable|string',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'item_ids' => 'required|array|min:1',
             'item_ids.*' => 'exists:items,id',
@@ -331,6 +365,8 @@ class CustomerInvoicesController extends Controller
                 'date_to' => $request->date_to,
                 'description' => $request->description,
                 'notes' => $request->notes,
+                'customer_note' => $request->customer_note,
+                'terms_and_conditions' => $request->terms_and_conditions,
                 'subtotal' => $subtotal,
                 'vat' => $vatTotal,
                 'total' => $grandTotal,
@@ -451,7 +487,10 @@ class CustomerInvoicesController extends Controller
                 Storage::disk('public')->delete($invoice->attachment);
             }
 
-            Transactions::where(['reference_id' =>  $invoice->id, 'reference_type' => 'CI'])->delete();
+            Transactions::softDeleteMatching(
+                fn ($q) => $q->where('reference_id', $invoice->id)->where('reference_type', 'CI'),
+                auth()->id()
+            );
 
             // 🔥 Delete related items
             $invoice->items()->delete();
@@ -484,5 +523,69 @@ class CustomerInvoicesController extends Controller
 
             return back()->with('error', 'Failed to delete invoice: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Show email form / send customer invoice PDF by email.
+     */
+    public function sendEmail($company_slug, $id, Request $request)
+    {
+        $invoice = CustomerInvoices::with(['customer', 'items'])->findOrFail($id);
+
+        if ($request->isMethod('post')) {
+            $user = Auth::user();
+            $emailService = app(UserEmailService::class);
+            $smtpPrep = $emailService->prepareCompanySmtp($user);
+            if (! $smtpPrep['ready']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $smtpPrep['message'],
+                ], $smtpPrep['status'] ?? 422);
+            }
+
+            $toEmail = $request->input('email_to');
+            if (! is_string($toEmail) || trim($toEmail) === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer email address is missing.',
+                ], 422);
+            }
+            $toEmail = trim($toEmail);
+
+            $invoiceNumber = $invoice->invoice_number
+                ?? ('CI-' . str_pad((string) $invoice->id, 6, '0', STR_PAD_LEFT));
+
+            $subject = is_string($request->input('email_subject')) && trim($request->input('email_subject')) !== ''
+                ? trim($request->input('email_subject'))
+                : 'Customer Invoice #' . $invoiceNumber;
+
+            $brandingService = app(CompanyEmailBrandingService::class);
+            $data = $brandingService->mergeIntoMailData([
+                'html' => $request->input('email_message'),
+            ]);
+
+            $pdf = \App\Support\InvoicePdf::make('customer_invoices.show', [
+                'invoice' => $invoice,
+            ]);
+
+            $fromEmail = $smtpPrep['from_email'];
+            $fromName = $smtpPrep['from_name'];
+
+            $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject, $invoiceNumber) {
+                $message->to([$toEmail]);
+                $message->from($fromEmail, $fromName);
+                $message->replyTo($fromEmail, $fromName);
+                $message->subject($subject);
+                $message->attachData($pdf->output(), 'Customer-Invoice-' . $invoiceNumber . '.pdf');
+                $message->priority(3);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Email sent successfully.',
+            ]);
+        }
+
+        return view('customer_invoices.send_email', compact('invoice'));
     }
 }

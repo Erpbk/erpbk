@@ -121,28 +121,18 @@
                     @enderror
             </div>
             
-            <div class="col-md-6">
-                    {!! Form::label('billing_month', 'Billing Month', ['class' => 'form-label']) !!}
-                    {!! Form::month('billing_month', old('billing_month'), [
-                        'class' => 'form-control' . ($errors->has('billing_month') ? ' is-invalid' : '')
-                    ]) !!}
-                    @error('billing_month')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-            </div>
-
             <!-- Attachment -->
             <div class="col-md-6">
-                {!! Form::label('attachment', 'Attachment', ['class' => ['form-label','required']]) !!}
-                {!! Form::file('attachment', [
-                    'class' => 'form-control' . ($errors->has('attachment') ? ' is-invalid' : ''),
-                    'accept' => '.pdf,.jpg,.jpeg,.png',
-                    'required' => true
-                ]) !!}
+                @include('partials.universal_document_upload', [
+                  'name' => 'attachment',
+                  'label' => 'Attachment',
+                  'required' => true,
+                  'accept' => '.pdf,.jpg,.jpeg,.png',
+                  'inputClass' => 'form-control',
+                  'errorKey' => 'attachment',
+                  'showHint' => true,
+                ])
                 <div class="form-text">Accepted: PDF, JPG, JPEG, PNG - Max(2MB)</div>
-                @error('attachment')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
             </div>
         </div>
         

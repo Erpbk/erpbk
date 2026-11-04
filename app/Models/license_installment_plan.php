@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use Illuminate\Support\Collection;
 
+use App\Traits\TracksUserAttribution;
+
 class license_installment_plan extends BaseModel
 {
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes, TracksUserAttribution;
 
     public const VOUCHER_TYPE = 'LE';
     public const VOUCHER_REASON = 'license_installment';
@@ -23,6 +25,8 @@ class license_installment_plan extends BaseModel
         'billing_month',
         'rider_id',
         'amount',
+        'paid_amount',
+        'partial_paid_amount',
         'total_amount',
         'reference_number',
         'narration',
@@ -32,8 +36,13 @@ class license_installment_plan extends BaseModel
         'deleted_by',
     ];
 
+    protected $casts = [
+        'partial_paid_amount' => 'array',
+    ];
+
     const STATUS_PENDING = 'pending';
-    const STATUS_PAID = 'paid';
+    const STATUS_PAID    = 'paid';
+    const STATUS_PARTIAL = 'partial';
 
     /**
      * Historical name: rider_id may be expense_accounts.id, riders.id, or accounts.id.
@@ -77,7 +86,7 @@ class license_installment_plan extends BaseModel
 
         if ($rows->isNotEmpty()) {
             return $rows->pluck('narration')
-                ->filter(static fn ($n) => $n !== null && $n !== '')
+                ->filter(static fn($n) => $n !== null && $n !== '')
                 ->unique()
                 ->values();
         }
@@ -144,12 +153,18 @@ class license_installment_plan extends BaseModel
         return $query->where('rider_id', $riderId);
     }
 
-    public function getStatusBadgeAttribute()
+    public function getRemainingAmountAttribute(): float
+    {
+        return max(0.0, (float) $this->amount - (float) $this->paid_amount);
+    }
+
+    public function getStatusBadgeAttribute(): string
     {
         return match ($this->status) {
-            self::STATUS_PAID => '<span class="badge bg-success">Paid</span>',
-            self::STATUS_PENDING => '<span class="badge bg-warning">Pending</span>',
-            default => '<span class="badge bg-secondary">Unknown</span>',
+            self::STATUS_PAID    => '<span class="badge bg-success">Paid</span>',
+            self::STATUS_PARTIAL => '<span class="badge bg-warning text-dark">Partial</span>',
+            self::STATUS_PENDING => '<span class="badge bg-danger">Pending</span>',
+            default              => '<span class="badge bg-secondary">Unknown</span>',
         };
     }
 }

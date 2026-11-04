@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
+use App\Traits\TracksUserAttribution;
+
 class BikeRegistration extends BaseModel
 {
-    use LogsActivity, SoftDeletes;
+    use LogsActivity, SoftDeletes, TracksUserAttribution;
 
     protected $table = 'bike_registrations';
 
@@ -30,6 +32,8 @@ class BikeRegistration extends BaseModel
         'deleted_by',
         'bike_registration_account_id',
         'pay_account',
+        'created_by',
+        'updated_by'
     ];
 
     protected $casts = [
@@ -80,14 +84,14 @@ class BikeRegistration extends BaseModel
     public function vouchers()
     {
         return $this->hasMany(Vouchers::class, 'ref_id', 'id')
-            ->where('voucher_type', 'BR');
+            ->where('voucher_type', 'VR');
     }
 
     public function getVoucherIdsAttribute()
     {
         if ($this->vouchers->isEmpty()) {
             if ($this->trans_code) {
-                $fallback = Vouchers::where('trans_code', $this->trans_code)->where('voucher_type', 'BR')->get();
+                $fallback = Vouchers::where('trans_code', $this->trans_code)->where('voucher_type', 'VR')->get();
 
                 if ($fallback->isEmpty()) {
                     return '';

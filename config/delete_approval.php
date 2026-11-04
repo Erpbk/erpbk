@@ -85,6 +85,12 @@ return [
             'display_columns' => ['plate', 'model', 'chassis_number'],
             'show_route' => 'bikes.show',
         ],
+        'bike_maintenance' => [
+            'model' => \App\Models\BikeMaintenance::class,
+            'name' => 'Bike Maintenance',
+            'display_columns' => ['id', 'maintenance_date', 'bike_id', 'total_cost'],
+            'show_route' => 'bike-maintenance.invoice',
+        ],
         'sims' => [
             'model' => \App\Models\Sims::class,
             'name' => 'SIM Cards',
@@ -142,19 +148,19 @@ return [
         'rta_fines' => [
             'model' => \App\Models\RtaFines::class,
             'name' => 'RTA Fines',
-            'display_columns' => ['id', 'rider_id', 'billing_month', 'ticket_no', 'amount', 'status'],
+            'display_columns' => ['ticket_no', 'id', 'rider_id', 'billing_month', 'amount', 'status'],
             'show_route' => 'rtaFines.show',
         ],
         'salik' => [
             'model' => \App\Models\salik::class,
             'name' => 'Salik',
-            'display_columns' => ['id', 'rider_id', 'billing_month', 'ticket_no', 'amount', 'status'],
+            'display_columns' => ['ticket_no', 'id', 'rider_id', 'billing_month', 'amount', 'status'],
             'show_route' => 'salik.show',
         ],
         'vouchers' => [
             'model' => \App\Models\Vouchers::class,
             'name' => 'Vouchers',
-            'display_columns' => ['id', 'trans_code', 'trans_date', 'billing_month', 'amount', 'status'],
+            'display_columns' => ['voucher_type', 'id', 'trans_code', 'trans_date', 'billing_month', 'amount', 'status'],
             'show_route' => 'vouchers.show',
         ],
         'leasing_company_invoices' => [
@@ -184,7 +190,7 @@ return [
         'employees' => [
             'model' => \App\Models\Employee::class,
             'name' => 'Employees',
-            'display_columns' => ['employee_id', 'name', 'email'],
+            'display_columns' => ['employee_id', 'name', 'company_email'],
             'show_route' => 'employees.show',
         ],
         'fixed_assets' => [
@@ -198,6 +204,24 @@ return [
             'name' => 'Cheques',
             'display_columns' => ['cheque_number', 'amount', 'status'],
             'show_route' => 'cheques.show',
+        ],
+        'receipts' => [
+            'model' => \App\Models\Receipt::class,
+            'name' => 'Receipts',
+            'display_columns' => ['id', 'reference', 'date_of_receipt', 'billing_month', 'amount', 'status'],
+            'show_route' => 'receipts.show',
+        ],
+        'visa_renewal_categories' => [
+            'model' => \App\Models\VisaRenewalCategory::class,
+            'name' => 'Visa Categories',
+            'display_columns' => ['name', 'display_order'],
+            'show_route' => null,
+        ],
+        'visa_statuses' => [
+            'model' => \App\Models\VisaStatus::class,
+            'name' => 'Visa Statuses',
+            'display_columns' => ['name', 'code', 'category'],
+            'show_route' => null,
         ],
         'visa_expenses' => [
             'model' => \App\Models\visa_expenses::class,

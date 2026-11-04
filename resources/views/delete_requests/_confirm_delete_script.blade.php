@@ -66,6 +66,20 @@
             return;
         }
 
+        // Drop open action menus so they cannot sit above the confirm dialog.
+        try {
+            document.querySelectorAll('.dropdown-menu.show').forEach(function (menu) {
+                var toggle = menu.parentElement && menu.parentElement.querySelector('[data-bs-toggle="dropdown"]');
+                if (toggle && typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
+                    var instance = bootstrap.Dropdown.getInstance(toggle);
+                    if (instance) {
+                        instance.hide();
+                    }
+                }
+                menu.classList.remove('show');
+            });
+        } catch (e) {}
+
         var swalOptions = {
             title: 'Are you sure?',
             text: @json($confirmText),
@@ -75,6 +89,7 @@
             cancelButtonColor: '#d33',
             confirmButtonText: 'Yes, delete it!',
             showLoaderOnConfirm: true,
+            heightAuto: false,
             allowOutsideClick: function () { return !Swal.isLoading(); },
             preConfirm: function (reason) {
                 var data = { _token: @json(csrf_token()) };
@@ -118,15 +133,32 @@
             }
 
             var response = result.value;
-            var queued = !!(response.queued);
-            Swal.fire({
-                icon: queued ? 'warning' : 'success',
-                title: queued ? 'Delete requested' : 'Deleted!',
-                html: response.message || @json($fallbackMessage),
-                confirmButtonText: 'OK'
-            }).then(function () {
+            var queued = !!(response.queued || response.pending_deletion);
+            var message = response.message || @json($fallbackMessage);
+
+            // Corner toast — avoids a second full-viewport dialog sitting over the app.
+            if (typeof toastr !== 'undefined') {
+                if (queued) {
+                    toastr.warning(message);
+                } else {
+                    toastr.success(message);
+                }
+            } else {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: queued ? 'warning' : 'success',
+                    title: queued ? 'Delete requested' : 'Deleted!',
+                    html: message,
+                    showConfirmButton: false,
+                    timer: 2200,
+                    timerProgressBar: true
+                });
+            }
+
+            setTimeout(function () {
                 location.reload();
-            });
+            }, 400);
         });
     };
 

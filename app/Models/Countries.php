@@ -13,7 +13,7 @@ class Countries extends BaseModel
 
   public static function list()
   {
-    return self::all()->pluck('name', 'id');
+    return self::query()->orderBy('name')->pluck('name', 'id');
   }
   public static function phonecode()
   {

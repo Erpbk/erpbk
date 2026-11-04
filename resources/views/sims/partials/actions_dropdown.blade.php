@@ -44,7 +44,7 @@
             </a>
             @endcan
             @can('sims_invoices_create')
-            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Create SIM Invoice" data-action="{{ route('simInvoices.create') }}">
+            <a class="action-dropdown-item" href="{{ route('simInvoices.create') }}">
                 <i class="ti ti-file-invoice"></i>
                 <div>
                     <div class="action-dropdown-item-text">Create Invoice</div>

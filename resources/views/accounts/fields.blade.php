@@ -39,7 +39,7 @@
   {!! Form::label('parent_id', 'Parent Account:') !!}
   <select name="parent_id" class="form-control form-select select2" @fieldReadonly('account', 'parent_id')>
     <option value="">Select</option>
-    {!! App\Helpers\Accounts::dropdown($parents, isset($accounts) ? $accounts->parent_id : null) !!}
+    {!! App\Helpers\Accounts::parentAccountDropdown($parents, $parentEligibleIds ?? [], isset($accounts) ? $accounts->parent_id : null) !!}
   </select>
   {{-- {!! Form::select('parent_account_id', $parents,null, ['class' => 'form-control form-select select2']) !!} --}}
 </div>

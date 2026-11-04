@@ -1,285 +1,338 @@
 <script src="{{ asset('js/modal_custom.js') }}"></script>
+@php
+$currencyCode = \App\Helpers\Currency::code();
+$isEdit = isset($invoice);
+$defaultsModule = 'rider_invoices';
+$invoiceDefaults = \App\Support\InvoiceModuleDefaults::all($defaultsModule);
+$defaultNotes = old('customer_note', isset($invoice) ? ($invoice->customer_note ?? '') : ($invoiceDefaults['customer_notes'] ?? $invoiceDefaults['notes'] ?? ''));
+$defaultTerms = old('terms_and_conditions', isset($invoice) ? ($invoice->terms_and_conditions ?? '') : ($invoiceDefaults['terms_and_conditions'] ?? ''));
+@endphp
 
-<div class="row">
-    @if(isset($invoiceTemplates) && $invoiceTemplates->count() > 0)
-    <div class="col-md-4 form-group">
-        <label>Invoice Template</label>
-        <select name="template_id" class="form-select form-select-sm">
-            @foreach($invoiceTemplates as $tpl)
-            <option value="{{ $tpl->id }}" @selected((int) old('template_id', isset($invoice) ? ($invoice->template_id ?? ($defaultTemplate->id ?? 0)) : ($defaultTemplate->id ?? 0)) === (int) $tpl->id)>
-                {{ $tpl->template_name }}@if($tpl->is_default) (Default)@endif
-            </option>
-            @endforeach
-        </select>
-    </div>
-    @endif
-    <div class="col-md-2 form-group">
-        <label>Invoice Date</label>
-        <input type="date"
-            class="form-control"
-            value="{{ isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d') }}"
-            name="inv_date"
-            placeholder="Invoice Date">
-    </div>
-    <div class="col-md-2 form-group">
-        <label>Service Period From</label>
-        <input type="date"
-            class="form-control"
-            name="service_period_from"
-            id="service_period_from"
-            required
-            value="{{ old('service_period_from', isset($invoice) ? optional($invoice->service_period_from)->format('Y-m-d') ?? date('Y-m-01', strtotime($invoice->billing_month)) : date('Y-m-01')) }}">
-    </div>
-    <div class="col-md-2 form-group">
-        <label>Service Period To</label>
-        <input type="date"
-            class="form-control"
-            name="service_period_to"
-            id="service_period_to"
-            required
-            value="{{ old('service_period_to', isset($invoice) ? optional($invoice->service_period_to)->format('Y-m-d') ?? date('Y-m-t', strtotime($invoice->billing_month)) : date('Y-m-t')) }}">
-    </div>
-    <!--col-->
-    <div class="col-md-4 form-group">
-        <label>Rider</label>
-        {!! Form::select('rider_id', $riders, null, ['class' => 'form-select form-select-sm select2','id'=>'rider_id']) !!}
-    </div>
-    <!--col-->
-    <div class="col-md-2 form-group">
-        <label>Zone</label>
-        {!! Form::text('zone', null, ['class' => 'form-control','placeholder'=>'Zone']) !!}
-    </div>
-    <!--col-->
-    <div class="col-md-2 form-group">
-        <label>Login Hours</label>
-        {!! Form::text('login_hours', null, ['class' => 'form-control','placeholder'=>'Login Hours']) !!}
-    </div>
-    <!--col-->
-    <div class="col-md-2 form-group">
-        <label>Working Days</label>
-        {!! Form::text('working_days', null, ['class' => 'form-control','placeholder'=>'Working Days']) !!}
-    </div>
-    <!--col-->
-    <div class="col-md-2 form-group">
-        <label>Perfect Attendance</label>
-        {!! Form::text('perfect_attendance', null, ['class' => 'form-control','placeholder'=>'Perfect Attendance']) !!}
-    </div>
-    <!--col-->
-    <div class="col-md-2 form-group">
-        <label>Rejection</label>
-        {!! Form::text('rejection', null, ['class' => 'form-control','placeholder'=>'Rejection']) !!}
-    </div>
-    <!--col-->
-    <div class="col-md-2 form-group">
-        <label>Performance</label>
-        {!! Form::text('performance', null, ['class' => 'form-control','placeholder'=>'Performance']) !!}
-    </div>
-    <!--col-->
-    <div class="col-md-2 form-group">
-        <label>Off</label>
-        {!! Form::text('off', null, ['class' => 'form-control','placeholder'=>'Off']) !!}
-    </div>
-    <!--col-->
-    {{-- <div class="col-md-3 form-group">
-      <label>Month of Invoice</label>
-      <select class="form-control form-control" name="month_invoice">
-          @for($i=1; $i<=12; $i++)
-              <option value="{{ $i }}">{{ date('F',mktime(0, 0, 0, $i, 10)) }}</option>
-    @endfor
-    </select>
-</div> --}}
-<div class="form-group col-md-2">
-    <label for="exampleInputEmail1">Billing Month</label>
-    <input type="month" name="billing_month" class="form-control form-control" value="@isset($invoice->billing_month){{date('Y-m',strtotime($invoice->billing_month)) }}@endisset" id="billing_month" />
+@include('invoices.partials.invoice_form_styles')
 
-    {{-- {!! Form::select('billing_month',App\Helpers\CommonHelper::BillingMonth(),null ,['class' => 'form-control form-control select2 ','id'=>'billing_month']) !!}
---}}
-</div>
-<!--col-->
-<div class="col-md-6 form-group">
-    <label>Descriptions</label>
-    {!! Form::textarea('descriptions', null, ['class' => 'form-control form-control','placeholder'=>'Descriptions','rows'=>2]) !!}
-
-</div>
-<!--col-->
-</div>
-<!--row-->
-<div class="mt-2">
-    <div class="card-header bg-blue m-3">
-        <h5 class="card-title ">Item Details</h5>
-    </div>
-    <!-- /.card-header -->
-    <div class="scrollbar p-2 border rounded">
-        <div class="row">
-            <div class="col-md-3 form-group">
-                <label>Item Description</label>
-            </div>
-            <div class="col-md-2 form-group">
-                <label>Qty</label>
-            </div>
-            <div class="col-md-2 form-group">
-                <label>Rate</label>
-            </div>
-            <div class="col-md-1 form-group">
-                <label>Discount</label>
-            </div>
-            <div class="col-md-1 form-group">
-                <label>VAT %</label>
-            </div>
-            <div class="col-md-2 form-group">
-                <label>Amount</label>
+<div class="ri-form-wrap">
+    <div class="row g-3">
+        {{-- Rider & Attendance --}}
+        <div class="col-lg-6">
+            <div class="ri-card">
+                <h6 class="ri-card-title"><i class="fa fa-user"></i> Rider &amp; Attendance</h6>
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label">Rider</label>
+                        {!! Form::select('rider_id', $riders, null, ['class' => 'form-select form-select-sm select2', 'id' => 'rider_id', 'data-placeholder' => 'Search or select rider']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Zone</label>
+                        {!! Form::text('zone', null, ['class' => 'form-control', 'placeholder' => 'Select zone']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Login Hours</label>
+                        {!! Form::text('login_hours', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Working Days</label>
+                        {!! Form::text('working_days', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Perfect Attendance</label>
+                        {!! Form::text('perfect_attendance', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Rejections</label>
+                        {!! Form::text('rejection', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Off Days</label>
+                        {!! Form::text('off', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Performance</label>
+                        {!! Form::text('performance', null, ['class' => 'form-control', 'placeholder' => 'Select performance']) !!}
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="" id="rows-container">
 
-            @if(isset($invoice))
-                @foreach($invoice->items as $item)
-
-                <div class="row mt-1">
-                    <div class="col-md-3 form-group">
-                        <select name="item_ids[]" class="form-select item-select select2 item" required>
-                            <option value="">Select Item</option>
-                            @foreach($items as $itm)
-                            <option value="{{ $itm->id }}"
-                                data-price="{{ $itm->price }}"
-                                data-vat="{{ $itm->vat }}"
-                                {{ $item->item_id == $itm->id ? 'selected' : ''}}>
-                                {{ $itm->name }}
+        {{-- Invoice Details --}}
+        <div class="col-lg-6">
+            <div class="ri-card">
+                <h6 class="ri-card-title"><i class="fa fa-file-alt"></i> Invoice Details</h6>
+                <div class="row g-3">
+                    @if(isset($invoiceTemplates) && $invoiceTemplates->count() > 0)
+                    <div class="col-md-6">
+                        <label class="form-label">Invoice Template</label>
+                        <select name="template_id" class="form-select form-select-sm">
+                            @foreach($invoiceTemplates as $tpl)
+                            <option value="{{ $tpl->id }}" @selected((int) old('template_id', isset($invoice) ? ($invoice->template_id ?? ($defaultTemplate->id ?? 0)) : ($defaultTemplate->id ?? 0)) === (int) $tpl->id)>
+                                {{ $tpl->template_name }}@if($tpl->is_default) (Default)@endif
                             </option>
                             @endforeach
                         </select>
                     </div>
-                    <!--col-->
-                    <div class="col-md-2 form-group">
-                        <input type="text" value="{{$item->qty}}" class="form-control form-control qty" name="qty[]" placeholder="0">
+                    @endif
+                    <div class="col-md-6">
+                        <label class="form-label">Invoice Date</label>
+                        <input type="date"
+                            class="form-control"
+                            value="{{ isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d') }}"
+                            name="inv_date"
+                            placeholder="DD/MM/YYYY">
                     </div>
-                    <!--col-->
-                    <div class="col-md-2 form-group">
-                        <input type="text" value="{{$item->rate}}" class="form-control form-control rate" name="rate[]" placeholder="{{ \App\Helpers\Currency::code() }}">
+                    <div class="col-md-6">
+                        <label class="form-label" for="billing_month">Billing Month</label>
+                        <input type="month" name="billing_month" class="form-control"
+                            value="@isset($invoice->billing_month){{ date('Y-m', strtotime($invoice->billing_month)) }}@endisset"
+                            id="billing_month"
+                            placeholder="Select month" />
                     </div>
-                    <!--col-->
-                    <div class="col-md-1 form-group">
-                        <input type="text" value="{{$item->discount}}" class="form-control form-control discount" name="discount[]" placeholder="0">
+                    <div class="col-md-6">
+                        <label class="form-label" for="invoice_customer_id">Project</label>
+                        {!! Form::select(
+                            'customer_id',
+                            $customers ?? [],
+                            old('customer_id', isset($invoice) ? $invoice->customer_id : null),
+                            [
+                                'class' => 'form-select form-select-sm select2',
+                                'id' => 'invoice_customer_id',
+                                'data-placeholder' => 'Select project',
+                                'required' => true,
+                            ]
+                        ) !!}
                     </div>
-                    <!--col-->
-                    <div class="col-md-1 form-group">
-                        <input type="text" value="{{$item->tax}}" class="form-control form-control vat" name="tax[]" placeholder="0">
-                        <input type="hidden" value="0.00" name="vat_amount[]" class="vat_amount">
+                    <div class="col-md-6">
+                        <label class="form-label">Service Period From</label>
+                        <input type="date"
+                            class="form-control"
+                            name="service_period_from"
+                            id="service_period_from"
+                            required
+                            value="{{ old('service_period_from', isset($invoice) ? optional($invoice->service_period_from)->format('Y-m-d') ?? date('Y-m-01', strtotime($invoice->billing_month)) : date('Y-m-01')) }}">
                     </div>
-                    <!--col-->
-                    <div class="col-md-2 form-group">
-                        <input type="text" class="form-control form-control amount" readonly name="amount[]" value="{{ number_format(round($item->amount, 2), 2, '.', '') }}" placeholder="0.00" data-numeric-value="{{ number_format(round($item->amount, 2), 2, '.', '') }}">
+                    <div class="col-md-6">
+                        <label class="form-label">Service Period To</label>
+                        <input type="date"
+                            class="form-control"
+                            name="service_period_to"
+                            id="service_period_to"
+                            required
+                            value="{{ old('service_period_to', isset($invoice) ? optional($invoice->service_period_to)->format('Y-m-d') ?? date('Y-m-t', strtotime($invoice->billing_month)) : date('Y-m-t')) }}">
                     </div>
-                    <!--col-->
-                    <div class="form-group col-md-1 d-flex align-items-end">
-                        <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
-                    </div>
-                    <!--col-->
                 </div>
-                @endforeach
-            @else
-
-            <div class="row mt-1">
-                <div class="col-md-3 form-group">
-                    <select name="item_ids[]" class="form-select item-select select2 item" required>
-                        <option value="">Select Item</option>
-                        @foreach($items as $item)
-                        <option value="{{ $item->id }}"
-                            data-price="{{ $item->price ?? 0 }}"
-                            data-vat="{{ $item->vat ?? 0 }}">
-                            {{ $item->name }}
-                        </option>
-                        @endforeach
-                    </select>
-                </div>
-                <!--col-->
-                <div class="col-md-2 form-group">
-                    <input type="text" class="form-control form-control qty" name="qty[]" value="{{ 1 }}" >
-                </div>
-                <!--col-->
-                <div class="col-md-2 form-group">
-                    <input type="text" class="form-control form-control rate" name="rate[]" placeholder="0" value="0" >
-                </div>
-                <!--col-->
-                <div class="col-md-1 form-group">
-                    <input type="text" class="form-control form-control discount" name="discount[]" placeholder="0" value="0" >
-                </div>
-                <!--col-->
-                <div class="col-md-1 form-group">
-                    <input type="text" class="form-control form-control vat" name="tax[]" placeholder="0" value="0" >
-                    <input type="hidden" value="0.00" name="vat_amount[]" class="vat_amount">
-                </div>
-                <!--col-->
-                <div class="col-md-2 form-group">
-                    <input type="text" class="form-control form-control amount" readonly name="amount[]" placeholder="0.00" value="0.00" >
-                </div>
-                <!--col-->
-                <div class="form-group col-md-1 d-flex align-items-end">
-                    <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
-                </div>
-                <!--col-->
-            </div>
-            @endif
-        </div>
-    </div>
-    <!--row-->
-    <div>
-        {{-- <button type="button" class="btn btn-sm btn-primary new_line_item"><i class="fa fa-plus"></i> </button>
- --}} <button type="button" id="add-new-row" class="btn btn-success btn-sm mt-3 mb-3">Add New</button>
-
-    </div>
-    
-    <div class="col-md-6 form-group">
-        <label>Notes</label>
-        {!! Form::textarea('notes', null, ['class' => 'form-control form-control','placeholder'=>'Notes','rows'=>2]) !!}
-
-    </div>
-    <div class="d-flex justify-content-between align-items-center gap-3 mt-3">
-        <div>
-            
-        </div>
-        <div class="d-flex align-items-center gap-3">
-            <div class="input-group">
-                <span class="input-group-text bg-light">Subtotal</span>
-                <input type="number" name="subtotal" class="form-control" id="subtotal" readonly style="min-width: 150px;">
-            </div>
-            <div class="input-group">
-                <span class="input-group-text bg-light">VAT Amount</span>
-                <input type="number" name="vat_total" class="form-control" id="vat_total" readonly style="min-width: 150px;">
-            </div>
-            <div class="input-group">
-                <span class="input-group-text bg-primary text-white">Total</span>
-                <input type="number" name="total_amount" class="form-control" id="total" readonly style="min-width: 150px; font-weight: bold;" >
             </div>
         </div>
+
+        {{-- Description --}}
+        <div class="col-12">
+            <div class="ri-card">
+                <h6 class="ri-card-title"><i class="fa fa-align-left"></i> Description</h6>
+                {!! Form::textarea('descriptions', null, [
+                'class' => 'form-control',
+                'placeholder' => 'Enter invoice description',
+                'rows' => 3,
+                ]) !!}
+            </div>
+        </div>
+
+        {{-- Invoice Items --}}
+        <div class="col-12">
+            <div class="ri-card">
+                <h6 class="ri-card-title"><i class="fa fa-list"></i> Invoice Items</h6>
+                <div class="ri-items-head">
+                    <span>Item Description</span>
+                    <span>Qty</span>
+                    <span>Rate ({{ $currencyCode }})</span>
+                    <span>Discount</span>
+                    <span>VAT %</span>
+                    <span>Amount ({{ $currencyCode }})</span>
+                    <span>Action</span>
+                </div>
+                <div id="rows-container">
+                    @if($isEdit)
+                    @foreach($invoice->items as $item)
+                    <div class="row mt-1">
+                        <div class="col-md-3 form-group">
+                            <select name="item_ids[]" class="form-select item-select select2 item" required>
+                                <option value="">Select item</option>
+                                @foreach($items as $itm)
+                                <option value="{{ $itm->id }}"
+                                    data-price="{{ $itm->price }}"
+                                    data-vat="{{ $itm->vat }}"
+                                    {{ $item->item_id == $itm->id ? 'selected' : ''}}>
+                                    {{ $itm->name }}
+                                </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="text" value="{{ $item->qty }}" class="form-control qty" name="qty[]" placeholder="0">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="text" value="{{ $item->rate }}" class="form-control rate" name="rate[]" placeholder="0.00">
+                        </div>
+                        <div class="col-md-1 form-group">
+                            <input type="text" value="{{ $item->discount }}" class="form-control discount" name="discount[]" placeholder="0.00">
+                        </div>
+                        <div class="col-md-1 form-group">
+                            <input type="text" value="{{ $item->tax }}" class="form-control vat" name="tax[]" placeholder="0">
+                            <input type="hidden" value="0.00" name="vat_amount[]" class="vat_amount">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="text" class="form-control amount" readonly name="amount[]" value="{{ number_format(round($item->amount, 2), 2, '.', '') }}" placeholder="0.00" data-numeric-value="{{ number_format(round($item->amount, 2), 2, '.', '') }}">
+                        </div>
+                        <div class="form-group col-md-1 d-flex align-items-center justify-content-center">
+                            <a href="javascript:void(0);" class="btn-remove-row" title="Remove"><i class="fa fa-trash"></i></a>
+                        </div>
+                    </div>
+                    @endforeach
+                    @else
+                    @for($i = 0; $i < 2; $i++)
+                        <div class="row mt-1">
+                        <div class="col-md-3 form-group">
+                            <select name="item_ids[]" class="form-select item-select select2 item" @if($i===0) required @endif>
+                                <option value="">Select item</option>
+                                @foreach($items as $item)
+                                <option value="{{ $item->id }}"
+                                    data-price="{{ $item->price ?? 0 }}"
+                                    data-vat="{{ $item->vat ?? 0 }}">
+                                    {{ $item->name }}
+                                </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="text" class="form-control qty" name="qty[]" value="0" placeholder="0">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="text" class="form-control rate" name="rate[]" placeholder="0.00" value="0.00">
+                        </div>
+                        <div class="col-md-1 form-group">
+                            <input type="text" class="form-control discount" name="discount[]" placeholder="0.00" value="0.00">
+                        </div>
+                        <div class="col-md-1 form-group">
+                            <input type="text" class="form-control vat" name="tax[]" placeholder="0" value="0">
+                            <input type="hidden" value="0.00" name="vat_amount[]" class="vat_amount">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="text" class="form-control amount" readonly name="amount[]" placeholder="0.00" value="0.00">
+                        </div>
+                        <div class="form-group col-md-1 d-flex align-items-center justify-content-center">
+                            <a href="javascript:void(0);" class="btn-remove-row" title="Remove"><i class="fa fa-trash"></i></a>
+                        </div>
+                </div>
+                @endfor
+                @endif
+            </div>
+            <div class="mt-2">
+                <button type="button" id="add-new-row" class="btn ri-add-item btn-sm">
+                    <i class="fa fa-plus"></i> Add Item
+                </button>
+            </div>
+            </div>
+        </div>
+
+    {{-- Note + totals (matches invoice show layout) --}}
+    <div class="col-12">
+        <div class="ri-totals-area">
+            <div class="ri-totals-notes">
+                <h4>Invoice Note</h4>
+                {!! Form::textarea('customer_note', $defaultNotes ?: 'Thanks for your business.', [
+                'class' => 'form-control',
+                'rows' => 4,
+                'id' => 'customer_note',
+                'placeholder' => 'Thanks for your business.',
+                ]) !!}
+            </div>
+            <div class="ri-totals">
+                <div class="ri-summary-row">
+                    <span>Subtotal (excl. VAT)</span>
+                    <span class="ri-summary-value"><span id="subtotal_display">0.00</span></span>
+                </div>
+                <div class="ri-summary-row">
+                    <span>VAT Amount</span>
+                    <span class="ri-summary-value"><span id="vat_total_display">0.00</span></span>
+                </div>
+                <div class="ri-summary-row ri-summary-total">
+                    <span>Total Due</span>
+                    <span class="ri-summary-value"><span id="total_display">0.00</span> {{ $currencyCode }}</span>
+                </div>
+                <input type="hidden" name="subtotal" id="subtotal" value="0">
+                <input type="hidden" name="vat_total" id="vat_total" value="0">
+                <input type="hidden" name="total_amount" id="total" value="0">
+            </div>
+        </div>
     </div>
 
-    <script>
-$(document).ready(function() {
-    
-    // Initialize select2
-    $('.select2').select2({
-        allowClear: true,
-        dropdownParent: $('#modalTopbody')
-    });
-    $('#rows-container .row').each(function() {
-        setItemTotal($(this));
-    });
-    setTotal();
+    {{-- Terms & Conditions (full width under summary) --}}
+    <div class="col-12">
+        <div class="ri-card">
+            <h6 class="ri-card-title"><i class="fa fa-file-contract"></i> Terms &amp; Conditions</h6>
+            {!! Form::textarea('terms_and_conditions', $defaultTerms, [
+            'class' => 'form-control',
+            'rows' => 4,
+            'id' => 'terms_and_conditions',
+            'placeholder' => 'Enter terms & conditions...',
+            ]) !!}
+        </div>
+    </div>
+</div>
+</div>
 
-    $('#billing_month').on('change', function() {
-        var billingMonth = $(this).val();
-        if (!billingMonth) {
-            return;
+<script>
+    $(document).ready(function() {
+        function syncSummaryDisplay() {
+            var subtotal = parseFloat($('#subtotal').val()) || 0;
+            var vat = parseFloat($('#vat_total').val()) || 0;
+            var total = parseFloat($('#total').val()) || 0;
+            $('#subtotal_display').text(subtotal.toFixed(2));
+            $('#vat_total_display').text(vat.toFixed(2));
+            $('#total_display').text(total.toFixed(2));
         }
 
-        var parts = billingMonth.split('-');
-        var year = parseInt(parts[0], 10);
-        var month = parseInt(parts[1], 10);
-        var lastDay = new Date(year, month, 0).getDate();
+        if (typeof window.setTotal === 'function' && !window.setTotal._riPatched) {
+            var originalSetTotal = window.setTotal;
+            window.setTotal = function() {
+                originalSetTotal.apply(this, arguments);
+                syncSummaryDisplay();
+            };
+            window.setTotal._riPatched = true;
+        }
 
-        $('#service_period_from').val(billingMonth + '-01');
-        $('#service_period_to').val(billingMonth + '-' + String(lastDay).padStart(2, '0'));
+        $('.select2').select2({
+            allowClear: true,
+            placeholder: function() {
+                return $(this).data('placeholder') || 'Select';
+            },
+            dropdownParent: $('#modalTopbody')
+        });
+
+        $('#rows-container .row').each(function() {
+            setItemTotal($(this));
+        });
+        setTotal();
+        syncSummaryDisplay();
+
+        $('#billing_month').on('change', function() {
+            var billingMonth = $(this).val();
+            if (!billingMonth) {
+                return;
+            }
+
+            var parts = billingMonth.split('-');
+            var year = parseInt(parts[0], 10);
+            var month = parseInt(parts[1], 10);
+            var lastDay = new Date(year, month, 0).getDate();
+
+            $('#service_period_from').val(billingMonth + '-01');
+            $('#service_period_to').val(billingMonth + '-' + String(lastDay).padStart(2, '0'));
+        });
+
+        @if(!isset($invoice))
+        var riderCustomerMap = @json($riderCustomerMap ?? new \stdClass());
+        $('#rider_id').on('change', function() {
+            var riderId = String($(this).val() || '');
+            var customerId = riderCustomerMap[riderId] || '';
+            $('#invoice_customer_id').val(customerId).trigger('change');
+        });
+        @endif
     });
-});
 </script>

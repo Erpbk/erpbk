@@ -115,6 +115,7 @@ class CustomersController extends AppBaseController
       $account->ref_id = $customers->id;
       $account->status = $customers->status;
       $account->branch_id = $customers->branch_id;
+      $account->is_locked = true;
       $account->save();
 
       $customers->account_id = $account->id;
@@ -216,13 +217,8 @@ class CustomersController extends AppBaseController
       return delete_error_response('Customer not found!', route('customers.index'), 404);
     }
 
-    // Check if customer has transactions - protect from deletion
-    $transactionCount = $customers->transactions()->count();
-    if ($transactionCount > 0) {
-      return delete_error_response(
-        'Cannot delete customer. Customer has ' . $transactionCount . ' transaction(s). Please deactivate instead.',
-        route('customers.index')
-      );
+    if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($customers), 'Customer')) {
+      return delete_error_response($blockReason, route('customers.index'));
     }
 
     // Track cascaded deletions

@@ -39,9 +39,6 @@ class ModuleSettingsController extends Controller
 {
     use SavesModuleMenuIcons;
 
-    private const VISA_EXPENSE_TOP_SETTING_KEY = 'visa_expense_top_status_ids';
-    private const VISA_EXPENSE_TOP_ENABLED_KEY = 'visa_expense_top_enabled';
-
     private const LICENSE_EXPENSE_TOP_SETTING_KEY = 'license_expense_top_status_ids';
     private const LICENSE_EXPENSE_TOP_ENABLED_KEY = 'license_expense_top_enabled';
 
@@ -70,41 +67,6 @@ class ModuleSettingsController extends Controller
     protected function normalizeModuleKey(string $module): string
     {
         return str_replace('-', '_', strtolower(trim($module)));
-    }
-
-    /**
-     * @return list<int>
-     */
-    protected function selectedVisaExpenseTopStatusIds(): array
-    {
-        $raw = (string) (Settings::query()
-            ->where('name', self::VISA_EXPENSE_TOP_SETTING_KEY)
-            ->value('value') ?? '');
-
-        if ($raw === '') {
-            return [];
-        }
-
-        $decoded = json_decode($raw, true);
-        if (!is_array($decoded)) {
-            return [];
-        }
-
-        return collect($decoded)
-            ->map(fn($id) => (int) $id)
-            ->filter(fn($id) => $id > 0)
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-    protected function visaExpenseTopEnabled(): bool
-    {
-        $raw = (string) (Settings::query()
-            ->where('name', self::VISA_EXPENSE_TOP_ENABLED_KEY)
-            ->value('value') ?? '1');
-
-        return in_array(strtolower(trim($raw)), ['1', 'true', 'yes', 'on'], true);
     }
 
     /**
@@ -320,6 +282,19 @@ class ModuleSettingsController extends Controller
             return app(AgreementLetterheadSettingsController::class)->index($company_slug);
         }
 
+        // Plural table-name alias → canonical module key (same settings page).
+        if ($routeModule === 'visa_expenses') {
+            $params = ['company_slug' => $company_slug, 'module' => 'visa_expense'];
+            foreach (['category_id', 'visa_view', 'top'] as $queryKey) {
+                $value = request()->query($queryKey);
+                if ($value !== null && $value !== '') {
+                    $params[$queryKey] = $value;
+                }
+            }
+
+            return redirect()->route('settings-panel.module-settings.index', $params);
+        }
+
         if (in_array($routeModule, ['rta_fines_unpaid', 'rta_fines_paid'], true)) {
             return redirect()->route('settings-panel.module-settings.index', [
                 'company_slug' => $company_slug,
@@ -464,21 +439,53 @@ class ModuleSettingsController extends Controller
         }
         $visaStatuses = collect();
         $visaRenewalCategories = collect();
-        $selectedVisaExpenseTopStatusIds = [];
-        $visaExpenseTopEnabled = true;
+        $assignableVisaStatuses = collect();
+        $visaStatusViewMode = 'category';
+        $selectedVisaCategoryId = 0;
+        $selectedVisaCategory = null;
         if ($module === 'visa_expense') {
             VisaRenewalCategoryService::ensureDefaultExists();
-            $visaStatuses = VisaStatus::query()
-                ->with('renewalCategory')
-                ->orderBy('display_order')
-                ->orderBy('name')
-                ->get();
             $visaRenewalCategories = VisaRenewalCategory::query()
+                ->with(['visaStatuses' => fn ($q) => $q->select('visa_statuses.id')])
+                ->withCount('visaStatuses')
                 ->orderBy('display_order')
                 ->orderBy('id')
                 ->get();
-            $selectedVisaExpenseTopStatusIds = $this->selectedVisaExpenseTopStatusIds();
-            $visaExpenseTopEnabled = $this->visaExpenseTopEnabled();
+
+            $visaStatusViewMode = request()->query('visa_view') === 'all' ? 'all' : 'category';
+            $selectedVisaCategoryId = (int) request()->query('category_id');
+            if ($visaStatusViewMode === 'category') {
+                if ($selectedVisaCategoryId <= 0 || ! $visaRenewalCategories->contains('id', $selectedVisaCategoryId)) {
+                    $selectedVisaCategoryId = (int) ($visaRenewalCategories->first()->id ?? 0);
+                }
+            }
+            $selectedVisaCategory = $visaRenewalCategories->firstWhere('id', $selectedVisaCategoryId);
+
+            $assignableVisaStatuses = VisaStatus::query()
+                ->with('renewalCategories')
+                ->orderBy('display_order')
+                ->orderBy('name')
+                ->get();
+
+            $visaStatusQuery = VisaStatus::query()->with('renewalCategories');
+            if ($visaStatusViewMode === 'category' && $selectedVisaCategoryId > 0) {
+                $visaStatusQuery->whereHas('renewalCategories', function ($q) use ($selectedVisaCategoryId) {
+                    $q->where('visa_renewal_categories.id', $selectedVisaCategoryId);
+                })
+                    ->join(
+                        'visa_renewal_category_visa_status as vrcs',
+                        'vrcs.visa_status_id',
+                        '=',
+                        'visa_statuses.id'
+                    )
+                    ->where('vrcs.visa_renewal_category_id', $selectedVisaCategoryId)
+                    ->select('visa_statuses.*', 'vrcs.display_order as category_display_order')
+                    ->orderBy('vrcs.display_order')
+                    ->orderBy('visa_statuses.name');
+            } else {
+                $visaStatusQuery->orderBy('display_order')->orderBy('name');
+            }
+            $visaStatuses = $visaStatusQuery->get();
         }
 
         $licenseStatuses = collect();
@@ -533,6 +540,46 @@ class ModuleSettingsController extends Controller
                 ->get();
         }
 
+        $excelImportMappingProfile = null;
+        $excelImportMappingScopes = collect();
+        $excelImportMappingSelectedScopeId = 0;
+        $excelImportMappingResolved = [];
+        $excelImportMappingConfiguredScopeIds = [];
+        $excelImportMappingDynamicItems = [];
+        $excelImportMappingColumnChoices = [];
+        if ($module === 'sim_invoices' && \App\Support\ExcelImport\ExcelImportMappingRegistry::has('sim_invoices')) {
+            $mappingService = app(\App\Services\ExcelImport\ExcelImportMappingService::class);
+            $excelImportMappingProfile = $mappingService->profile('sim_invoices');
+            $excelImportMappingScopes = $mappingService->scopeOptions($excelImportMappingProfile);
+            $excelImportMappingSelectedScopeId = (int) request()->get('scope_id', 0);
+            if ($excelImportMappingScopes->isNotEmpty()) {
+                if (! $excelImportMappingScopes->contains('id', $excelImportMappingSelectedScopeId)) {
+                    $excelImportMappingSelectedScopeId = (int) $excelImportMappingScopes->first()->id;
+                }
+                $excelImportMappingResolved = $mappingService->resolve(
+                    'sim_invoices',
+                    $excelImportMappingSelectedScopeId
+                );
+                foreach ($excelImportMappingScopes as $scope) {
+                    if ($mappingService->resolve('sim_invoices', (int) $scope->id)['configured']) {
+                        $excelImportMappingConfiguredScopeIds[] = (int) $scope->id;
+                    }
+                }
+            } else {
+                $excelImportMappingResolved = [
+                    'configured' => false,
+                    'header_rows_to_skip' => $excelImportMappingProfile->defaultHeaderRowsToSkip,
+                    'column_mappings' => [],
+                    'dynamic_mappings' => [],
+                    'options' => [],
+                ];
+            }
+            $excelImportMappingDynamicItems = $mappingService->dynamicItemOptions($excelImportMappingProfile);
+            $excelImportMappingColumnChoices = $mappingService->excelColumnChoices(
+                $excelImportMappingProfile->maxColumnIndex
+            );
+        }
+
         $topBarCategories = collect();
         $topBarSelectableColumns = [];
         if (ErpModuleRegistry::showTopBarTabInModuleSettings($topBarModuleKey)) {
@@ -585,8 +632,10 @@ class ModuleSettingsController extends Controller
             'moduleSchemaFieldKeys' => ModuleFieldSource::schemaFieldKeysForModule($module),
             'visaStatuses' => $visaStatuses,
             'visaRenewalCategories' => $visaRenewalCategories,
-            'selectedVisaExpenseTopStatusIds' => $selectedVisaExpenseTopStatusIds,
-            'visaExpenseTopEnabled' => $visaExpenseTopEnabled,
+            'assignableStatuses' => $assignableVisaStatuses,
+            'visaStatusViewMode' => $visaStatusViewMode,
+            'selectedVisaCategoryId' => $selectedVisaCategoryId,
+            'selectedVisaCategory' => $selectedVisaCategory,
             'licenseStatuses' => $licenseStatuses,
             'licenseCategories' => $licenseCategories,
             'selectedLicenseExpenseTopStatusIds' => $selectedLicenseExpenseTopStatusIds,
@@ -601,42 +650,43 @@ class ModuleSettingsController extends Controller
             'defaultCategory' => $defaultCategory,
             'attendanceRefType' => $attendanceRefType,
             'showAttendanceRiderOnlyHint' => $module === AttendanceFieldScope::MODULE_KEY,
+            'excelImportMappingProfile' => $excelImportMappingProfile,
+            'excelImportMappingScopes' => $excelImportMappingScopes,
+            'excelImportMappingSelectedScopeId' => $excelImportMappingSelectedScopeId,
+            'excelImportMappingResolved' => $excelImportMappingResolved,
+            'excelImportMappingConfiguredScopeIds' => $excelImportMappingConfiguredScopeIds,
+            'excelImportMappingDynamicItems' => $excelImportMappingDynamicItems,
+            'excelImportMappingColumnChoices' => $excelImportMappingColumnChoices,
         ]);
     }
 
-    public function updateVisaExpenseTop(Request $request, string $company_slug, string $module)
+    public function updateInvoiceDefaults(Request $request, string $company_slug, string $module)
     {
         $module = $this->normalizeModuleKey($module);
-        abort_unless($module === 'visa_expense', 404);
+        abort_unless(in_array($module, \App\Support\InvoiceModuleDefaults::settingsModules(), true), 404);
 
         $validated = $request->validate([
-            'status_ids' => ['nullable', 'array'],
-            'status_ids.*' => ['integer', 'exists:visa_statuses,id'],
-            'show_in_top_bar' => ['nullable', 'boolean'],
+            'invoice_title' => ['nullable', 'string', 'max:100'],
+            'terms_and_conditions' => ['nullable', 'string'],
+            'customer_notes' => ['nullable', 'string'],
+            'invoice_notes' => ['nullable', 'string'],
         ]);
 
-        $statusIds = collect($validated['status_ids'] ?? [])
-            ->map(fn($id) => (int) $id)
-            ->filter(fn($id) => $id > 0)
-            ->unique()
-            ->values()
-            ->all();
+        $notes = (string) ($validated['customer_notes'] ?? $validated['invoice_notes'] ?? '');
 
-        Settings::updateOrCreate(
-            ['name' => self::VISA_EXPENSE_TOP_SETTING_KEY],
-            ['value' => json_encode($statusIds)]
-        );
-        Settings::updateOrCreate(
-            ['name' => self::VISA_EXPENSE_TOP_ENABLED_KEY],
-            ['value' => $request->boolean('show_in_top_bar') ? '1' : '0']
+        \App\Support\InvoiceModuleDefaults::save(
+            $module,
+            (string) ($validated['terms_and_conditions'] ?? ''),
+            $notes,
+            null,
+            (string) ($validated['invoice_title'] ?? '')
         );
 
-        if ($request->ajax() || $request->wantsJson()) {
+        if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Visa Expense Top updated successfully.',
-                'status_ids' => $statusIds,
-                'show_in_top_bar' => $request->boolean('show_in_top_bar'),
+                'message' => 'Invoice defaults saved.',
+                'reload' => true,
             ]);
         }
 
@@ -645,8 +695,45 @@ class ModuleSettingsController extends Controller
                 'company_slug' => $company_slug,
                 'module' => $module,
             ])
-            ->with('success', 'Visa Expense Top statuses updated.')
-            ->withFragment('tab-visa-expense-top');
+            ->with('success', 'Invoice defaults saved.');
+    }
+
+    public function updateRiderPaymentVoucherDefaults(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        abort_unless(in_array($module, ['rider_invoices', 'invoices'], true), 404);
+
+        $validated = $request->validate([
+            'title' => ['nullable', 'string', 'max:100'],
+            'show_internal_notes' => ['nullable', 'boolean'],
+            'internal_notes_label' => ['nullable', 'string', 'max:100'],
+            'show_signature' => ['nullable', 'boolean'],
+            'rider_signature_label' => ['nullable', 'string', 'max:100'],
+            'payer_signature_label' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        \App\Support\RiderPaymentVoucherDefaults::save([
+            'title' => $validated['title'] ?? null,
+            'show_internal_notes' => $request->boolean('show_internal_notes'),
+            'internal_notes_label' => $validated['internal_notes_label'] ?? null,
+            'show_signature' => $request->boolean('show_signature'),
+            'rider_signature_label' => $validated['rider_signature_label'] ?? null,
+            'payer_signature_label' => $validated['payer_signature_label'] ?? null,
+        ]);
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment voucher settings saved.',
+            ]);
+        }
+
+        return redirect()
+            ->route('settings-panel.module-settings.index', [
+                'company_slug' => $company_slug,
+                'module' => $module,
+            ])
+            ->with('success', 'Payment voucher settings saved.');
     }
 
     public function updateLicenseExpenseTop(Request $request, string $company_slug, string $module)

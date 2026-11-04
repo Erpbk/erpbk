@@ -16,6 +16,9 @@ class Files extends BaseModel
     'type',
     'type_id',
     'branch_id',
+    'document_type_id',
+    'document_subtype_id',
+    'field_values',
     'file_name',
     'expiry_date',
     'status',
@@ -29,7 +32,8 @@ class Files extends BaseModel
      */ 'expiry_date' => 'date',
     'status' => 'boolean',
     'notes' => 'string',
-    'file_type' => 'string'
+    'file_type' => 'string',
+    'field_values' => 'array',
   ];
 
   public static array $rules = [
@@ -60,6 +64,16 @@ class Files extends BaseModel
   public function bike()
   {
     return $this->hasOne(Bikes::class, 'id', 'type_id');
+  }
+
+  public function documentType()
+  {
+    return $this->belongsTo(RiderDocumentType::class, 'document_type_id');
+  }
+
+  public function documentSubtype()
+  {
+    return $this->belongsTo(RiderDocumentTypeSubtype::class, 'document_subtype_id');
   }
 
 }

@@ -46,6 +46,13 @@ class GlobalAccountsSeeder extends Seeder
             'LATE_LOAN_PAYMENT_CHARGES' => ['label' => 'Late Loan Payment Charges', 'account_id' => null, 'account_type' => 'Expense'],
             'BANK' => ['label' => 'Bank (Parent)', 'account_id' => null, 'account_type' => 'Asset'],
             'CASH' => ['label' => 'Cash (Parent)', 'account_id' => null, 'account_type' => 'Asset'],
+            'OPENING_BALANCE_EQUITY' => [
+                'label' => 'Opening Balance Equity',
+                'account_id' => null,
+                'account_type' => 'Equity',
+                'is_active' => false,
+                'description' => 'Configure via Global Accounts admin — used for account opening-balance JVs and fixed-asset opening balances',
+            ],
             'RIDERS' => ['label' => 'Riders (Parent)', 'account_id' => null, 'account_type' => 'Liability'],
             'VENDOR_CHARGES_ACCOUNT' => ['label' => 'Vendor Charges', 'account_id' => null, 'account_type' => 'Expense'],
             'INCENTIVE_ACCOUNT' => ['label' => 'Incentive', 'account_id' => null, 'account_type' => 'Expense'],
@@ -74,7 +81,7 @@ class GlobalAccountsSeeder extends Seeder
                 'data' => $data,
                 'timestamp' => (int) (microtime(true) * 1000),
             ], JSON_UNESCAPED_SLASHES);
-            @file_put_contents(base_path('debug-921d95.log'), $payload.PHP_EOL, FILE_APPEND);
+            @file_put_contents(base_path('debug-921d95.log'), $payload . PHP_EOL, FILE_APPEND);
         };
         // #endregion
 

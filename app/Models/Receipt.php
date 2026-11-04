@@ -2,19 +2,22 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class Receipt extends BaseModel
 {
-    use LogsActivity, BranchScope;
+    use LogsActivity, BranchScope, SoftDeletes, TracksUserAttribution;
 
     public $table = 'receipts';
 
     public $fillable = [
         'branch_id',
         'reference',
+        'resource_links',
         'account_id',
         'bank_id',
         'payer_account_id',
@@ -28,6 +31,12 @@ class Receipt extends BaseModel
         'status',
         'created_by',
         'updated_by',
+        'deleted_by',
+    ];
+
+    protected $casts = [
+        'resource_links' => 'array',
+        'deleted_at' => 'datetime',
     ];
 
     public static array $rules = [

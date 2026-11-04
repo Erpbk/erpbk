@@ -97,9 +97,14 @@
             </div>
 
             <div class="form-group col-md-4">
-                <label for="attachment">Attachment</label>
-                <input type="file" name="attachment" id="attachment" class="form-control"
-                       accept=".pdf,.jpg,.jpeg,.png">
+                @include('partials.universal_document_upload', [
+                  'name' => 'attachment',
+                  'label' => 'Attachment',
+                  'required' => false,
+                  'accept' => '.pdf,.jpg,.jpeg,.png',
+                  'inputClass' => 'form-control',
+                  'showHint' => true,
+                ])
             </div>
 
             <div class="form-group col-md-12">

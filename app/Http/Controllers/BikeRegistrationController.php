@@ -431,6 +431,14 @@ class BikeRegistrationController extends AppBaseController
             ? $rider->name
             : trim(($bike->plate ?: 'Bike') . ($bike->model ? ' — ' . $bike->model : ''));
 
+        // Rider ledger account_id is unique on bike_registration_accounts; a rider
+        // can have multiple vehicle registration accounts (one per bike), so only
+        // link it when it is not already used by another registration account.
+        $ledgerAccountId = $rider?->account_id;
+        if ($ledgerAccountId && BikeRegistrationAccount::where('account_id', $ledgerAccountId)->exists()) {
+            $ledgerAccountId = null;
+        }
+
         DB::beginTransaction();
         try {
             $expenseAccount = BikeRegistrationAccount::create([
@@ -438,7 +446,7 @@ class BikeRegistrationController extends AppBaseController
                 'rider_id' => $rider?->id,
                 'bike_id' => $bike->id,
                 'branch_id' => $rider?->branch_id ?? $bike->branch_id,
-                'account_id' => $rider?->account_id,
+                'account_id' => $ledgerAccountId,
                 'company_id' => auth()->user()->company_id ?? null,
             ]);
 
@@ -458,7 +466,7 @@ class BikeRegistrationController extends AppBaseController
                     'bike_registration_account_id' => $expenseAccount->id,
                     'registration_status' => $status->name,
                     'detail' => $status->description ?? ('Auto-generated from active registration status: ' . $status->name),
-                    'reference_number' => 'BR-' . $expenseAccount->id . '-' . $status->id,
+                    'reference_number' => "Registration for vehicle: " . $bike->plate,
                     'billing_month' => Carbon::today()->startOfMonth()->format('Y-m-d'),
                     'amount' => (float) ($status->default_fee ?? 0),
                     'payment_status' => 'unpaid',
@@ -471,10 +479,10 @@ class BikeRegistrationController extends AppBaseController
                 ]);
             }
             DB::commit();
-            Flash::success('Bike registration account created and active status entries generated.');
+            Flash::success('Vehicle registration account created and active status entries generated.');
         } catch (\Throwable $e) {
             DB::rollBack();
-            Flash::error('Error creating bike registration account: ' . $e->getMessage());
+            Flash::error('Error creating vehicle registration account: ' . $e->getMessage());
         }
 
         return redirect()->back();
@@ -491,7 +499,7 @@ class BikeRegistrationController extends AppBaseController
         $account->rider_id = $rider->id;
         $account->name = $rider->name;
         $account->save();
-        Flash::success('Bike registration account updated successfully.');
+        Flash::success('Vehicle registration account updated successfully.');
 
         return redirect()->back();
     }
@@ -505,18 +513,18 @@ class BikeRegistrationController extends AppBaseController
             ->exists();
 
         if ($paidExists) {
-            Flash::error('Cannot delete account. Paid bike registration entries exist for this account.');
+            Flash::error('Cannot delete account. Paid vehicle registration entries exist for this account.');
 
             return redirect()->back();
         }
 
         $entries = $this->bikeRegistrationExpenseListingQuery($account)->orderBy('id')->get();
-        $accountLabel = $account->name ?? ('Bike Registration Account #' . $account->id);
+        $accountLabel = $account->name ?? ('Vehicle Registration Account #' . $account->id);
 
         DB::beginTransaction();
         try {
             foreach ($entries as $bikeRegistration) {
-                $entryLabel = 'Bike Registration #' . $bikeRegistration->id . ' — ' . ($bikeRegistration->registration_status ?? '');
+                $entryLabel = 'Vehicle Registration #' . $bikeRegistration->id . ' — ' . ($bikeRegistration->registration_status ?? '');
                 try {
                     $this->trackCascadeDeletion(
                         BikeRegistrationAccount::class,
@@ -528,7 +536,7 @@ class BikeRegistrationController extends AppBaseController
                         'hasMany',
                         'bike_registrations',
                         'soft',
-                        'Cascade deletion from Bike Registration Account deletion'
+                        'Cascade deletion from Vehicle Registration Account deletion'
                     );
                 } catch (\Exception $e) {
                     \Log::error('Failed to track account→registration cascade: ' . $e->getMessage());
@@ -541,15 +549,15 @@ class BikeRegistrationController extends AppBaseController
 
             DB::commit();
 
-            $msg = 'Account deleted successfully.';
+            $msg = 'Vehicle registration account deleted successfully.';
             if ($entries->isNotEmpty()) {
-                $msg .= ' Cascaded deletion of ' . $entries->count() . ' expense row(s), related transactions, vouchers, and details.';
+                $msg .= ' Cascaded deletion of ' . $entries->count() . ' vehicle registration expense row(s), related transactions, vouchers, and details.';
             }
             Flash::success($msg);
         } catch (\Exception $e) {
             DB::rollBack();
             report($e);
-            Flash::error('Could not delete account: ' . $e->getMessage());
+            Flash::error('Could not delete vehicle registration account: ' . $e->getMessage());
         }
 
         return redirect()->back();
@@ -905,7 +913,7 @@ class BikeRegistrationController extends AppBaseController
                 $TransactionService->recordTransaction([
                     'account_id' => GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'),
                     'reference_id' => $expense->id,
-                    'reference_type' => 'BR',
+                    'reference_type' => 'VR',
                     'trans_code' => $trans_code,
                     'trans_date' => $transDate,
                     'narration' => $narration,
@@ -919,7 +927,7 @@ class BikeRegistrationController extends AppBaseController
                 $TransactionService->recordTransaction([
                     'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
                     'reference_id' => $expense->id,
-                    'reference_type' => 'BR',
+                    'reference_type' => 'VR',
                     'trans_code' => $trans_code,
                     'trans_date' => $transDate,
                     'narration' => 'VAT: ' . $narration,
@@ -933,7 +941,7 @@ class BikeRegistrationController extends AppBaseController
                 $TransactionService->recordTransaction([
                     'account_id' => $validated['account'],
                     'reference_id' => $expense->id,
-                    'reference_type' => 'BR',
+                    'reference_type' => 'VR',
                     'trans_code' => $trans_code,
                     'trans_date' => $transDate,
                     'narration' => $narration,
@@ -950,10 +958,10 @@ class BikeRegistrationController extends AppBaseController
                 'trip_date' => $request->trip_date,
                 'billing_month' => $billingMonth,
                 'payment_type' => $payment_type_flag,
-                'voucher_type' => 'BR',
+                'voucher_type' => 'VR',
                 'remarks' => $vatAmount > 0
-                    ? ('Bike Registration Voucher (incl. VAT ' . number_format($vatAmount, 2) . ')')
-                    : 'Bike Registration Voucher',
+                    ? ('Vehicle Registration Voucher (incl. VAT ' . number_format($vatAmount, 2) . ')')
+                    : 'Vehicle Registration Voucher',
                 'amount' => $grandTotal,
                 'reference_number' => $expense->reference_number ?? null,
                 'Created_By' => $request->Created_By ?? auth()->id(),
@@ -1068,7 +1076,7 @@ class BikeRegistrationController extends AppBaseController
 
             if ($bikeRegistration->payment_status == 'paid') {
                 $vouchers = Vouchers::where('ref_id', $bikeRegistration->id)
-                    ->where('voucher_type', 'BR')
+                    ->where('voucher_type', 'VR')
                     ->first();
                 if ($vouchers) {
                     $vouchers->reference_number = $bikeRegistration->reference_number;
@@ -1077,7 +1085,7 @@ class BikeRegistrationController extends AppBaseController
                 }
 
                 $transactions = Transactions::where('reference_id', $bikeRegistration->id)
-                    ->where('reference_type', 'BR')
+                    ->where('reference_type', 'VR')
                     ->get();
 
                 foreach ($transactions as $transaction) {
@@ -1092,10 +1100,10 @@ class BikeRegistrationController extends AppBaseController
             }
 
             DB::commit();
-            Flash::success('Bike registration updated successfully.');
+            Flash::success('Vehicle registration updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            Flash::error('Error updating bike registration: ' . $e->getMessage());
+            Flash::error('Error updating vehicle registration: ' . $e->getMessage());
         }
 
         return redirect()->back();
@@ -1122,7 +1130,7 @@ class BikeRegistrationController extends AppBaseController
 
         return response()->json([
             'success' => true,
-            'message' => 'Bike registration updated.',
+            'message' => 'Vehicle registration updated.',
             'amount' => number_format((float) $row->amount, 2),
             'date' => Carbon::parse($row->date)->format('Y-m-d'),
             'billing_month' => Carbon::parse($row->billing_month)->format('Y-m'),
@@ -1146,11 +1154,11 @@ class BikeRegistrationController extends AppBaseController
 
         $voucher = $expense->vouchers->first();
         if (!$voucher) {
-            $voucher = Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'BR')->first();
+            $voucher = Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'VR')->first();
         }
         if (!$voucher) {
             return response(
-                '<div class="alert alert-warning m-2 mb-0">No BR voucher found for this expense.</div>',
+                '<div class="alert alert-warning m-2 mb-0">No VR voucher found for this expense.</div>',
                 200
             );
         }
@@ -1167,7 +1175,7 @@ class BikeRegistrationController extends AppBaseController
             );
         }
 
-        $debitAccountName = Accounts::where('id', GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'))->value('name') ?? 'Bike registration expense';
+        $debitAccountName = Accounts::where('id', GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'))->value('name') ?? 'Vehicle registration expense';
         $currentCreditName = Accounts::where('id', $creditTx->account_id)->value('name') ?? ('#' . $creditTx->account_id);
 
         $paymentAccounts = $this->bikeRegistrationPaymentAccountOptions();
@@ -1217,12 +1225,12 @@ class BikeRegistrationController extends AppBaseController
 
         $newAccountId = (int) $validated['credit_account_id'];
         if ($newAccountId === (int) GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT')) {
-            Flash::error('Cannot use the bike registration expense account as the payment (credit) side.');
+            Flash::error('Cannot use the vehicle registration expense account as the payment (credit) side.');
 
             return redirect()->back();
         }
 
-        $voucher = Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'BR')->first();
+        $voucher = Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'VR')->first();
         if (!$voucher) {
             Flash::error('No voucher found for this expense.');
 
@@ -1271,11 +1279,11 @@ class BikeRegistrationController extends AppBaseController
             $this->recalculateLedgerAfterDeletion($newAccountId, $billingMonth);
 
             DB::commit();
-            Flash::success('Payment (credit) account updated.');
+            Flash::success('Vehicle registration payment (credit) account updated.');
         } catch (\Exception $e) {
             DB::rollBack();
             report($e);
-            Flash::error('Could not update payment account: ' . $e->getMessage());
+            Flash::error('Could not update vehicle registration payment account: ' . $e->getMessage());
         }
 
         return redirect()->back();
@@ -1291,6 +1299,7 @@ class BikeRegistrationController extends AppBaseController
         return Accounts::query()
             ->where('status', 1)
             ->where('parent_id', $bank->id)
+            ->leafOnly()
             ->orderBy('id')
             ->pluck('name', 'id');
     }
@@ -1300,7 +1309,7 @@ class BikeRegistrationController extends AppBaseController
         $bikeRegistration = BikeRegistration::find($id);
 
         if (empty($bikeRegistration)) {
-            Flash::error('Bike registration entry not found');
+            Flash::error('Vehicle registration entry not found');
 
             return redirect()->back();
         }
@@ -1310,11 +1319,11 @@ class BikeRegistrationController extends AppBaseController
             $this->purgeBikeRegistrationEntryAndRelatedRecords($bikeRegistration);
 
             DB::commit();
-            Flash::success('Bike registration entry deleted successfully.');
+            Flash::success('Vehicle registration entry deleted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error("Error deleting Bike Registration ID: {$id} - " . $e->getMessage());
-            Flash::error('Error deleting bike registration: ' . $e->getMessage());
+            Flash::error('Error deleting vehicle registration: ' . $e->getMessage());
         }
 
         return redirect()->back();
@@ -1333,16 +1342,16 @@ class BikeRegistrationController extends AppBaseController
         $identifier = 'Bike Registration #' . $id . ' - ' . ($bikeRegistration->registration_status ?? '') . ' (Amount: ' . number_format((float) $bikeRegistration->amount, 2) . ')';
 
         $relatedTransactions = Transactions::where('reference_id', $bikeRegistration->id)
-            ->where('reference_type', 'BR')
+            ->where('reference_type', 'VR')
             ->get();
 
         $transCodeTransactions = Transactions::where('trans_code', $bikeRegistration->trans_code)
-            ->where('reference_type', 'BR')
+            ->where('reference_type', 'VR')
             ->get();
 
         $relatedVouchers = Vouchers::withTrashed()
             ->where('ref_id', $bikeRegistration->id)
-            ->where('voucher_type', 'BR')
+            ->where('voucher_type', 'VR')
             ->whereNull('deleted_at')
             ->get();
 
@@ -1358,7 +1367,7 @@ class BikeRegistrationController extends AppBaseController
                     'hasMany',
                     'transactions',
                     'soft',
-                    'Cascade deletion from Bike Registration deletion - transaction by reference_id'
+                    'Cascade deletion from Vehicle Registration deletion - transaction by reference_id'
                 );
             } catch (\Exception $e) {
                 \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
@@ -1380,7 +1389,7 @@ class BikeRegistrationController extends AppBaseController
                     'hasMany',
                     'transactions',
                     'soft',
-                    'Cascade deletion from Bike Registration deletion - transaction by trans_code'
+                    'Cascade deletion from Vehicle Registration deletion - transaction by trans_code'
                 );
             } catch (\Exception $e) {
                 \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
@@ -1399,7 +1408,7 @@ class BikeRegistrationController extends AppBaseController
                     'hasMany',
                     'vouchers',
                     'soft',
-                    'Cascade deletion from Bike Registration deletion - voucher'
+                    'Cascade deletion from Vehicle Registration deletion - voucher'
                 );
             } catch (\Exception $e) {
                 \Log::error("Failed to track cascade deletion for voucher {$voucher->id}: " . $e->getMessage());
@@ -1407,11 +1416,11 @@ class BikeRegistrationController extends AppBaseController
         }
 
         Transactions::where('reference_id', $bikeRegistration->id)
-            ->where('reference_type', 'BR')
+            ->where('reference_type', 'VR')
             ->delete();
 
         Transactions::where('trans_code', $bikeRegistration->trans_code)
-            ->where('reference_type', 'BR')
+            ->where('reference_type', 'VR')
             ->delete();
 
         foreach ($relatedVouchers as $voucher) {
@@ -1438,7 +1447,7 @@ class BikeRegistrationController extends AppBaseController
                         'hasOne',
                         'ledger_entry',
                         'hard',
-                        'Cascade deletion from Bike Registration deletion - ledger entry recalculation'
+                        'Cascade deletion from Vehicle Registration deletion - ledger entry recalculation'
                     );
                 } catch (\Exception $e) {
                     \Log::error("Failed to track cascade deletion for ledger entry {$ledgerEntry->id}: " . $e->getMessage());

@@ -94,7 +94,7 @@ class VatController extends Controller
                     'date' => Common::DateFormat($row->trans_date),
                     'account_name' => $row->account ? ($row->account->account_code . '-' . $row->account->name) : 'N/A',
                     'reference_number' => $row->voucher ? ($row->voucher->reference_number ?? '-') : '-',
-                    'billing_month' => $row->billing_month ? date('M Y', strtotime($row->billing_month)) : '',
+                    'billing_month' => $row->billing_month ? date('M-Y', strtotime($row->billing_month)) : '',
                     'voucher' => $this->getVoucherText($row),
                     'narration' => $this->getNarration($row, $viewFile),
                     'debit' => number_format($row->debit, 2),
@@ -273,7 +273,7 @@ class VatController extends Controller
      * Create a VV (VAT Return) voucher when filing a return. Exactly 3 entries:
      * 1. Debit: VAT on Sales (1025)
      * 2. Credit: VAT on Purchases (1023)
-     * 3. Credit (or Debit if refund): VAT Payable (1027) = VAT on Sales − VAT on Purchases
+     * 3. Credit (or Debit if refund): VAT Payable (1027) = VAT on Sales - VAT on Purchases
      */
     private function createVatReturnVoucher(
         VatReturn $vatReturn,
@@ -447,7 +447,7 @@ class VatController extends Controller
             'bankCashAccounts' => $bankCashAccounts,
             'allAccounts' => $allAccounts,
             'defaultDebitAccountId' => self::VAT_PAYMENT_DEFAULT_DEBIT_ACCOUNT,
-            'defaultDebitAccountName' => $defaultAccount ? $defaultAccount->account_code . ' – ' . $defaultAccount->name : '1027',
+            'defaultDebitAccountName' => $defaultAccount ? $defaultAccount->account_code . ' � ' . $defaultAccount->name : '1027',
             'prefillAmount' => $prefillAmount,
             'prefillReference' => $prefillReference,
             'vatReturnId' => $vatReturnId,
@@ -568,7 +568,7 @@ class VatController extends Controller
                 ->where('ref_id', $vat_return->id)
                 ->get();
             foreach ($vvVouchers as $voucher) {
-                Transactions::where('trans_code', $voucher->trans_code)->delete();
+                Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $voucher->trans_code));
                 $voucher->delete();
             }
         }
@@ -685,14 +685,71 @@ class VatController extends Controller
         if ($row->reference_type === 'LV') {
             $visaex = \App\Support\CompanyQuery::table('visa_expenses')->where('id', $row->reference_id)->first();
             if ($visaex) {
-                $rider = \App\Support\CompanyQuery::table('accounts')->where('id', $visaex->rider_id)->first();
-                if ($rider) {
-                    return 'Paid to <b>' . $rider->name . ' </b>' . $visaex->visa_status . ' Charges ' . $visaex->date . $viewFile;
+                $personName = $this->resolveVisaExpensePersonName($visaex);
+                if ($personName) {
+                    return 'Paid to <b>' . $personName . ' </b>' . $visaex->visa_status . ' Charges ' . $visaex->date . $viewFile;
                 }
                 return $row->narration . ' (Rider not found) ' . $viewFile;
             }
             return $row->narration . ' (Visa expense not found) ' . $viewFile;
         }
         return $row->narration . ', ' . $viewFile;
+    }
+
+    /**
+     * Resolve rider/employee display name for visa expense VAT ledger rows.
+     * Current rows store riders.id; legacy rows may store accounts.id.
+     */
+    private function resolveVisaExpensePersonName(?object $expense): ?string
+    {
+        if (!$expense) {
+            return null;
+        }
+
+        if (!empty($expense->employee_id)) {
+            $employee = \App\Support\CompanyQuery::table('employees')->where('id', $expense->employee_id)->first();
+            if ($employee) {
+                $code = $employee->employee_id ?: ('EMP-' . $employee->id);
+
+                return trim($code . ' - ' . $employee->name);
+            }
+        }
+
+        if (!empty($expense->expense_account_id)) {
+            $ea = \App\Support\CompanyQuery::table('expense_accounts')->where('id', $expense->expense_account_id)->first();
+            if ($ea) {
+                if (!empty($ea->employee_id)) {
+                    $employee = \App\Support\CompanyQuery::table('employees')->where('id', $ea->employee_id)->first();
+                    if ($employee) {
+                        $code = $employee->employee_id ?: ('EMP-' . $employee->id);
+
+                        return trim($code . ' - ' . $employee->name);
+                    }
+                }
+                if (!empty($ea->rider_id)) {
+                    $rider = \App\Support\CompanyQuery::table('riders')->where('id', $ea->rider_id)->first();
+                    if ($rider) {
+                        return trim(($rider->rider_id ? $rider->rider_id . ' - ' : '') . $rider->name);
+                    }
+                }
+                if (!empty($ea->name)) {
+                    return (string) $ea->name;
+                }
+            }
+        }
+
+        if (!empty($expense->rider_id)) {
+            $rider = \App\Support\CompanyQuery::table('riders')->where('id', $expense->rider_id)->first();
+            if ($rider) {
+                return trim(($rider->rider_id ? $rider->rider_id . ' - ' : '') . $rider->name);
+            }
+
+            $account = \App\Support\CompanyQuery::table('accounts')->where('id', $expense->rider_id)->first();
+            if ($account) {
+                return (string) $account->name;
+            }
+        }
+
+        return null;
     }
 }

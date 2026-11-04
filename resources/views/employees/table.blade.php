@@ -1,34 +1,53 @@
-@push('third_party_stylesheets')
-@endpush
-<table class="table table-striped dataTable no-footer" id="dataTableBuilder">
-   <thead class="">
-      <tr role="row">
-         @php
-         $tableCols = $tableColumns ?? [];
-         $hiddenTableColumns = \App\Models\EmployeeCustomField::removedEmployeeColumns();
-         $dataColumns = array_values(array_filter($tableCols, function ($c) use ($hiddenTableColumns) {
-         $k = $c['data'] ?? ($c['key'] ?? null);
-         return $k !== 'search'
-         && $k !== 'control'
-         && !in_array($k, $hiddenTableColumns, true)
-         && field_visible('employees', $k);
-         }));
-         @endphp
+@php
+$tableCols = $tableColumns ?? [];
+$hiddenTableColumns = \App\Models\EmployeeCustomField::removedEmployeeColumns();
+$dataColumns = array_values(array_filter($tableCols, function ($c) use ($hiddenTableColumns) {
+    $k = $c['data'] ?? ($c['key'] ?? null);
+    return $k !== 'search'
+        && $k !== 'control'
+        && $k !== 'action'
+        && !in_array($k, $hiddenTableColumns, true)
+        && field_visible('employees', $k);
+}));
+$favoriteIds = collect($favoriteEmployeeIds ?? (auth()->user()->favorite_employee_ids ?? []))->map(fn ($id) => (int) $id)->all();
+$ajaxFragment = $ajaxFragment ?? false;
+@endphp
+@if(!$ajaxFragment)
+<table class="table" id="dataTableBuilder">
+   <thead>
+      <tr id="rlHead">
          @foreach($dataColumns as $col)
-         @php $title = $col['title'] ?? ($col['name'] ?? ($col['data'] ?? '')); @endphp
-         <th title="{{ $title }}" class="sorting" tabindex="0" rowspan="1" colspan="1">{{ $title }}</th>
+         @php
+         $title = $col['title'] ?? ($col['name'] ?? ($col['data'] ?? ''));
+         $key = $col['data'] ?? ($col['key'] ?? '');
+         @endphp
+         <th title="{{ $title }}" class="sorting" data-k="{{ $key }}" tabindex="0">{{ $title }}<span class="ar">⇅</span></th>
          @endforeach
-         <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">&nbsp;</th>
+         <th class="nosort" tabindex="0">Actions</th>
       </tr>
    </thead>
-   <tbody>
-      @foreach($data as $employee)
+   <tbody id="rlBody">
+@endif
+      @forelse($data as $employee)
+      @php $isFav = in_array((int) $employee->id, $favoriteIds, true); @endphp
       <tr class="text-center" data-id="{{ $employee->id }}">
          @foreach($dataColumns as $col)
          @php $key = $col['data'] ?? ($col['key'] ?? null); @endphp
          @switch($key)
          @case('name')
-         <td class="text-start"><a href="{{ route('employees.show', $employee->id) }}">{{ $employee->name }}</a></td>
+         <td class="name text-start">
+            <button type="button" class="rl-star{{ $isFav ? ' on' : '' }}" data-fav="{{ $employee->id }}" aria-label="{{ $isFav ? 'Remove from' : 'Add to' }} favorites">★</button>
+            @php
+              $hvInitials = collect(explode(' ', (string) $employee->name))->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->implode('');
+              $hvPhoto = $employee->profile_image_url;
+            @endphp
+            <a href="{{ route('employees.show', $employee->id) }}"
+               class="emp-name-link"
+               data-hv-id="{{ $employee->employee_id }}"
+               data-hv-name="{{ $employee->name }}"
+               data-hv-photo="{{ $hvPhoto }}"
+               data-hv-initials="{{ strtoupper($hvInitials) }}">{{ $employee->name }}</a>
+         </td>
          @break
          @case('company_contact')
          @php
@@ -68,7 +87,6 @@
          <td>
             @if($employee->doj)
             {{ $employee->doj->format('d M Y') }}
-            <br><small class="text-muted">{{ $employee->doj->diffForHumans() }}</small>
             @else
             -
             @endif
@@ -149,13 +167,34 @@
             @include('employees._status_badges', ['status' => $employee->status])
          </td>
          @break
-         @case('action')
-         <td style="position: relative;">
+         @default
+         <td>
+            @php
+            if (is_string($key) && str_starts_with($key, 'custom_field_values.')) {
+            $customId = (int) substr($key, strlen('custom_field_values.'));
+            $customValues = is_array($employee->custom_field_values) ? $employee->custom_field_values : [];
+            $value = $customValues[$customId] ?? $customValues[(string) $customId] ?? '-';
+            } else {
+            $value = data_get($employee, $key, '-');
+            }
+            if (is_array($value)) {
+            $value = array_is_list($value)
+            ? implode(', ', array_map(fn ($v) => is_scalar($v) ? (string) $v : json_encode($v), $value))
+            : json_encode($value);
+            } elseif ($value instanceof \Illuminate\Support\Collection) {
+            $value = $value->implode(', ');
+            } elseif ($value instanceof \Carbon\CarbonInterface) {
+            $value = $value->format('d M Y');
+            }
+            @endphp
+            {{ $value }}
+         </td>
+         @endswitch
+         @endforeach
+         <td>
             <div class="dropdown">
-               <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $employee->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
-                  <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
-               </button>
-               <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $employee->id }}" style="z-index: 1050;">
+               <button class="rl-dots" type="button" id="actiondropdown_{{ $employee->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="Row actions">⋯</button>
+               <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $employee->id }}">
                   @include('layouts.partials.module_contract_action', [
                     'module' => 'employees',
                     'recordId' => $employee->id,
@@ -189,37 +228,17 @@
                </div>
             </div>
          </td>
-         @break
-         @default
-         <td>
-            @php
-            if (is_string($key) && str_starts_with($key, 'custom_field_values.')) {
-            $customId = (int) substr($key, strlen('custom_field_values.'));
-            $customValues = is_array($employee->custom_field_values) ? $employee->custom_field_values : [];
-            $value = $customValues[$customId] ?? $customValues[(string) $customId] ?? '-';
-            } else {
-            $value = data_get($employee, $key, '-');
-            }
-            if (is_array($value)) {
-            $value = array_is_list($value)
-            ? implode(', ', array_map(fn ($v) => is_scalar($v) ? (string) $v : json_encode($v), $value))
-            : json_encode($value);
-            } elseif ($value instanceof \Illuminate\Support\Collection) {
-            $value = $value->implode(', ');
-            } elseif ($value instanceof \Carbon\CarbonInterface) {
-            $value = $value->format('d M Y');
-            }
-            @endphp
-            {{ $value }}
-         </td>
-         @endswitch
-         @endforeach
-         <td></td>
       </tr>
-      @endforeach
+      @empty
+      <tr>
+         <td colspan="{{ count($dataColumns) + 1 }}" class="rl-empty text-center">
+            No employees match this search.
+         </td>
+      </tr>
+      @endforelse
+@if(!$ajaxFragment)
    </tbody>
 </table>
-@if(method_exists($data, 'links'))
-{!! $data->links('components.global-pagination') !!}
 @endif
+
 @include('delete_requests._pending_table_script', ['items' => $data])

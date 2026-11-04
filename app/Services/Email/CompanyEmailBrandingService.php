@@ -51,6 +51,10 @@ class CompanyEmailBrandingService
       $brandingJson['email_secondary_color'] ?? $company->secondary_color ?? null,
       '#1e3a8a'
     );
+    $accentColor = $this->normalizeColor(
+      $brandingJson['email_accent_color'] ?? $company->accent_color ?? null,
+      '#818cf8'
+    );
 
     $address = trim((string) ($company->address ?: ($stored['company_address'] ?? '')));
     $phone = trim((string) ($company->phone ?: ($stored['company_phone'] ?? '')));
@@ -75,6 +79,7 @@ class CompanyEmailBrandingService
       'logo_url' => $this->resolveLogoUrl($logoPath),
       'primary_color' => $primaryColor,
       'secondary_color' => $secondaryColor,
+      'accent_color' => $accentColor,
       'address' => $address,
       'phone' => $phone,
       'email' => $email,
@@ -286,6 +291,7 @@ class CompanyEmailBrandingService
       'logo_url' => null,
       'primary_color' => '#2563eb',
       'secondary_color' => '#1e3a8a',
+      'accent_color' => '#818cf8',
       'address' => '',
       'phone' => '',
       'email' => '',

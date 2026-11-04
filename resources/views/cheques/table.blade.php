@@ -9,6 +9,7 @@
             @if($vf('type'))<th title="Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Type</th>@endif
             <th title="Sender/Receiver" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Sender/Receiver: activate to sort column ascending">Sender/Reciever</th>
             @if($vf('amount'))<th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>@endif
+            @if($vf('cleared_amount'))<th title="Cleared Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Cleared Amount: activate to sort column ascending">Cleared Amount</th>@endif
             @if($vf('voucher_id'))<th title="Voucher No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher: activate to sort column ascending">Voucher</th>@endif
             @if($vf('attachment'))<th title="Attachmnet" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Attachment: activate to sort column ascending">Attachment</th>@endif
             @if($vf('description'))<th title="Description" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Description: activate to sort column ascending">Description</th>@endif
@@ -28,7 +29,8 @@
           };
         @endphp
         @foreach($data as $cheque)
-        <tr data-id="{{ $cheque->id }}">
+        @php $chequePendingDeletion = record_is_pending_deletion($cheque); @endphp
+        <tr data-id="{{ $cheque->id }}" @class(['table-warning' => $chequePendingDeletion])>
             @if($vf('reference'))<td>{{ $cheque->reference ?? '-' }}</td>@endif
             @if($vf('cheque_number'))<td>
                 <a href="javascript:void(0);" class="show-modal text-primary" data-size="xl"
@@ -36,6 +38,7 @@
                 data-title="Cheque Details">
                     {{ $cheque->cheque_number }}
                 </a>
+                @include('delete_requests._pending_badge', ['model' => $cheque])
             </td>@endif
             @if($vf('cheque_date'))<td>{{ $cheque->cheque_date?->format('d M Y') ?? '-' }}</td>@endif
             @if($vf('type'))<td>
@@ -67,11 +70,21 @@
                 @endif
             </td>
             @if($vf('amount'))<td>{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</td>@endif
+            @if($vf('cleared_amount'))<td>{{ \App\Helpers\Currency::format($cheque->cleared_amount ?? 0, 2) }}</td>@endif
             @if($vf('voucher_id'))<td>
-                @if($cheque->voucher_id)
-                    <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $voucherShowParams($cheque->voucher_id)) }}" class="text-primary show-voucher-panel" data-title="Voucher Against Cheque#{{ $cheque->cheque_number }}" data-collapse-sidebar="1">
-                        {{ $cheque->voucher->voucher_type . '-'. $cheque->voucher_id }}
-                    </a>
+                @php
+                    $clearVouchers = $cheque->relationLoaded('clear_vouchers')
+                        ? $cheque->getRelation('clear_vouchers')
+                        : $cheque->linkedClearVouchers();
+                @endphp
+                @if($clearVouchers->isNotEmpty())
+                    <div class="d-flex flex-column gap-1">
+                        @foreach($clearVouchers as $clearVoucher)
+                            <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $voucherShowParams($clearVoucher->id)) }}" class="text-primary show-voucher-panel" data-title="Voucher Against Cheque#{{ $cheque->cheque_number }}" data-collapse-sidebar="1">
+                                {{ ($clearVoucher->voucher_type ?? 'V') . '-' . $clearVoucher->id }}
+                            </a>
+                        @endforeach
+                    </div>
                 @else
                     -
                 @endif
@@ -89,6 +102,7 @@
             @php
                 $badge=[
                     'Issued' => 'primary',
+                    'Partially Cleared' => 'info',
                     'Cleared' => 'success',
                     'Returned' => 'danger',
                     'Stop Payment' => 'warning',
@@ -99,6 +113,9 @@
                 <span class="badge bg-{{ $badge[$cheque->status] ?? 'secondary' }}">{{ $cheque->status }}</span>
             </td>@endif
             <td style="position: relative;">
+                @if($chequePendingDeletion)
+                    <span class="text-muted small pending-deletion-lock"><i class="ti ti-lock me-1"></i>Locked</span>
+                @else
                 <div class="dropdown">
                 <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $cheque->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
                     <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
@@ -109,25 +126,47 @@
                         'recordId' => $cheque->id,
                     ])
                     @can('cash_&_banks_cheques_edit')
-                        @if($cheque->status != 'Cleared')
+                        @if(!in_array($cheque->status, ['Cleared', 'Partially Cleared'], true))
                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Edit {{ ucwords($cheque->type) }} Cheque" data-action="{{ route('cheques.edit', $cheque->id) }}">
                             <i class="fa fa-edit my-1"></i> Edit
                         </a>
                         @endif
-                        @if($cheque->status == 'Issued')
-                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Change Status" data-action="{{ route('cheques.status-form', $cheque->id) }}">
+                        @if(in_array($cheque->status, ['Cleared', 'Partially Cleared'], true))
+                            @php
+                                $clearDocs = $cheque->linkedClearDocumentsQuery()->get();
+                                $isPayableCheque = $cheque->isPayable();
+                            @endphp
+                            @foreach($clearDocs as $clearDoc)
+                                @php
+                                    $clearLabel = $clearDoc->voucher_id
+                                        ? (($isPayableCheque ? 'PV' : 'RV') . '-' . $clearDoc->voucher_id)
+                                        : (($isPayableCheque ? 'Payment' : 'Receipt') . ' #' . $clearDoc->id);
+                                    $clearEditRoute = $isPayableCheque
+                                        ? route('payments.edit', ['payment' => $clearDoc->id, 'from_cheques' => 1])
+                                        : route('receipts.edit', ['receipt' => $clearDoc->id, 'from_cheques' => 1]);
+                                @endphp
+                                <a href="javascript:void(0);" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Edit {{ $clearLabel }}" data-action="{{ $clearEditRoute }}">
+                                    <i class="fa fa-edit my-1"></i> Edit {{ $clearLabel }}
+                                </a>
+                            @endforeach
+                        @endif
+                        @if(in_array($cheque->status, ['Issued', 'Partially Cleared', 'Returned', 'Stop Payment', 'Lost'], true))
+                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Change Status" data-action="{{ route('cheques.status-form', $cheque->id) }}">
                             <i class="fa fa-exchange-alt my-1"></i> Change Status
                         </a>
                         @endif
                     @endcan
                     @can('cash_&_banks_cheques_delete')
-                    <a href="javascript:void(0);" class='dropdown-item waves-effect delete-cheque' 
-                        data-url="{{ route('cheques.destroy', $cheque->id) }}">
-                        <i class="fa fa-trash my-1"></i> Delete
-                    </a>
+                        @if(!in_array($cheque->status, ['Cleared', 'Partially Cleared'], true))
+                        <a href="javascript:void(0);" class='dropdown-item waves-effect delete-cheque' 
+                            data-url="{{ route('cheques.destroy', $cheque->id) }}">
+                            <i class="fa fa-trash my-1"></i> Delete
+                        </a>
+                        @endif
                     @endcan
                 </div>
                 </div>
+                @endif
             </td>
         </tr>
         @endforeach
@@ -145,27 +184,39 @@
     'entityName' => 'Cheque',
     'confirmText' => 'This will submit a delete request or move the cheque to the Recycle Bin.',
 ])
-@section('page-script')
+@push('page-scripts')
 <script>
-    $('#dataTableBuilder').DataTable({
-        "paging": true, // Enable DataTables pagination
-        "pageLength": 50, // Items per page
-        "searching": true, // Enable search
-        "ordering": false, // Enable column sorting
-        "info": true, // Show "Showing X of Y entries"
-        "autoWidth": true, // Better column width handling
-        "dom": "<'row'<'col-md-12'tr>>" +
-            "<'row mt-2'<'col-md-6'i><'col-md-6 d-flex justify-content-end'p>>",
-    });
-    $('#quickSearch').on('keyup change', function() {
-        $('#dataTableBuilder').DataTable().search(this.value).draw();
-    });
-    $(document).ready(function(){
+    (function () {
+        var $table = $('#dataTableBuilder');
+        if (!$table.length || !$.fn.DataTable) return;
+
+        // Avoid double-init when this partial is rendered more than once.
+        if ($.fn.DataTable.isDataTable($table)) {
+            $table.DataTable().destroy();
+        }
+
+        $table.DataTable({
+            "paging": true,
+            "pageLength": 50,
+            "searching": true,
+            "ordering": false,
+            "info": true,
+            "autoWidth": true,
+            "dom": "<'row'<'col-md-12'tr>>" +
+                "<'row mt-2'<'col-md-6'i><'col-md-6 d-flex justify-content-end'p>>",
+        });
+        $('#quickSearch').on('keyup change', function() {
+            $table.DataTable().search(this.value).draw();
+        });
+        var initialSearch = ($('#quickSearch').val() || '').trim();
+        if (initialSearch) {
+            $table.DataTable().search(initialSearch).draw();
+        }
         $(document).on('click', '.delete-cheque', function(e) {
             e.preventDefault();
             confirmDelete($(this).data('url'));
         });
-    })
+    })();
 </script>
-@endsection
+@endpush
 @include('delete_requests._pending_table_script', ['items' => $data])

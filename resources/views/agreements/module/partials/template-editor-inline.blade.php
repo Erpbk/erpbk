@@ -88,7 +88,9 @@
             <p class="small fw-semibold text-muted mb-1 mt-1">{{ $group ?: 'Fields' }}</p>
             @foreach($items as $ph)
             <button type="button" class="btn btn-outline-secondary btn-sm w-100 text-start mb-1 placeholder-btn"
-              data-placeholder="{{ $ph->placeholder }}" title="{{ $ph->description }}">
+              data-placeholder="{{ $ph->placeholder }}"
+              @if(app(\App\Services\Agreements\AgreementPlaceholderResolver::class)->isLeftToRightPlaceholder($ph->placeholder)) data-ltr="1" @endif
+              title="{{ $ph->description }}">
               <code class="small">{{ $ph->placeholder }}</code>
             </button>
             @endforeach
@@ -116,10 +118,9 @@
   }
   document.querySelectorAll('.placeholder-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      var ph = btn.getAttribute('data-placeholder');
       var ed = typeof tinymce !== 'undefined' ? tinymce.get('agreement-editor') : null;
       if (ed) {
-        ed.insertContent(ph);
+        ed.insertContent(window.erpbkAgreementPlaceholderHtml(btn));
       }
     });
   });

@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\TracksUserAttribution;
+
 class FixedAsset extends BaseModel
 {
-    use SoftDeletes;
+    use SoftDeletes, TracksUserAttribution;
 
     public const STATUS_DRAFT = 'draft';
     public const STATUS_ACTIVE = 'active';

@@ -59,7 +59,7 @@
             </td>
             <td style="text-align: center;">
                 @if($user)
-                <a target="_blank" href="@if($attendance->ref_type === 'employee'){{ route('employees.show', $user->id) }}@elseif($attendance->ref_type === 'rider'){{ route('riders.show', $user->id) }}@endif">{{ $user->name }}</a>
+                <a href="@if($attendance->ref_type === 'employee'){{ safe_route('employees.show', ['employee' => $user->id], 'employees/{id}') }}@elseif($attendance->ref_type === 'rider'){{ safe_route('riders.show', ['rider' => $user->id], 'riders/{id}') }}@endif">{{ $user->name }}</a>
                 @if($attendance->ref_type === 'rider')
                 <div class="mt-1">
                     @include('riders._status_badges', [

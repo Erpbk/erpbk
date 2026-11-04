@@ -24,8 +24,13 @@
 <input type="hidden" name="company_slug" value="{{ $__companySlug }}">
 <div class="row">
     <div class="col-12 mt-3 mb-3">
-        <label class="mb-3 pl-2">Upload Document related to the voucher</label>
-        <input type="file" name="attach_file" class="form-control mb-3" style="height: 40px;" required />
+        @include('partials.universal_document_upload', [
+          'name' => 'attach_file',
+          'label' => 'Upload Document related to the voucher',
+          'required' => true,
+          'inputClass' => 'form-control',
+          'showHint' => true,
+        ])
 
     </div>
 </div>

@@ -6,9 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Log;
 
+use App\Traits\TracksUserAttribution;
+
 class FuelData extends BaseModel
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, TracksUserAttribution;
 
     protected $table = 'fuel_data';
 
@@ -28,6 +30,9 @@ class FuelData extends BaseModel
         'subtotal',
         'vat_amount',
         'total',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

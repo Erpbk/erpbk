@@ -120,3 +120,6 @@
     })();
 </script>
 @endif
+
+@include('invoices.partials.party_invoice_note_fields', ['party' => $bikeRentCompany ?? $bike_rent_company ?? null, 'defaultsModule' => 'leasing_company_billing_invoices'])
+

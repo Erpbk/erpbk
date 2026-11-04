@@ -2,6 +2,7 @@
 @section('title', 'Rider Profile')
 
 @section('content')
+@include('partials.entity_profile_styles')
 <style>
   .myform .required:after {
     content: " *";
@@ -288,9 +289,297 @@
     overflow: visible;
   }
 
-  /* Reserve vertical room so floating badges sit above tabs without clipping. */
+  /* Full-width view nav sits above profile + content on all breakpoints */
+  .rider-view-nav-wrap {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    width: 100%;
+  }
+
+  .rider-view-nav-card {
+    z-index: 1;
+    border: 1px solid #e8ecf1;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+    background: #fff;
+  }
+
+  .rider-view-nav-inner {
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex-wrap: nowrap !important;
+    gap: 0.2rem;
+    width: 100%;
+  }
+
+  .rider-view-nav-scroll {
+    overflow-x: hidden;
+    overflow-y: visible;
+    flex: 0 1 auto; /* grow with tabs only — don't stretch and leave a gap before ⋯ */
+    width: auto;
+    max-width: calc(100% - 2.35rem);
+    min-width: 0;
+    /* Keep top-notification badges inside the tab bar. */
+    padding-top: 0.85rem;
+    margin-top: -0.15rem;
+  }
+
+  .rider-view-nav-scroll #mainNavigation {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch;
+    justify-content: flex-start;
+    width: max-content;
+    max-width: 100%;
+    gap: 0 !important;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .rider-view-nav-scroll #mainNavigation .nav-item {
+    flex: 0 0 auto;
+    min-width: 0;
+    max-width: none;
+    white-space: nowrap;
+    margin: 0 !important;
+  }
+
+  .rider-view-nav-scroll #mainNavigation.nav-pills .nav-link,
+  .rider-profile-tabs .nav-pills .nav-link {
+    margin: 0 !important;
+  }
+
+  .rider-view-nav-scroll #mainNavigation .nav-link {
+    width: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem 0.55rem !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.25 !important;
+    white-space: nowrap;
+    overflow: visible;
+    gap: 0.35rem;
+  }
+
+  /* Keep icons readable and consistent; overflow JS moves tabs to dropdown when space is tight. */
+  .rider-view-nav-scroll #mainNavigation .nav-link i,
+  .rider-view-nav-scroll #mainNavigation .nav-link i.ti,
+  .rider-view-nav-scroll #mainNavigation .nav-link i.ti-sm,
+  .rider-view-nav-scroll #mainNavigation .nav-link i[class*="ti-"] {
+    display: inline-flex !important;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    font-size: 1.05rem !important;
+    line-height: 1 !important;
+    margin-right: 0 !important;
+  }
+
+  .rider-view-nav-scroll #mainNavigation .nav-link .me-1_5,
+  .rider-view-nav-scroll #mainNavigation .nav-link .me-1 {
+    margin-right: 0 !important;
+  }
+
+  .rider-nav-overflow-menu .overflow-nav-item i,
+  .rider-nav-overflow-menu .overflow-nav-item i.ti-sm {
+    font-size: 1.05rem !important;
+    width: 1.15rem;
+    line-height: 1;
+  }
+
+  /* Inline overflow dots — same row as tabs */
+  .rider-view-nav-inner > .rider-nav-overflow-dropdown {
+    flex: 0 0 auto;
+    align-self: center;
+    margin-top: 0.55rem; /* align with tab text under badge padding */
+  }
+
+  .rider-view-nav-inner > .rider-nav-overflow-dropdown[hidden] {
+    display: none !important;
+  }
+
+  .rider-view-nav-inner > .rider-nav-overflow-dropdown:not([hidden]) {
+    display: inline-flex !important;
+  }
+
+  .rider-nav-more-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0 !important;
+    border-radius: 0.45rem !important;
+    border: 1px solid #dbe3ef !important;
+    background: #fff !important;
+    color: #475569 !important;
+    line-height: 1 !important;
+    box-shadow: none !important;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .rider-nav-more-btn:hover,
+  .rider-nav-more-btn:focus,
+  .rider-nav-more-btn[aria-expanded="true"] {
+    background: #eff4fb !important;
+    border-color: #1e4b8e !important;
+    color: #1e4b8e !important;
+  }
+
+  .rider-nav-more-btn i {
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+
+  .rider-nav-overflow-menu {
+    min-width: 220px;
+    padding: 0.4rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.6rem;
+    z-index: 2000 !important;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14) !important;
+  }
+
+  .rider-nav-overflow-menu #overflowItems {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .rider-nav-overflow-menu .overflow-nav-item {
+    display: flex !important;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.55rem 0.75rem !important;
+    border-radius: 0.45rem;
+    font-size: 0.875rem !important;
+    font-weight: 500;
+    line-height: 1.3;
+    color: #1e293b !important;
+    text-decoration: none !important;
+    white-space: nowrap;
+  }
+
+  .rider-nav-overflow-menu .overflow-nav-item:hover,
+  .rider-nav-overflow-menu .overflow-nav-item:focus {
+    background: #f1f5f9 !important;
+    color: #1e4b8e !important;
+  }
+
+  .rider-nav-overflow-menu .overflow-nav-item.active {
+    background: #eff4fb !important;
+    color: #1e4b8e !important;
+    font-weight: 650;
+  }
+
+  .rider-nav-overflow-menu .overflow-nav-item i {
+    flex-shrink: 0;
+    width: 1.15rem;
+    font-size: 1.05rem !important;
+    text-align: center;
+    color: inherit;
+    opacity: 1;
+  }
+
+  .rider-nav-overflow-menu .overflow-nav-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Mobile + tablet: polished top bar above rider card/form */
+  @media (max-width: 1199.98px) {
+    .rider-view-layout {
+      row-gap: 0.75rem;
+    }
+
+    .rider-view-nav-wrap {
+      margin-bottom: 0.25rem;
+    }
+
+    .rider-view-nav-card {
+      border-radius: 0.85rem;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+      border-color: #e2e8f0;
+    }
+
+    .rider-view-nav-card .card-body {
+      padding: 0.55rem 0.75rem !important;
+      padding-top: 1.25rem !important;
+    }
+
+    .rider-profile-tabs #mainNavigation {
+      gap: 0 !important;
+    }
+
+    .rider-profile-tabs .nav-pills .nav-link,
+    .rider-profile-tabs #mainNavigation .nav-link {
+      padding: 0.32rem 0.45rem !important;
+      font-size: 0.78rem !important;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      border-radius: 0.5rem !important;
+      color: #64748b !important;
+      background: #f8fafc !important;
+      border: 1px solid transparent !important;
+      border-bottom: 1px solid transparent !important;
+      box-shadow: none !important;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .rider-profile-tabs .nav-pills .nav-link:hover,
+    .rider-profile-tabs #mainNavigation .nav-link:hover {
+      color: #1e4b8e !important;
+      background: #eff4fb !important;
+      border-color: #dbe5f3 !important;
+    }
+
+    .rider-profile-tabs .nav-pills .nav-link.active,
+    .rider-profile-tabs #mainNavigation .nav-link.active {
+      color: #fff !important;
+      background: #1e4b8e !important;
+      border-color: #1e4b8e !important;
+      border-bottom-color: #1e4b8e !important;
+      box-shadow: 0 2px 8px rgba(30, 75, 142, 0.28) !important;
+    }
+
+    .rider-profile-tabs #mainNavigation .nav-link i {
+      opacity: 0.95;
+      font-size: 1rem !important;
+    }
+
+    .rider-nav-more-btn {
+      width: 1.75rem;
+      height: 1.75rem;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1199.98px) {
+    .rider-view-nav-card .card-body {
+      padding: 0.65rem 1rem !important;
+      padding-top: 1.3rem !important;
+    }
+
+    .rider-profile-tabs .nav-pills .nav-link,
+    .rider-profile-tabs #mainNavigation .nav-link {
+      padding: 0.32rem 0.5rem !important;
+      font-size: 0.8rem !important;
+    }
+
+    .rider-profile-tabs #mainNavigation .nav-link i {
+      font-size: 1.05rem !important;
+    }
+  }
+
+  /* Room for notification badges sitting on top of tabs. */
   .rider-profile-tabs .card-body {
-    padding-top: 1.55rem !important;
+    padding-top: 1.35rem !important;
   }
 
   .rider-profile-tabs #mainNavigation .nav-link {
@@ -302,47 +591,55 @@
     z-index: 8;
   }
 
-  /* All Rider View tab badges: float above the tab, never inside/overlapping the label. */
-  .rider-profile-tabs #mainNavigation .nav-link>.rider-tab-badges,
-  .rider-profile-tabs #mainNavigation .nav-link>.rider-tab-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link>.rider-inventory-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link>.rider-expired-count-dot,
-  .rider-profile-tabs #mainNavigation .nav-link>.rider-expired-docs-bubble {
-    position: absolute;
-    left: 90%;
-    bottom: calc(100% + 0.12rem);
-    top: auto;
-    right: auto;
-    transform: translateX(-50%);
+  /* Notification-style badges: float on top-right of each tab. */
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-badges,
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-inventory-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-count-dot,
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-docs-bubble {
+    position: absolute !important;
+    top: -0.55rem !important;
+    right: -0.15rem !important;
+    left: auto !important;
+    bottom: auto !important;
+    transform: none !important;
     margin: 0 !important;
     z-index: 6;
     pointer-events: auto;
+    flex-shrink: 0;
   }
 
   .rider-profile-tabs #mainNavigation .nav-link .rider-tab-badges {
     display: inline-flex;
     flex-wrap: nowrap;
-    justify-content: center;
+    justify-content: flex-end;
     align-items: center;
-    gap: 0.12rem;
+    gap: 0.15rem;
     overflow: visible;
     white-space: nowrap;
   }
-
-  /* Compact count labels removed — badges show numbers only. */
 
   /* Overflow dropdown: keep badges inline next to the menu label. */
   #overflowItems .rider-tab-badges,
   #overflowItems .rider-tab-count-badge,
   #overflowItems .rider-inventory-count-badge,
   #overflowItems .rider-expired-count-dot,
-  #overflowItems .rider-expired-docs-bubble {
-    position: static;
-    transform: none;
-    left: auto;
-    bottom: auto;
+  #overflowItems .rider-expired-docs-bubble,
+  #overflowItems .rider-doc-status-bubble {
+    position: static !important;
+    transform: none !important;
+    top: auto !important;
+    right: auto !important;
+    left: auto !important;
+    bottom: auto !important;
     display: inline-flex;
     vertical-align: middle;
+    margin-left: 0.15rem !important;
+    box-shadow: none;
+  }
+
+  #overflowItems .rider-tab-badges {
+    gap: 0.2rem;
     margin-left: 0.35rem !important;
   }
 
@@ -383,7 +680,7 @@
 
   @media (max-width: 768px) {
     .rider-profile-tabs .card-body {
-      padding-top: 1.35rem !important;
+      padding-top: 1.2rem !important;
     }
 
     .rider-tab-count-badge,
@@ -392,240 +689,259 @@
       padding: 0.12rem 0.32rem;
       min-width: 1rem;
     }
+
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-badges,
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-count-badge,
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-inventory-count-badge,
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-count-dot,
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-docs-bubble {
+      top: -0.45rem !important;
+      right: -0.1rem !important;
+    }
   }
 
   @media (max-width: 480px) {
     .rider-profile-tabs .card-body {
-      padding-top: 1.2rem !important;
-    }
-
-    .rider-profile-tabs #mainNavigation .nav-link>.rider-tab-badges,
-    .rider-profile-tabs #mainNavigation .nav-link>.rider-tab-count-badge,
-    .rider-profile-tabs #mainNavigation .nav-link>.rider-inventory-count-badge,
-    .rider-profile-tabs #mainNavigation .nav-link>.rider-expired-count-dot,
-    .rider-profile-tabs #mainNavigation .nav-link>.rider-expired-docs-bubble {
-      bottom: calc(100% + 0.06rem);
+      padding-top: 1.1rem !important;
     }
   }
 
-  .rider-view-card {
-    border-radius: 1rem;
-    overflow: hidden;
-    border: 1px solid #e9ecef;
-  }
-
-  .rider-view-card-hero {
-    position: relative;
-    background: linear-gradient(180deg, #1e4b8e 0%, #163a6e 100%);
-    min-height: 300px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2.75rem 1rem 2rem;
-    overflow: hidden;
-  }
-
-  .rider-view-card-hero::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.2;
-    background-image:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.35) 25%, transparent 25%),
-      linear-gradient(225deg, rgba(255, 255, 255, 0.2) 25%, transparent 25%);
-    background-size: 42px 42px;
-  }
-
-  .rider-view-card-star {
+  .entity-view-card .rider-view-card-star {
     position: absolute;
     top: 0.85rem;
     left: 0.9rem;
-    color: #fff;
-    font-size: 1.15rem;
-    opacity: 0.95;
+    color: #cbd5e1;
+    font-size: 1.2rem;
+    opacity: 1;
     cursor: pointer;
     transition: all 0.2s ease;
-    z-index: 2;
+    z-index: 3;
   }
 
-  .rider-view-card-star:hover {
-    opacity: 1;
-    transform: scale(1.15);
+  .entity-view-card .entity-view-card-edit {
+    top: 2.85rem;
+    left: 0.85rem;
   }
 
-  .rider-view-card-star.is-favorited {
+  .entity-view-card .rider-view-card-star:hover {
+    color: #f59e0b;
+    transform: scale(1.12);
+  }
+
+  .entity-view-card .rider-view-card-star.is-favorited {
     color: #fbbf24;
     opacity: 1;
   }
 
-  .rider-view-card-status {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.15rem;
-    z-index: 1;
+  .entity-view-card .rider-view-card-days {
+    color: #94a3b8;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.2;
   }
 
-  .rider-view-card-active {
-    background: #22c55e;
+  .entity-view-card .user_list_content .is-whatsapp,
+  .entity-view-card .user_list_content .is-whatsapp a {
+    color: #16a34a;
+  }
+
+  .entity-view-card #rider-status-cards {
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid #eef0f3;
+    display: flex;
+    flex-direction: column;
+    gap: 0.95rem;
+  }
+
+  .entity-view-card #rider-status-cards .rider-status-group-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-transform: none;
+    color: #1e3a5f;
+    margin-bottom: 0.55rem;
+    padding-left: 0;
+  }
+
+  .entity-view-card #rider-status-cards .rider-status-group-label::before {
+    content: '';
+    width: 3px;
+    height: 0.95rem;
+    border-radius: 999px;
+    background: #3b6fd9;
+    flex: 0 0 auto;
+  }
+
+  .entity-view-card #rider-status-cards .rider-status-group-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  /* Last odd card spans full width (e.g. Travel Ban) */
+  .entity-view-card #rider-status-cards .rider-status-group-grid > .status-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .entity-view-card #rider-status-cards .status-card {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    flex: unset;
+    padding: 0;
+    background: #fff;
+    border: 1px solid #e3ebf5;
+    border-left: 3px solid #3b6fd9;
+    border-radius: 0.65rem;
+    box-shadow: none;
+    color: #1e293b;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .entity-view-card #rider-status-cards .status-card-main {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "icon spacer toggle"
+      "content content content";
+    align-items: center;
+    column-gap: 0.45rem;
+    row-gap: 0.4rem;
+    padding: 0.65rem 0.7rem 0.7rem;
+  }
+
+  .entity-view-card #rider-status-cards .status-card:hover {
+    transform: none;
+    background: #f8fafc;
+    border-color: #c5d0de;
+    border-left-color: #3b6fd9;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  }
+
+  .entity-view-card #rider-status-cards .status-card.active {
+    background: linear-gradient(135deg, #1e4b8e 0%, #2a5fa8 100%);
+    border-color: #1e4b8e;
+    border-left-color: #93c5fd;
+    box-shadow: 0 4px 12px rgba(30, 75, 142, 0.22);
     color: #fff;
-    font-weight: 600;
-    font-size: 0.72rem;
-    padding: 0.28rem 0.6rem;
+  }
+
+  .entity-view-card #rider-status-cards .status-card::before {
+    display: none;
+  }
+
+  .entity-view-card #rider-status-cards .status-icon {
+    grid-area: icon;
+    flex: 0 0 1.55rem;
+    width: 1.55rem;
+    height: 1.55rem;
+    font-size: 0.85rem;
+    margin-bottom: 0;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: #3b6fd9;
+    border: 0;
+  }
+
+  .entity-view-card #rider-status-cards .status-card.active .status-icon {
+    background: transparent;
+    border-color: transparent;
+    color: #fff;
+  }
+
+  .entity-view-card #rider-status-cards .status-content {
+    grid-area: content;
+    min-width: 0;
+    margin-bottom: 0;
+  }
+
+  .entity-view-card #rider-status-cards .status-title {
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #1e293b;
+    margin-bottom: 0.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .entity-view-card #rider-status-cards .status-subtitle {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: #94a3b8;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .entity-view-card #rider-status-cards .status-card.active .status-title {
+    color: #fff;
+  }
+
+  .entity-view-card #rider-status-cards .status-card.active .status-subtitle {
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .entity-view-card #rider-status-cards .status-toggle {
+    grid-area: toggle;
+    flex: 0 0 auto;
+    margin: 0;
+    justify-self: end;
+  }
+
+  .entity-view-card #rider-status-cards .toggle-switch {
+    width: 36px;
+    height: 20px;
+    background: #d1d9e6;
     border-radius: 999px;
   }
 
-  .rider-view-card-days {
-    color: #fff;
-    font-size: 0.68rem;
-    font-weight: 600;
-    line-height: 1.2;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  .entity-view-card #rider-status-cards .toggle-slider {
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
   }
 
-  .rider-view-card-photo-wrap {
-    position: relative;
-    width: 240px;
-    height: 240px;
+  .entity-view-card #rider-status-cards .status-checkbox:checked+.toggle-switch {
+    background: rgba(255, 255, 255, 0.92);
   }
 
-  .rider-view-card-photo {
-    width: 240px;
-    height: 240px;
-    object-fit: cover;
-    border-radius: 0.75rem;
-    border: 5px solid #fff;
+  .entity-view-card #rider-status-cards .status-checkbox:checked+.toggle-switch .toggle-slider {
+    background: #1e4b8e;
+    transform: translateX(16px);
+  }
+
+  .entity-view-card #rider-status-cards .status-card:not(.active) .status-checkbox:checked+.toggle-switch {
+    background: #3b6fd9;
+  }
+
+  .entity-view-card #rider-status-cards .status-card:not(.active) .status-checkbox:checked+.toggle-switch .toggle-slider {
     background: #fff;
-    display: block;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
   }
 
-  .rider-view-card-camera {
-    position: absolute;
-    right: -4px;
-    bottom: -4px;
-    width: 40px;
-    height: 40px;
-    border: 0;
-    border-radius: 50%;
-    background: #fff;
-    color: #1e4b8e;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
-    cursor: pointer;
-    padding: 0;
+  .entity-view-card #rider-status-cards .status-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f1f5f9;
   }
 
-  .rider-view-card-camera i {
-    font-size: 1.1rem;
-  }
-
-  @media (max-width: 576px) {
-    .rider-view-card-hero {
-      min-height: 260px;
-      padding: 2.25rem 0.85rem 1.5rem;
+  @media (max-width: 575.98px) {
+    .entity-view-card #rider-status-cards .rider-status-group-grid {
+      grid-template-columns: 1fr;
     }
 
-    .rider-view-card-photo-wrap,
-    .rider-view-card-photo {
-      width: 200px;
-      height: 200px;
+    .entity-view-card #rider-status-cards .rider-status-group-grid > .status-card:last-child:nth-child(odd) {
+      grid-column: auto;
     }
-
-    .rider-view-card-camera {
-      width: 36px;
-      height: 36px;
-      right: -2px;
-      bottom: -2px;
-    }
-  }
-
-  .rider-view-card .user-info h6 {
-    font-size: 1.05rem;
-    margin-bottom: 0.15rem;
-  }
-
-  .rider-view-card-id {
-    color: #6c757d;
-    font-size: 0.9rem;
-  }
-
-  .rider-view-card-active.is-inactive {
-    background: #64748b;
-  }
-
-  .rider-view-card-active.is-vacation {
-    background: #f59e0b;
-  }
-
-  .rider-view-card .user_list {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    border: 0;
-    background: transparent;
-    padding: 0.7rem 0;
-    margin: 0;
-  }
-
-  .rider-view-card .user_list+.user_list {
-    margin-top: 0;
-  }
-
-  .rider-view-card .user_list .icons {
-    flex: 0 0 1.25rem;
-    width: 1.25rem;
-    color: #5b6472;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .rider-view-card .user_list .icons i {
-    font-size: 1.05rem;
-    line-height: 1;
-  }
-
-  .rider-view-card .user_list_content {
-    display: grid;
-    grid-template-columns: 7.5rem minmax(0, 1fr);
-    align-items: center;
-    column-gap: 0.4rem;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .rider-view-card .user_list_content span {
-    color: #8b8d97;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    line-height: 1.3;
-  }
-
-  .rider-view-card .user_list_content b,
-  .rider-view-card .user_list_content a {
-    color: #1f2937;
-    font-weight: 700;
-    font-size: 0.875rem;
-    line-height: 1.3;
-    text-decoration: none;
-    word-break: break-word;
-  }
-
-  .rider-view-card .user_list_content .is-phone,
-  .rider-view-card .user_list_content .is-phone a {
-    color: #2f6fed;
-  }
-
-  .rider-view-card .user_list_content .is-whatsapp,
-  .rider-view-card .user_list_content .is-whatsapp a {
-    color: #22c55e;
   }
 
   .rider-profile-tabs .nav-pills .nav-link {
@@ -651,72 +967,154 @@
   .rider-info-section .rider-info-group>.card,
   .rider-info-section [data-rfp-entity="rider"]>.card {
     background: #fff;
-    border: 1px solid #e9ecef;
+    border: 1px solid #d8daf0 !important;
+    border-top: 3px solid #e3e4f9 !important;
     border-radius: 0.9rem;
     box-shadow: 0 2px 14px rgba(16, 24, 40, 0.06);
     margin-bottom: 1rem;
     overflow: hidden;
   }
 
+  /* Section titles like voucher "PAID TO" banner */
   .rider-info-section .rider-info-group>.card>.card-header,
   .rider-info-section [data-rfp-entity="rider"]>.card>.card-header {
-    background: transparent;
-    border-bottom: 0;
-    padding: 1.1rem 1.25rem 0.25rem;
-    color: #2c3345;
-    font-size: 0.95rem;
+    background: #e3e4f9 !important;
+    border-top: 0 !important;
+    border-bottom: 1px solid #d8daf0 !important;
+    border-radius: 0;
+    padding: 0.7rem 1.15rem;
+    color: var(--company-brand-primary, #4338ca);
+    font-size: 0.72rem;
+    margin: 0;
+  }
+
+  .rider-info-section .rider-info-group>.card>.card-header b,
+  .rider-info-section [data-rfp-entity="rider"]>.card>.card-header b {
+    display: block;
+    width: 100%;
+    margin: 0;
+    font-weight: 700;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    letter-spacing: 0.45px;
+    text-transform: uppercase;
+    color: var(--company-brand-primary, #4338ca);
+  }
+
+  .rider-info-section .rider-info-group>.card>.card-header b::before,
+  .rider-info-section [data-rfp-entity="rider"]>.card>.card-header b::before {
+    content: none;
+    display: none;
   }
 
   .rider-info-section .rider-info-group>.card>.card-body,
   .rider-info-section [data-rfp-entity="rider"]>.card>.card-body {
-    padding: 0.5rem 1.25rem 1.15rem;
+    padding: 0.85rem 1.25rem 1.2rem;
+  }
+
+  /*
+   * Prefer up to 4 fields per row. Long values keep their content width
+   * (no shrink/ellipsis), so the next field wraps to the next row.
+   */
+  .rider-info-section .rider-info-fields,
+  .rider-info-section .rider-info-group .card-body:not(.edit-form) > .row,
+  .rider-info-section [data-rfp-entity="rider"] > .card > .card-body:not(.edit-form) > .row {
+    --rider-info-gap-x: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.85rem var(--rider-info-gap-x);
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .rider-info-section .rider-info-field,
+  .rider-info-section .rider-info-group .card-body:not(.edit-form) > .row > .form-group,
+  .rider-info-section [data-rfp-entity="rider"] > .card > .card-body:not(.edit-form) > .row > .form-group {
+    flex: 1 1 calc((100% - (3 * var(--rider-info-gap-x))) / 4);
+    width: auto;
+    max-width: 100%;
+    min-width: min(100%, max-content);
+    margin: 0;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .rider-info-section .rider-info-field.is-multiline,
+  .rider-info-section .rider-info-field.is-full-row,
+  .rider-info-section .rider-info-group .card-body:not(.edit-form) > .row > .form-group.col-md-12,
+  .rider-info-section [data-rfp-entity="rider"] > .card > .card-body:not(.edit-form) > .row > .form-group.col-md-12 {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 100%;
+  }
+
+  @media (max-width: 991.98px) {
+    .rider-info-section .rider-info-field:not(.is-full-row):not(.is-multiline),
+    .rider-info-section .rider-info-group .card-body:not(.edit-form) > .row > .form-group:not(.col-md-12),
+    .rider-info-section [data-rfp-entity="rider"] > .card > .card-body:not(.edit-form) > .row > .form-group:not(.col-md-12) {
+      flex-basis: calc((100% - var(--rider-info-gap-x)) / 2);
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .rider-info-section .rider-info-field,
+    .rider-info-section .rider-info-group .card-body:not(.edit-form) > .row > .form-group,
+    .rider-info-section [data-rfp-entity="rider"] > .card > .card-body:not(.edit-form) > .row > .form-group {
+      flex-basis: 100%;
+      width: 100%;
+      min-width: 100%;
+      max-width: 100%;
+    }
   }
 
   .rider-info-field label,
-  .rider-info-section .form-group label {
+  .rider-info-section .card-body:not(.edit-form) .form-group label {
     display: block;
-    font-size: 0.75rem;
-    font-weight: 500 !important;
-    color: #8b8d97;
-    margin-bottom: 0.2rem;
+    font-size: 0.72rem;
+    font-weight: 600 !important;
+    color: #6b7280;
+    margin-bottom: 0.28rem;
+    letter-spacing: 0.01em;
   }
 
-  .rider-info-field p,
-  .rider-info-section .form-group p {
+  .rider-info-field-value,
+  .rider-info-section .card-body:not(.edit-form) .form-group > p {
+    display: block;
+    width: 100%;
+    min-width: max-content;
+    max-width: 100%;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    background: linear-gradient(90deg, #cfe0f8 0%, #e8eff9 42%, #f8fafc 100%);
+    border: 1px solid #d5e2f2;
+    border-left: 3px solid #3b6fd9;
+    border-radius: 0.55rem;
     font-size: 0.9rem;
     font-weight: 600;
-    color: #2c3345;
-    margin-bottom: 0.85rem;
+    color: #1e293b;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
   }
 
-  .rider-view-card #rider-status-cards {
-    margin-top: 0.75rem;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem;
-  }
-
-  .rider-view-card #rider-status-cards .status-card {
-    min-width: 0;
-    max-width: none;
+  .rider-info-field.is-multiline .rider-info-field-value,
+  .rider-info-field.is-full-row .rider-info-field-value,
+  .rider-info-section .card-body:not(.edit-form) .form-group.col-md-12 > p {
     width: 100%;
-    flex: unset;
-    padding: 0.7rem 0.75rem;
+    min-width: 0;
+    white-space: normal;
+    overflow: visible;
+    word-break: break-word;
   }
 
-  .rider-view-card #rider-status-cards .status-icon {
-    width: 28px;
-    height: 28px;
-    font-size: 14px;
-    margin-bottom: 0.4rem;
-  }
-
-  .rider-view-card #rider-status-cards .status-title {
-    font-size: 0.78rem;
-  }
-
-  .rider-view-card #rider-status-cards .status-subtitle {
-    font-size: 0.65rem;
+  .rider-info-field-value .rider-doc-expiry-badge,
+  .rider-info-section .card-body:not(.edit-form) .form-group > p .rider-doc-expiry-badge {
+    white-space: nowrap;
   }
 </style>
 @php
@@ -749,6 +1147,8 @@ $riderInfoExpiredCount = 0;
 $riderInfoExpiringCount = 0;
 $riderFilesExpiredCount = 0;
 $riderFilesExpiringCount = 0;
+$riderVisaExpiredCount = 0;
+$riderVisaExpiringCount = 0;
 $riderTopViewCategories = collect();
 if ($inventoryTabRider instanceof \App\Models\Riders) {
 $riderDocumentFrontend = \App\Support\RiderDocumentReplacement::frontendConfig($inventoryTabRider);
@@ -761,523 +1161,466 @@ $riderInfoExpiredCount = \App\Support\RiderDocumentReplacement::expiredCountForR
 $riderInfoExpiringCount = \App\Support\RiderDocumentReplacement::expiringCountForRider($inventoryTabRider, 30);
 $riderFilesExpiredCount = \App\Support\RiderDocumentReplacement::expiredFilesCountForRider($inventoryTabRider);
 $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesCountForRider($inventoryTabRider, 30);
+$visaExpiryCounts = \App\Support\EntityExpiry::visaExpenseCounts((int) $inventoryTabRider->id, null, 30);
+$riderVisaExpiredCount = $visaExpiryCounts['expired'];
+$riderVisaExpiringCount = $visaExpiryCounts['expiring'];
 }
 
 @endphp
-<div class="row" style="">
-  <div class="col-xl-3 col-md-5 col-lg-5 order-1 order-md-0">
-    <!-- User Card -->
-    <div class="card rider-view-card mb-6">
-      @isset($result)
-      @php
-      $profile = company_table('files')
-      ->where('type', 'rider')
-      ->where('type_id', $result['id'])
-      ->where(function($query) {
-      $query->where('name', 'LIKE', '%photo%')
-      ->orWhere('name', 'LIKE', '%Photo%')
-      ->orWhere('name', 'LIKE', '%picture%')
-      ->orWhere('name', 'LIKE', '%Picture%')
-      ->orWhere('name', 'LIKE', '%profile%')
-      ->orWhere('name', 'LIKE', '%Profile%');
-      })
-      ->first();
-      if (@$result['image_name']) {
-      $image_name = storage_url('profile/'.$result['image_name']);
-      } elseif (isset($profile)) {
-      $image_name = storage_url($profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
-      } else {
-      $image_name = asset('uploads/default.png');
-      }
-      $riderTopViewCategories = \App\Models\RiderTopCategory::with(['options' => function($q){
-      $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
-      }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get()
-      ->filter(function ($category) {
-      if (\App\Support\RoleFieldAccess::isAdmin() || ! \App\Services\Permissions\TopBarPermissionSync::isEnforced()) {
-      return true;
-      }
-      if (\App\Services\Permissions\TopBarPermissionSync::canAccessCategory('riders', $category)) {
-      return true;
-      }
-      $column = trim((string) ($category->rider_column ?? ''));
-      return $column === 'rider_status'
-      && \App\Services\Permissions\RiderStatusPermissionSync::userHasAnyVisibleStatusPermission($category->options);
-      })->map(function ($category) {
-      $column = trim((string) ($category->rider_column ?? ''));
-      if ($column === 'rider_status') {
-      $category->setRelation(
-      'options',
-      \App\Services\Permissions\RiderStatusPermissionSync::filterOptionsForTopBar($category->options)
-      );
-      } else {
-      $category->setRelation(
-      'options',
-      \App\Services\Permissions\TopBarOptionPermissionSync::filterOptions('riders', $category->options)
-      );
-      }
-      return $category;
-      })->filter(fn ($cat) => $cat->options->isNotEmpty())->values();
-      $canChangeRiderStatus = \App\Services\Permissions\RiderStatusPermissionSync::canChangeRiderStatus();
-      $employmentBadge = \App\Models\Riders::employmentStatusDisplay($result['status'] ?? null);
-      $currentStatusBadge = \App\Models\Riders::currentStatusDisplay($result['status'] ?? null, $result['rider_status'] ?? null);
-      $statusDaysInfo = \App\Models\Riders::resolveEmploymentStatusDays(isset($rider) ? $rider : ($result ?? null));
-      $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
-      ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
-      : 'Days in current status';
-      $isFavorited = isset($rider) && in_array($rider->id, auth()->user()->favorite_rider_ids ?? [], true);
-      @endphp
-      @endisset
-      <div class="user-avatar-section">
-        <div class="rider-view-card-hero">
-          <i class="ti ti-star-filled rider-view-card-star {{ $isFavorited ? 'is-favorited' : '' }}"
-            id="rider-favorite-star"
-            data-rider-id="{{ $result['id'] ?? '' }}"
-            title="{{ $isFavorited ? 'Remove from favorites' : 'Add to favorites' }}"></i>
-          @isset($result)
-          <div class="rider-view-card-status">
-            <span class="rider-view-card-active {{ strtolower($employmentBadge['label'] ?? '') === 'active' ? '' : (strtolower($employmentBadge['label'] ?? '') === 'vacation' ? 'is-vacation' : 'is-inactive') }}" id="rider-hero-status-badge">{{ $employmentBadge['label'] ?? 'Inactive' }}</span>
-            <small class="rider-view-card-days" id="rider-status-days" title="{{ $statusDaysTitle }}" @if(($statusDaysInfo['days'] ?? null)===null) style="display:none" @endif>
-              @if(($statusDaysInfo['days'] ?? null) !== null)
-              {{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}
-              @endif
-            </small>
-          </div>
-          <div class="rider-view-card-photo-wrap">
-            <img src="{{ $image_name }}" id="output" class="rider-view-card-photo" alt="{{ $result['name'] ?? 'Rider' }}" />
-            @can('riders_rider_edit')
-            <button type="button" class="rider-view-card-camera" id="edit-icon" title="Change photo">
-              <i class="ti ti-camera"></i>
-            </button>
-            @endcan
-          </div>
-          @endisset
+<div class="row mb-5 rider-view-layout">
+  <div class="col-xl-3 col-md-5 col-lg-5 order-1">
+    @isset($result)
+    @php
+    $profile = company_table('files')
+    ->where('type', 'rider')
+    ->where('type_id', $result['id'])
+    ->where(function ($query) {
+    $query->where('name', 'LIKE', '%photo%')
+    ->orWhere('name', 'LIKE', '%Photo%')
+    ->orWhere('name', 'LIKE', '%picture%')
+    ->orWhere('name', 'LIKE', '%Picture%')
+    ->orWhere('name', 'LIKE', '%profile%')
+    ->orWhere('name', 'LIKE', '%Profile%');
+    })
+    ->first();
+    if (@$result['image_name']) {
+    $image_name = storage_url('profile/'.$result['image_name']);
+    } elseif (isset($profile)) {
+    $image_name = storage_url($profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
+    } else {
+    $image_name = asset('uploads/default.png');
+    }
+    $riderTopViewCategories = \App\Models\RiderTopCategory::with(['options' => function ($q) {
+    $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+    }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get()
+    ->filter(function ($category) {
+    if (\App\Support\RoleFieldAccess::isAdmin() || ! \App\Services\Permissions\TopBarPermissionSync::isEnforced()) {
+    return true;
+    }
+    if (\App\Services\Permissions\TopBarPermissionSync::canAccessCategory('riders', $category)) {
+    return true;
+    }
+    $column = trim((string) ($category->rider_column ?? ''));
+    return $column === 'rider_status'
+    && \App\Services\Permissions\RiderStatusPermissionSync::userHasAnyVisibleStatusPermission($category->options);
+    })->map(function ($category) {
+    $column = trim((string) ($category->rider_column ?? ''));
+    if ($column === 'rider_status') {
+    $category->setRelation(
+    'options',
+    \App\Services\Permissions\RiderStatusPermissionSync::filterOptionsForTopBar($category->options)
+    );
+    } else {
+    $category->setRelation(
+    'options',
+    \App\Services\Permissions\TopBarOptionPermissionSync::filterOptions('riders', $category->options)
+    );
+    }
+    return $category;
+    })->filter(fn ($cat) => $cat->options->isNotEmpty())->values();
+    $canChangeRiderStatus = \App\Services\Permissions\RiderStatusPermissionSync::canChangeRiderStatus();
+    $employmentBadge = \App\Models\Riders::employmentStatusDisplay($result['status'] ?? null);
+    $currentStatusBadge = \App\Models\Riders::currentStatusDisplay($result['status'] ?? null, $result['rider_status'] ?? null);
+    $statusDaysInfo = \App\Models\Riders::resolveEmploymentStatusDays(isset($rider) ? $rider : ($result ?? null));
+    $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
+    ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
+    : 'Days in current status';
+    $isFavorited = isset($rider) && auth()->check()
+    ? in_array($rider->id, auth()->user()->favorite_rider_ids ?? [], true)
+    : false;
+    $employmentLabel = $employmentBadge['label'] ?? 'Inactive';
+    $employmentLower = strtolower($employmentLabel);
+    $employmentStatusClass = $employmentLower === 'active' ? '' : ($employmentLower === 'vacation' ? 'is-vacation' : 'is-inactive');
+    $cardPhone = $result['personal_contact'] ?? $result['company_contact'] ?? null;
+    $cardEmail = $result['email'] ?? null;
+    $cardNationality = $rider?->country?->name
+    ?? (isset($result['nationality']) ? (company_table('countries')->where('id', $result['nationality'])->first()->name ?? null) : null);
+    $cardDob = !empty($result['dob'] ?? null) ? \App\Helpers\General::DateFormat($result['dob']) : null;
+    $cardAge = null;
+    $dobRaw = trim((string) ($result['dob'] ?? $rider?->dob ?? ''));
+    if ($dobRaw !== '' && $dobRaw !== '0000-00-00') {
+    try {
+    if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dobRaw)) {
+    $dobDate = \Carbon\Carbon::createFromFormat('Y-m-d', substr($dobRaw, 0, 10))->startOfDay();
+    } elseif (preg_match('/^\d{2}-\d{2}-\d{4}$/', $dobRaw)) {
+    $dobDate = \Carbon\Carbon::createFromFormat('d-m-Y', $dobRaw)->startOfDay();
+    } elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $dobRaw)) {
+    $dobDate = \Carbon\Carbon::createFromFormat('d/m/Y', $dobRaw)->startOfDay();
+    } else {
+    $dobDate = \Carbon\Carbon::parse($dobRaw)->startOfDay();
+    }
+    if ($dobDate->isValid() && ! $dobDate->isFuture()) {
+    $years = (int) $dobDate->age;
+    $cardAge = $years . ($years === 1 ? ' Year' : ' Years');
+    }
+    } catch (\Throwable $e) {
+    $cardAge = null;
+    }
+    }
+    $cardDoj = !empty($result['doj'] ?? null) ? \App\Helpers\General::DateFormat($result['doj']) : null;
+    $cardProject = $rider?->customer?->name ?? null;
+    $cardAddress = $result['address']
+    ?? $rider?->address
+    ?? $rider?->emirate_hub
+    ?? $rider?->customer?->address
+    ?? null;
+    if ($cardAddress === '') {
+    $cardAddress = null;
+    }
+    $cardBalance = !empty($result['account_id'])
+    ? (App\Helpers\Accounts::getBalance($result['account_id']) . ' ' . \App\Helpers\Currency::code())
+    : ('0.00 ' . \App\Helpers\Currency::code());
+    $assignedBike = $rider?->bikes ?? null;
+    $cardBike = $assignedBike
+    ? (method_exists($assignedBike, 'emiratesPlateLabel')
+    ? $assignedBike->emiratesPlateLabel()
+    : ($assignedBike->plate ?? null))
+    : null;
+    if ($cardBike === '') {
+    $cardBike = null;
+    }
+    $whatsappHtml = 'N/A';
+    if ($rider?->sim?->number) {
+    $phone = preg_replace('/[^0-9]/', '', $rider->sim->number);
+    if (strpos($phone, '971') === 0) {
+    $whatsappNumber = '+' . $phone;
+    $displayNumber = '0' . substr($phone, 3);
+    } else {
+    $whatsappNumber = '+971' . ltrim($phone, '0');
+    $displayNumber = '0' . ltrim($phone, '0');
+    }
+    $whatsappHtml = '<a href="https://wa.me/' . $whatsappNumber . '" target="_blank">' . e($displayNumber) . '</a>';
+    }
+    @endphp
+    <script>
+      var loadFile = function(event) {
+        var image = document.getElementById("output");
+        if (image) image.src = URL.createObjectURL(event.target.files[0]);
+      };
+    </script>
+    <x-entity-profile-card
+      icon="ti ti-motorbike"
+      :photo="$image_name"
+      :is-active="$employmentLower === 'active'"
+      :status-label="$employmentLabel"
+      :status-class="$employmentStatusClass"
+      status-id="rider-hero-status-badge"
+      :name="$result['name'] ?? 'not-set'"
+      :subtitle="$result['rider_id'] ?? 'not-set'"
+      :edit-href="user_can('riders_rider_edit') ? route('riders.edit', ['company_slug' => $companySlug, 'rider' => $result['id']]) : null"
+      edit-title="Edit Rider Details"
+      section-title="Basic Information">
+      <x-slot name="heroStart">
+        <i class="ti ti-star-filled rider-view-card-star {{ $isFavorited ? 'is-favorited' : '' }}"
+          id="rider-favorite-star"
+          data-rider-id="{{ $result['id'] ?? '' }}"
+          title="{{ $isFavorited ? 'Remove from favorites' : 'Add to favorites' }}"></i>
+      </x-slot>
+      <x-slot name="statusExtra">
+        <small class="rider-view-card-days" id="rider-status-days" title="{{ $statusDaysTitle }}" @if(($statusDaysInfo['days'] ?? null)===null) style="display:none" @endif>
+          @if(($statusDaysInfo['days'] ?? null) !== null)
+          {{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}
+          @endif
+        </small>
+      </x-slot>
+      <x-slot name="photoAction">
+        @can('riders_rider_edit')
+        <button type="button" class="entity-view-card-camera" id="edit-icon" title="Change photo" aria-label="Change photo">
+          <i class="ti ti-camera"></i>
+        </button>
+        @endcan
+      </x-slot>
+      <x-slot name="afterHero">
+        <div id="photo-upload-form" class="mt-2 text-center" style="display: none;">
+          <form action="{{ route('rider_picture_upload', ['company_slug' => request()->route('company_slug'), 'id' => $result['id']]) }}" method="POST" enctype="multipart/form-data" id="formajax2">
+            @csrf
+            <div class="button-wrapper">
+              <label for="upload" class="btn btn-sm btn-outline-primary me-2 mb-2" tabindex="0">
+                <span class="d-none d-sm-inline">Change Photo</span>
+                <i class="ti ti-upload d-sm-none"></i>
+                <input type="file" id="upload" name="image_name" class="account-file-input" hidden accept="image/png, image/jpeg" onchange="loadFile(event)" />
+              </label>
+              <button type="submit" class="btn btn-sm btn-primary mb-2">Upload</button>
+            </div>
+          </form>
         </div>
-        <div class="card-body pt-3">
-          <div class="user-info text-center mb-3">
-            <h6 class="mb-0"><b>@isset($result){{ $result['name'] ?? 'not-set' }}@endisset</b></h6>
-            <div class="rider-view-card-id">@isset($result){{ $result['rider_id'] ?? 'not-set' }}@endisset</div>
-          </div>
-          <div id="photo-upload-form" class="mt-2" style="display: none;">
-            @isset($result)
-            <form action="{{ route('rider_picture_upload', ['company_slug' => request()->route('company_slug'), 'id' => $result['id']]) }}" method="POST" enctype="multipart/form-data" id="formajax2">
-              @csrf
-              <div class="button-wrapper text-center">
-                <label for="upload" class="btn btn-default me-2 mb-2" tabindex="0">
-                  <span class="d-none d-sm-block">Change Photo</span>
-                  <i class="ti ti-upload d-block d-sm-none"></i>
-                  <input type="file" id="upload" name="image_name" class="account-file-input" hidden accept="image/png, image/jpeg" onchange="loadFile(event)" />
-                </label>
-                <button type="submit" class="btn btn-primary mb-2">Upload</button>
-              </div>
-            </form>
-            @endisset
-          </div>
-        </div>
-      </div>
-      <div class="card-body pt-0">
-        <div class="info-container">
-          <ul class="list-unstyled mb-6">
-            <script>
-              var loadFile = function(event) {
-                var image = document.getElementById("output");
-                image.src = URL.createObjectURL(event.target.files[0]);
-              };
-            </script>
-            {{-- <div class="text-center">
-                         <img class="profile-user-img img-fluid" src="https://placehold.co/400X400" alt="User profile picture">
-                      </div> --}}
+      </x-slot>
 
+      <x-entity-profile-info-row icon="ti ti-phone" label="Phone" :value="$cardPhone" value-class="is-phone" />
+      <x-entity-profile-info-row icon="ti ti-brand-whatsapp" label="WhatsApp" :value="$whatsappHtml" :html="true" value-class="is-whatsapp" />
+      <x-entity-profile-info-row icon="ti ti-mail" label="Email" :value="$cardEmail" />
+      <x-entity-profile-info-row icon="ti ti-motorbike" label="Bike Number" :value="$cardBike" />
+      <x-entity-profile-info-row icon="ti ti-briefcase" label="Project / Client" :value="$cardProject" />
+      <x-entity-profile-info-row icon="ti ti-cash-banknote" label="Balance" :value="$cardBalance" />
+      <x-entity-profile-info-row icon="ti ti-flag" label="Nationality" :value="$cardNationality" />
+      <x-entity-profile-info-row icon="ti ti-calendar" label="Date of Birth" :value="$cardDob" />
+      <x-entity-profile-info-row icon="ti ti-cake" label="Age" :value="$cardAge" />
+      <x-entity-profile-info-row icon="ti ti-calendar-due" label="Date of Joining" :value="$cardDoj" />
 
-            @isset($result)
-            <ul class="p-0 mb-3 rider-view-card-list">
+      <x-slot name="footer">
+        <div id="rider-status-cards">
+          @php
+          $cardIndex = 0;
+          $statusIcons = ['ti ti-bell', 'ti ti-user-check', 'ti ti-star', 'ti ti-flag', 'ti ti-shield-check', 'ti ti-briefcase'];
+          @endphp
+          @foreach($riderTopViewCategories as $category)
+          @php $riderTopColumn = trim((string)($category->rider_column ?? '')); @endphp
+          @if($riderTopColumn === 'status')
+          @continue
+          @endif
+          <div class="rider-status-group">
+            <div class="rider-status-group-label">{{ $category->name }}</div>
+            <div class="rider-status-group-grid">
+              @foreach($category->options as $option)
               @php
-              $cardPhone = $result['personal_contact'] ?? $result['company_contact'] ?? 'not-set';
-              $cardEmail = $result['email'] ?? 'not-set';
-              $cardNationality = $rider?->country?->name
-              ?? (isset($result['nationality']) ? (company_table('countries')->where('id', $result['nationality'])->first()->name ?? 'not-set') : 'not-set');
-              $cardDob = !empty($result['dob'] ?? null) ? \App\Helpers\General::DateFormat($result['dob']) : 'not-set';
-              $cardAge = !empty($result['dob'] ?? null) ? (\Carbon\Carbon::parse($result['dob'])->age . ' Years') : 'not-set';
-              $cardDoj = !empty($result['doj'] ?? null) ? \App\Helpers\General::DateFormat($result['doj']) : 'not-set';
-              $cardProject = $rider?->customer?->name ?? 'not-set';
-              $cardAddress = $result['address']
-              ?? $rider?->address
-              ?? $rider?->emirate_hub
-              ?? $rider?->customer?->address
-              ?? 'not-set';
-              if ($cardAddress === '' || $cardAddress === null) {
-              $cardAddress = 'not-set';
-              }
+              $isSelected = $riderTopColumn !== ''
+              && array_key_exists($riderTopColumn, $result)
+              && (string)($result[$riderTopColumn] ?? '') === (string)$option->name;
+              $cardKey = 'rider_top_option_' . $option->id;
+              $statusChangeLocked = $riderTopColumn === 'rider_status' && empty($canChangeRiderStatus);
               @endphp
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-phone"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Phone</span>
-                  <b class="is-phone">{{ $cardPhone }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-mail"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Email</span>
-                  <b>{{ $cardEmail }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-brand-whatsapp"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>WhatsApp</span>
-                  <b class="is-whatsapp">
-                    @if($rider?->sim?->number)
-                    @php
-                    $phone = preg_replace('/[^0-9]/', '', $rider->sim->number);
-                    if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
-                    else { $whatsappNumber = '+971' . ltrim($phone, '0'); $displayNumber = '0' . ltrim($phone, '0'); }
-                    @endphp
-                    <a href="https://wa.me/{{ $whatsappNumber }}" target="_blank">{{ $displayNumber }}</a>
-                    @else
-                    N/A
-                    @endif
-                  </b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-flag"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Nationality</span>
-                  <b>{{ $cardNationality }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-calendar"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Date of Birth</span>
-                  <b>{{ $cardDob }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-user"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Age</span>
-                  <b>{{ $cardAge }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-calendar"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Date of Joining</span>
-                  <b>{{ $cardDoj }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-briefcase"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Project / Client</span>
-                  <b>{{ $cardProject }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-map-pin"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Address</span>
-                  <b>{{ $cardAddress }}</b>
-                </div>
-              </li>
-            </ul>
-            @endisset
-          </ul>
-          @isset($result)
-          <div id="rider-status-cards">
-            @php $cardIndex = 0; @endphp
-            @foreach($riderTopViewCategories as $category)
-            @php $riderTopColumn = trim((string)($category->rider_column ?? '')); @endphp
-            @if($riderTopColumn === 'status')
-            @continue
-            @endif
-            @foreach($category->options as $option)
-            @php
-            $isSelected = $riderTopColumn !== ''
-            && array_key_exists($riderTopColumn, $result)
-            && (string)($result[$riderTopColumn] ?? '') === (string)$option->name;
-            $cardKey = 'rider_top_option_' . $option->id;
-            $icons = ['ti ti-bell', 'ti ti-user-check', 'ti ti-star', 'ti ti-flag'];
-            $statusChangeLocked = $riderTopColumn === 'rider_status' && empty($canChangeRiderStatus);
-            @endphp
-            <div class="status-card rider-top-option-card {{ $isSelected ? 'active' : '' }} {{ $statusChangeLocked ? 'disabled' : '' }}"
-              data-rider-id="{{ $result['id'] ?? '' }}"
-              data-option-id="{{ $option->id }}"
-              data-column="{{ $riderTopColumn }}"
-              data-value="{{ $option->name }}"
-              data-category="{{ $category->name }}"
-              data-type="{{ $cardKey }}"
-              @if($statusChangeLocked) title="You do not have permission to change Rider Status" @endif>
-              <div class="d-flex justify-content-between">
-                <div class="status-icon">
-                  <i class="{{ $icons[$cardIndex % count($icons)] }}"></i>
-                </div>
-                <div class="status-content">
-                  <div class="status-title">{{ $option->name }}</div>
-                  <div class="status-subtitle">{{ $isSelected ? 'Assigned to rider' : $category->name }}</div>
+              <div class="status-card rider-top-option-card {{ $isSelected ? 'active' : '' }} {{ $statusChangeLocked ? 'disabled' : '' }}"
+                data-rider-id="{{ $result['id'] ?? '' }}"
+                data-option-id="{{ $option->id }}"
+                data-column="{{ $riderTopColumn }}"
+                data-value="{{ $option->name }}"
+                data-category="{{ $category->name }}"
+                data-type="{{ $cardKey }}"
+                @if($statusChangeLocked) title="You do not have permission to change Rider Status" @endif>
+                <div class="status-card-main">
+                  <div class="status-icon">
+                    <i class="{{ $statusIcons[$cardIndex % count($statusIcons)] }}"></i>
+                  </div>
+                  <div class="status-content">
+                    <div class="status-title">{{ $option->name }}</div>
+                    <div class="status-subtitle">{{ $isSelected ? 'Assigned' : 'Tap to set' }}</div>
+                  </div>
+                  <div class="status-toggle">
+                    <input type="checkbox"
+                      class="status-checkbox rider-top-option-checkbox"
+                      id="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}"
+                      data-rider-id="{{ $result['id'] ?? '' }}"
+                      data-option-id="{{ $option->id }}"
+                      data-column="{{ $riderTopColumn }}"
+                      data-value="{{ $option->name }}"
+                      {{ $isSelected ? 'checked' : '' }}
+                      {{ $statusChangeLocked ? 'disabled' : '' }}>
+                    <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
                 </div>
               </div>
-              <div class="status-toggle">
-                <input type="checkbox"
-                  class="status-checkbox rider-top-option-checkbox"
-                  id="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}"
-                  data-rider-id="{{ $result['id'] ?? '' }}"
-                  data-option-id="{{ $option->id }}"
-                  data-column="{{ $riderTopColumn }}"
-                  data-value="{{ $option->name }}"
-                  {{ $isSelected ? 'checked' : '' }}
-                  {{ $statusChangeLocked ? 'disabled' : '' }}>
-                <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
-            @php $cardIndex++; @endphp
-            @endforeach
-            @endforeach
-          </div>
-
-          <div class="modal fade" id="riderTopOptionDateModal" tabindex="-1" aria-labelledby="riderTopOptionDateModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h5 class="modal-title" id="riderTopOptionDateModalLabel">Confirm status</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                  <p class="mb-3">Choose the effective date for <strong id="riderTopOptionModalStatusName">—</strong>. Dates after today are not allowed.</p>
-                  <label for="riderTopOptionEffectiveDate" class="form-label">Effective date <span class="text-danger">*</span></label>
-                  <input type="date" class="form-control" id="riderTopOptionEffectiveDate" required autocomplete="off">
-                </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Cancel</button>
-                  <button type="button" class="btn btn-primary" id="riderTopOptionDateSave">Save</button>
-                </div>
-              </div>
+              @php $cardIndex++; @endphp
+              @endforeach
             </div>
           </div>
-          @endisset
+          @endforeach
         </div>
-      </div>
-    </div>
+
+        <div class="modal fade" id="riderTopOptionDateModal" tabindex="-1" aria-labelledby="riderTopOptionDateModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="riderTopOptionDateModalLabel">Confirm status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <p class="mb-3">Choose the effective date for <strong id="riderTopOptionModalStatusName">—</strong>. Dates after today are not allowed.</p>
+                <label for="riderTopOptionEffectiveDate" class="form-label">Effective date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" id="riderTopOptionEffectiveDate" required autocomplete="off">
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="riderTopOptionDateSave">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </x-slot>
+    </x-entity-profile-card>
+    @endisset
   </div>
-  <div class="col-xl-9 col-md-7 col-lg-7 order-0 order-md-1 position-relative">
-    <div class="nav-align-top rider-profile-tabs mb-4 @if(($riderExpiredDocumentCount ?? 0) > 0) has-expired-docs @endif" style="position: sticky; top: 0; z-index: 1000; width: 100%;">
-      <div class="card" style="z-index: 1;">
-        <div class="card-body p-2">
-          <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.5rem;">
-            <div class="flex-grow-1" style="min-width: 0;">
-              <ul class="nav nav-pills flex-nowrap mb-0" id="mainNavigation" style="gap: 0.25rem;">
-                <!-- Priority navigation items (always visible when possible) -->
-                <li class="nav-item nav-priority-1">
-                  <a class="nav-link rider-expired-count-link @if(Route::is('riders.show') || Route::is('riders.create')) active @endif"
-                    href="@isset($result['id']){{route('riders.show',$result['id'])}}@else#@endif">
-                    <i class="ti ti-user-check ti-sm me-1_5"></i>Information
-                    @include('riders._document_status_badges', ['expiredCount' => $riderInfoExpiredCount ?? 0, 'expiringCount' => $riderInfoExpiringCount ?? 0])
-                  </a>
-                </li>
+  {{-- Full-width view tabs: always first (top) on mobile/tablet; desktop keeps them above the content column via order --}}
 
-                @isset($result)
-                @can('riders_timeline_view')
-                <li class="nav-item nav-priority-2">
-                  <a class="nav-link @if(Route::is('rider.timeline')) active @endif"
-                    href="{{route('rider.timeline',$result['id'])}}">
-                    <i class="ti ti-timeline ti-sm me-1_5"></i>Timeline
-                  </a>
-                </li>
-                <li class="nav-item nav-priority-2">
-                  <a class="nav-link @if(Route::is('rider.history')) active @endif"
-                    href="{{route('rider.history',$result['id'])}}">
-                    <i class="ti ti-history ti-sm me-1_5"></i>History
-                  </a>
-                </li>
-                @endcan
+  <div class="col-xl-9 col-md-7 col-lg-7 order-2 position-relative">
+    <div class="col-12 order-0 rider-view-nav-wrap">
+      <div class="nav-align-top rider-profile-tabs mb-3 mb-md-4 @if(($riderExpiredDocumentCount ?? 0) > 0) has-expired-docs @endif">
+        <div class="card rider-view-nav-card">
+          <div class="card-body p-2">
+            <div class="d-flex align-items-center flex-nowrap rider-view-nav-inner">
+              <div class="rider-view-nav-scroll" style="min-width: 0;">
+                <ul class="nav nav-pills flex-nowrap mb-0" id="mainNavigation">
+                  <!-- Priority navigation items (always visible when possible) -->
+                  <li class="nav-item nav-priority-1">
+                    <a class="nav-link rider-expired-count-link @if(Route::is('riders.show') || Route::is('riders.create')) active @endif"
+                      href="@isset($result['id']){{route('riders.show',$result['id'])}}@else#@endif">
+                      <i class="ti ti-user-check ti-sm me-1_5"></i>Information
+                      @include('riders._document_status_badges', ['expiredCount' => $riderInfoExpiredCount ?? 0, 'expiringCount' => $riderInfoExpiringCount ?? 0])
+                    </a>
+                  </li>
 
-                @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
-                <li class="nav-item nav-priority-2">
-                  <a class="nav-link @if(Route::is('rider.inventory')) active @endif"
-                    href="{{ route('rider.inventory', $result['id']) }}">
-                    <i class="ti ti-package ti-sm me-1_5"></i>
-                    Inventory
-                    @if($riderAssignedItemCount > 0)
-                    <span class="badge rounded-pill bg-danger rider-inventory-count-badge"
-                      title="Rider Inventory {{ $riderAssignedItemCount }}">
-                      {{ $riderAssignedItemCount }}
-                    </span>
-                    @endif
-                  </a>
-                </li>
-                @endif
+                  @isset($result)
+                  @can('riders_timeline_view')
+                  <li class="nav-item nav-priority-2">
+                    <a class="nav-link @if(Route::is('rider.timeline')) active @endif"
+                      href="{{route('rider.timeline',$result['id'])}}">
+                      <i class="ti ti-timeline ti-sm me-1_5"></i>Timeline
+                    </a>
+                  </li>
+                  <li class="nav-item nav-priority-2">
+                    <a class="nav-link @if(Route::is('rider.history')) active @endif"
+                      href="{{route('rider.history',$result['id'])}}">
+                      <i class="ti ti-history ti-sm me-1_5"></i>History
+                    </a>
+                  </li>
+                  @endcan
 
-                @can('riders_documents_view')
-                <li class="nav-item nav-priority-3" @if(($riderExpiredDocumentCount ?? 0)> 0) style="z-index: 5;" @endif>
-                  <a class="nav-link rider-expired-count-link @if(Route::is('rider.files')) active @endif"
-                    href="{{route('rider.files',$result['id'])}}">
-                    <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
-                    @include('riders._document_status_badges', ['expiredCount' => $riderFilesExpiredCount ?? 0, 'expiringCount' => $riderFilesExpiringCount ?? 0])
-                  </a>
-                </li>
-                @endcan
+                  @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
+                  <li class="nav-item nav-priority-2">
+                    <a class="nav-link @if(Route::is('rider.inventory')) active @endif"
+                      href="{{ route('rider.inventory', $result['id']) }}">
+                      <i class="ti ti-package ti-sm me-1_5"></i>
+                      Inventory
+                      @if($riderAssignedItemCount > 0)
+                      <span class="badge rounded-pill bg-danger rider-inventory-count-badge"
+                        title="Rider Inventory {{ $riderAssignedItemCount }}">
+                        {{ $riderAssignedItemCount }}
+                      </span>
+                      @endif
+                    </a>
+                  </li>
+                  @endif
 
-                @can('riders_invoices_view')
-                <li class="nav-item nav-priority-4">
-                  <a class="nav-link @if(Route::is('rider.invoices')) active @endif"
-                    href="{{route('rider.invoices',$result['id'])}}">
-                    <i class="ti ti-file-invoice ti-sm me-1_5"></i>Invoices
-                  </a>
-                </li>
-                @endcan
+                  @can('riders_documents_view')
+                  <li class="nav-item nav-priority-3" @if(($riderExpiredDocumentCount ?? 0)> 0) style="z-index: 5;" @endif>
+                    <a class="nav-link rider-expired-count-link @if(Route::is('rider.files')) active @endif"
+                      href="{{route('rider.files',$result['id'])}}">
+                      <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
+                      @include('riders._document_status_badges', ['expiredCount' => $riderFilesExpiredCount ?? 0, 'expiringCount' => $riderFilesExpiringCount ?? 0])
+                    </a>
+                  </li>
+                  @endcan
 
-                @if(\App\Support\CompanyModuleVisibility::enabled('visa_expense'))
-                @if(\App\Support\VisaExpenseAccess::visibleInRiderTab())
-                @isset($result)
-                @can('visa_expense_view')
-                @php
-                // Prefer a dedicated visa expense account (module=visa / renewal category).
-                $visaExpenseAccount = ($account ?? null) && (($account->module ?? 'visa') === 'visa')
-                ? $account
-                : null;
-                $visaExpenseAccount = $visaExpenseAccount
-                ?? company_table('expense_accounts')
-                ->where('rider_id', $result['id'])
-                ->where('module', 'visa')
-                ->orderByDesc('id')
-                ->first()
-                ?? company_table('expense_accounts')
-                ->where('rider_id', $result['id'])
-                ->whereNotNull('renewal_category_id')
-                ->orderByDesc('id')
-                ->first();
-                @endphp
-                @if($visaExpenseAccount)
-                <li class="nav-item nav-priority-5">
-                  <a class="nav-link @if(Route::is('VisaExpense.generatentries')) active @endif"
-                    href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($visaExpenseAccount->id, $visaExpenseAccount->rider_id ?? $result['id']) }}">
-                    <i class="ti ti-file-invoice ti-sm me-1_5"></i>Visa Expense
-                  </a>
-                </li>
-                @endif
-                @endcan
-                @endif
-                @endif
-                @endif
+                  @can('riders_invoices_view')
+                  <li class="nav-item nav-priority-4">
+                    <a class="nav-link @if(Route::is('rider.invoices')) active @endif"
+                      href="{{route('rider.invoices',$result['id'])}}">
+                      <i class="ti ti-file-invoice ti-sm me-1_5"></i>Invoices
+                    </a>
+                  </li>
+                  @endcan
+
+                  @if(\App\Support\CompanyModuleVisibility::enabled('visa_expense'))
+                  @if(\App\Support\VisaExpenseAccess::visibleInRiderTab())
+                  @isset($result)
+                  @php
+                  // Prefer a dedicated visa expense account (module=visa / renewal category).
+                  $visaExpenseAccount = ($account ?? null) && (($account->module ?? 'visa') === 'visa')
+                  ? $account
+                  : null;
+                  $visaExpenseAccount = $visaExpenseAccount
+                  ?? company_table('expense_accounts')
+                  ->where('rider_id', $result['id'])
+                  ->where('module', 'visa')
+                  ->orderByDesc('id')
+                  ->first()
+                  ?? company_table('expense_accounts')
+                  ->where('rider_id', $result['id'])
+                  ->whereNotNull('renewal_category_id')
+                  ->orderByDesc('id')
+                  ->first();
+                  @endphp
+                  @if($visaExpenseAccount)
+                  <li class="nav-item nav-priority-5" @if(($riderVisaExpiredCount ?? 0) > 0 || ($riderVisaExpiringCount ?? 0) > 0) style="z-index: 5;" @endif>
+                    <a class="nav-link rider-expired-count-link @if(Route::is('VisaExpense.generatentries')) active @endif"
+                      href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($visaExpenseAccount->id, $visaExpenseAccount->rider_id ?? $result['id']) }}">
+                      <i class="ti ti-file-invoice ti-sm me-1_5"></i>Visa Expense
+                      @include('riders._document_status_badges', [
+                        'expiredCount' => $riderVisaExpiredCount ?? 0,
+                        'expiringCount' => $riderVisaExpiringCount ?? 0,
+                      ])
+                    </a>
+                  </li>
+                  @endif
+                  @endif
+                  @endif
+                  @endif
 
 
-                @if(\App\Support\CompanyModuleVisibility::enabled('license_expense'))
-                @can('license_expense_view')
-                @if(!empty($riders))
-                @php
-                $licenseExpenseAccount = company_table('expense_accounts')
-                ->where('rider_id', $result['id'])
-                ->where('module', 'license')
-                ->orderByDesc('id')
-                ->first();
-                @endphp
-                @if($licenseExpenseAccount)
-                <li class="nav-item nav-priority-5">
-                  <a class="nav-link @if(Route::is('LicenseExpense.generatentries')) active @endif"
-                    href="{{ route('LicenseExpense.generatentries', $licenseExpenseAccount->id) }}">
-                    <i class="ti ti-steering-wheel ti-sm me-1_5"></i>License Expense
-                  </a>
-                </li>
-                @endif
-                @endif
-                @endcan
-                @endif
+                  @can('legal_case_view')
+                  @if(\App\Support\CompanyModuleVisibility::enabled('legal_case'))
+                  @php
+                  $legalCaseAccount = company_table('legal_case_accounts')->where('rider_id', $result['id'])->first();
+                  @endphp
+                  @if($legalCaseAccount)
+                  <li class="nav-item nav-priority-5">
+                    <a class="nav-link @if(Route::is('LegalCase.generatentries')) active @endif"
+                      href="{{ route('LegalCase.generatentries', $legalCaseAccount->id) }}">
+                      <i class="ti ti-scale ti-sm me-1_5"></i>Legal Case
+                    </a>
+                  </li>
+                  @endif
+                  @endif
+                  @endcan
 
-                @can('legal_case_view')
-                @if(\App\Support\CompanyModuleVisibility::enabled('legal_case'))
-                @php
-                $legalCaseAccount = company_table('legal_case_accounts')->where('rider_id', $result['id'])->first();
-                @endphp
-                @if($legalCaseAccount)
-                <li class="nav-item nav-priority-5">
-                  <a class="nav-link @if(Route::is('LegalCase.generatentries')) active @endif"
-                    href="{{ route('LegalCase.generatentries', $legalCaseAccount->id) }}">
-                    <i class="ti ti-scale ti-sm me-1_5"></i>Legal Case
-                  </a>
-                </li>
-                @endif
-                @endif
-                @endcan
+                  @can('riders_rider_view')
+                  <li class="nav-item nav-priority-6">
+                    <a class="nav-link @if(Route::is('rider.items')) active @endif"
+                      href="{{route('rider.items',$result['id'])}}">
+                      <i class="ti ti-cash-banknote ti-sm me-1"></i>Salary
+                    </a>
+                  </li>
+                  @endcan
 
-                @can('riders_rider_view')
-                <li class="nav-item nav-priority-6">
-                  <a class="nav-link @if(Route::is('rider.items')) active @endif"
-                    href="{{route('rider.items',$result['id'])}}">
-                    <i class="ti ti-cash-banknote ti-sm me-1"></i>Salary
-                  </a>
-                </li>
-                @endcan
+                  @can('riders_ledger_view')
+                  <li class="nav-item nav-priority-7">
+                    <a class="nav-link @if(Route::is('rider.ledger')) active @endif"
+                      href="{{route('rider.ledger',$result['id'])}}">
+                      <i class="ti ti-file ti-sm me-1_5"></i>Ledger
+                    </a>
+                  </li>
+                  @endcan
 
-                @can('riders_ledger_view')
-                <li class="nav-item nav-priority-7">
-                  <a class="nav-link @if(Route::is('rider.ledger')) active @endif"
-                    href="{{route('rider.ledger',$result['id'])}}">
-                    <i class="ti ti-file ti-sm me-1_5"></i>Ledger
-                  </a>
-                </li>
-                @endcan
+                  @can('riders_activities_view')
+                  <li class="nav-item nav-priority-8">
+                    <a class="nav-link @if(Route::is('rider.activities')) active @endif"
+                      href="{{route('rider.activities',$result['id'])}}">
+                      <i class="ti ti-motorbike ti-sm me-1_5"></i>Activities
+                    </a>
+                  </li>
+                  @endcan
 
-                @can('riders_activities_view')
-                <li class="nav-item nav-priority-8">
-                  <a class="nav-link @if(Route::is('rider.activities')) active @endif"
-                    href="{{route('rider.activities',$result['id'])}}">
-                    <i class="ti ti-motorbike ti-sm me-1_5"></i>Activities
-                  </a>
-                </li>
-                @endcan
+                  @can('email_view')
+                  <li class="nav-item nav-priority-9">
+                    <a class="nav-link @if(Route::is('rider.emails')) active @endif"
+                      href="{{route('rider.emails',$result['id'])}}">
+                      <i class="ti ti-mail ti-sm me-1_5"></i>Emails
+                    </a>
+                  </li>
+                  @endcan
 
-                @can('email_view')
-                <li class="nav-item nav-priority-9">
-                  <a class="nav-link @if(Route::is('rider.emails')) active @endif"
-                    href="{{route('rider.emails',$result['id'])}}">
-                    <i class="ti ti-mail ti-sm me-1_5"></i>Emails
-                  </a>
-                </li>
-                @endcan
+                  @endisset
+                </ul>
+              </div>
 
-                @endisset
-              </ul>
-            </div>
-
-            <!-- Dropdown for overflow items and actions -->
-            <div class="dropdown">
-              <button class="btn btn-outline-secondary rounded-pill p-2 waves-effect"
-                type="button" id="actiondropdown" data-bs-toggle="dropdown"
-                aria-haspopup="true" aria-expanded="false">
-                <i class="ti ti-dots icon-md"></i>
-              </button>
-              <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" id="dropdownMenu">
-                <!-- Overflow navigation and action items will be moved here -->
-                <div id="overflowItems"></div>
+              <!-- Dots dropdown: holds tabs that do not fit on one line -->
+              <div class="dropdown rider-nav-overflow-dropdown" id="riderNavOverflowDropdown" hidden>
+                <button class="btn rider-nav-more-btn"
+                  type="button" id="actiondropdown" data-bs-toggle="dropdown" data-bs-display="static"
+                  aria-haspopup="true" aria-expanded="false" title="More tabs" aria-label="More tabs">
+                  <i class="ti ti-dots"></i>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end shadow-sm rider-nav-overflow-menu" aria-labelledby="actiondropdown" id="dropdownMenu">
+                  <div id="overflowItems"></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <div class="card rider-info-section mb-5" id="cardBody" style="margin-top: 12px; position: relative;">
+    <div class="card rider-info-section mb-5" id="cardBody" style="margin-top: 0; position: relative;">
       @yield('page_content')
     </div>
   </div>
@@ -1291,231 +1634,236 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         this.mainNav = document.getElementById('mainNavigation');
         this.overflowContainer = document.getElementById('overflowItems');
         this.dropdownButton = document.getElementById('actiondropdown');
+        this.dropdownWrap = document.getElementById('riderNavOverflowDropdown');
         this.allNavItems = [];
+        this.isUpdating = false;
+        this.lastSignature = '';
         this.init();
       }
 
       init() {
-        // Store all navigation items with their priority
-        this.allNavItems = Array.from(this.mainNav.querySelectorAll('.nav-item')).map(item => {
+        if (!this.mainNav || !this.overflowContainer || !this.dropdownButton) {
+          return;
+        }
+
+        // Keep original DOM order, with priority used only for overflow decisions.
+        this.allNavItems = Array.from(this.mainNav.querySelectorAll('.nav-item')).map((item, index) => {
           const priorityClass = Array.from(item.classList).find(cls => cls.startsWith('nav-priority-'));
-          const priority = priorityClass ? parseInt(priorityClass.split('-')[2]) : 999;
+          const priority = priorityClass ? parseInt(priorityClass.split('-')[2], 10) : 999;
+          const link = item.querySelector('.nav-link');
           return {
             element: item,
             priority: priority,
-            html: item.outerHTML,
-            isActive: item.querySelector('.nav-link.active') !== null
+            order: index,
+            isActive: link ? link.classList.contains('active') : false,
+            label: this.extractLabel(link)
           };
-        }).sort((a, b) => a.priority - b.priority);
+        });
 
         this.handleResize();
 
-        // Debounced resize handler for better performance
         let resizeTimeout;
-        window.addEventListener('resize', () => {
+        const scheduleResize = () => {
+          if (this.isUpdating) return;
           clearTimeout(resizeTimeout);
           resizeTimeout = setTimeout(() => this.handleResize(), 100);
-        });
+        };
+
+        window.addEventListener('resize', scheduleResize);
+
+        // Browser zoom changes visualViewport without always firing window.resize.
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', scheduleResize);
+        }
 
         window.addEventListener('load', () => {
           setTimeout(() => this.handleResize(), 200);
         });
 
-        // Handle window focus to recalculate
-        window.addEventListener('focus', () => {
-          setTimeout(() => this.handleResize(), 100);
-        });
-
-        // Handle visibility change
-        document.addEventListener('visibilitychange', () => {
-          if (!document.hidden) {
-            setTimeout(() => this.handleResize(), 100);
+        // Observe the outer bar (stable width) — not the scroll wrap that shrinks when ⋯ appears.
+        if (typeof ResizeObserver !== 'undefined') {
+          const observeTarget = this.mainNav.closest('.rider-view-nav-inner')
+            || this.mainNav.closest('.rider-view-nav-card')
+            || this.mainNav.parentElement;
+          if (observeTarget) {
+            this.resizeObserver = new ResizeObserver(scheduleResize);
+            this.resizeObserver.observe(observeTarget);
           }
-        });
+        }
+      }
+
+      extractLabel(link) {
+        if (!link) return '';
+        const clone = link.cloneNode(true);
+        clone.querySelectorAll(
+          'i, .rider-tab-badges, .rider-tab-count-badge, .rider-inventory-count-badge, .rider-expired-count-dot, .rider-expired-docs-bubble, .badge, .rider-doc-status-bubble'
+        ).forEach((el) => el.remove());
+        return (clone.textContent || '').replace(/\s+/g, ' ').trim();
       }
 
       handleResize() {
-        // Reset all items to main navigation
+        if (this.isUpdating) return;
+        this.isUpdating = true;
         this.resetNavigation();
-
-        // Wait for next frame to ensure layout is updated
         requestAnimationFrame(() => {
-          // Wait another frame for styles to apply
           requestAnimationFrame(() => {
-            this.redistributeItems();
+            try {
+              this.redistributeItems();
+            } finally {
+              this.isUpdating = false;
+            }
           });
         });
       }
 
       resetNavigation() {
-        // Clear overflow container
         this.overflowContainer.innerHTML = '';
-
-        // Move all items back to main navigation
         this.mainNav.innerHTML = '';
-        this.allNavItems.forEach(item => {
-          this.mainNav.appendChild(item.element);
-        });
+        this.allNavItems
+          .slice()
+          .sort((a, b) => a.order - b.order)
+          .forEach(item => {
+            const link = item.element.querySelector('.nav-link');
+            item.isActive = !!(link && link.classList.contains('active'));
+            item.element.hidden = false;
+            item.element.style.display = '';
+            this.mainNav.appendChild(item.element);
+          });
+
+        if (this.dropdownWrap) {
+          this.dropdownWrap.hidden = true;
+        }
       }
 
       redistributeItems() {
-        const container = this.mainNav.closest('.card-body');
-        if (!container) return;
+        const navInner = this.mainNav.closest('.rider-view-nav-inner');
+        const scrollWrap = this.mainNav.closest('.rider-view-nav-scroll');
+        const measureBox = navInner || scrollWrap || this.mainNav.closest('.card-body');
+        if (!measureBox) return;
 
-        const containerRect = container.getBoundingClientRect();
-        const containerWidth = containerRect.width;
-        const dropdownWidth = this.dropdownButton.offsetWidth + 10;
+        const dropdownReserve = 44;
+        const safetyMargin = 8;
+        // Use the full inner bar width so showing/hiding ⋯ does not change the budget mid-cycle.
+        const availableWidth = measureBox.clientWidth;
 
-        let currentWidth = 0;
+        const itemWidths = this.allNavItems.map(item => ({
+          item,
+          width: this.getItemWidth(item.element)
+        }));
+
+        const totalWidth = itemWidths.reduce((sum, entry) => sum + entry.width, 0);
         const visibleItems = [];
         const overflowItems = [];
 
-        // First, try to fit all items without dropdown
-        let totalItemsWidth = 0;
-        const itemWidths = this.allNavItems.map(item => {
-          const width = this.getItemWidth(item.element);
-          totalItemsWidth += width;
-          return {
-            item,
-            width
-          };
-        });
-
-        // Calculate container padding and margins
-        const containerStyles = window.getComputedStyle(container);
-        const containerPadding = parseFloat(containerStyles.paddingLeft) + parseFloat(containerStyles.paddingRight);
-        const safetyMargin = 20;
-        const usableWidth = containerWidth - containerPadding - safetyMargin;
-
-        // If all items can fit without dropdown, show them all
-        if (totalItemsWidth <= usableWidth) {
-          this.allNavItems.forEach(item => visibleItems.push(item));
+        if (totalWidth <= availableWidth - safetyMargin) {
+          itemWidths
+            .slice()
+            .sort((a, b) => a.item.order - b.item.order)
+            .forEach(entry => visibleItems.push(entry.item));
         } else {
-          // Otherwise, calculate what can fit with dropdown visible
-          const availableWidth = usableWidth - dropdownWidth;
+          const fitWidth = Math.max(64, availableWidth - dropdownReserve - safetyMargin);
+          let usedWidth = 0;
 
-          for (let i = 0; i < itemWidths.length; i++) {
-            const {
-              item,
-              width
-            } = itemWidths[i];
+          const ordered = itemWidths
+            .slice()
+            .sort((a, b) => {
+              if (a.item.isActive !== b.item.isActive) {
+                return a.item.isActive ? -1 : 1;
+              }
+              if (a.item.priority !== b.item.priority) {
+                return a.item.priority - b.item.priority;
+              }
+              return a.item.order - b.item.order;
+            });
 
-            if (currentWidth + width <= availableWidth) {
-              currentWidth += width;
-              visibleItems.push(item);
+          ordered.forEach(entry => {
+            if (usedWidth + entry.width <= fitWidth) {
+              usedWidth += entry.width;
+              visibleItems.push(entry.item);
             } else {
-              overflowItems.push(item);
+              overflowItems.push(entry.item);
             }
-          }
+          });
 
-          // Ensure at least the first item (Information) is always visible
           if (visibleItems.length === 0 && this.allNavItems.length > 0) {
             visibleItems.push(this.allNavItems[0]);
-            overflowItems.unshift(...this.allNavItems.slice(1));
+            overflowItems.length = 0;
+            this.allNavItems.slice(1).forEach(item => overflowItems.push(item));
           }
+
+          visibleItems.sort((a, b) => a.order - b.order);
+          overflowItems.sort((a, b) => a.order - b.order);
         }
 
-        // Update the navigation
+        const signature = visibleItems.map(i => i.order).join(',') + '|' + overflowItems.map(i => i.order).join(',');
+        if (signature === this.lastSignature && this.overflowContainer.childNodes.length === overflowItems.length) {
+          // Still ensure dropdown visibility matches.
+          this.setDropdownVisible(overflowItems.length > 0);
+          return;
+        }
+        this.lastSignature = signature;
         this.updateNavigation(visibleItems, overflowItems);
       }
 
       getItemWidth(element) {
-        // Create a temporary clone to measure width accurately
-        const clone = element.cloneNode(true);
-        clone.style.cssText = `
-          visibility: hidden; 
-          position: absolute; 
-          white-space: nowrap; 
-          top: -9999px; 
-          left: -9999px;
-          pointer-events: none;
-          z-index: -1;
-        `;
+        const width = element.getBoundingClientRect().width;
+        if (width > 0) {
+          return Math.ceil(width) + 2;
+        }
+        const prevDisplay = element.style.display;
+        element.style.display = 'flex';
+        const fallback = Math.ceil(element.getBoundingClientRect().width) + 2;
+        element.style.display = prevDisplay;
+        return Math.max(fallback, 48);
+      }
 
-        // Append to the same container to inherit styles
-        const container = this.mainNav.parentNode;
-        container.appendChild(clone);
-
-        const rect = clone.getBoundingClientRect();
-        const width = Math.ceil(rect.width) + 6; // Add small margin and round up
-
-        container.removeChild(clone);
-        return width;
+      setDropdownVisible(visible) {
+        if (!this.dropdownWrap) return;
+        this.dropdownWrap.hidden = !visible;
       }
 
       updateNavigation(visibleItems, overflowItems) {
-        // Update main navigation
         this.mainNav.innerHTML = '';
         visibleItems.forEach(item => {
+          item.element.hidden = false;
           this.mainNav.appendChild(item.element);
         });
 
-        // Update overflow container and dropdown button visibility
         this.overflowContainer.innerHTML = '';
 
-        // Show/hide dropdown button based on overflow items
         if (overflowItems.length > 0) {
-          this.dropdownButton.style.display = 'flex';
-          // Separate navigation and action items for better organization
-          const navigationItems = overflowItems.filter(item => !item.element.classList.contains('nav-action-item'));
-          const actionItems = overflowItems.filter(item => item.element.classList.contains('nav-action-item'));
+          this.setDropdownVisible(true);
 
-          // Add navigation items first
-          navigationItems.forEach(item => {
-            const dropdownItem = this.createDropdownItem(item);
-            this.overflowContainer.appendChild(dropdownItem);
-          });
-
-          // Add divider if both types exist
-          if (navigationItems.length > 0 && actionItems.length > 0) {
-            const divider = document.createElement('div');
-            divider.className = 'dropdown-divider';
-            this.overflowContainer.appendChild(divider);
-
-            const header = document.createElement('h6');
-            header.className = 'dropdown-header';
-            header.textContent = 'Actions';
-            this.overflowContainer.appendChild(header);
-          }
-
-          // Add action items
-          actionItems.forEach(item => {
-            const dropdownItem = this.createDropdownItem(item);
-            this.overflowContainer.appendChild(dropdownItem);
+          overflowItems.forEach(item => {
+            // Keep original tab nodes out of the bar, but retain them for later resets.
+            if (item.element.parentNode) {
+              item.element.parentNode.removeChild(item.element);
+            }
+            this.overflowContainer.appendChild(this.createDropdownItem(item));
           });
         } else {
-          // Hide dropdown button if no overflow items
-          this.dropdownButton.style.display = 'none';
+          this.setDropdownVisible(false);
         }
       }
 
       createDropdownItem(navItem) {
         const link = navItem.element.querySelector('.nav-link');
-        const href = link.getAttribute('href');
-        const icon = link.querySelector('i');
-        const text = Array.from(link.childNodes)
-          .filter((node) => node.nodeType === Node.TEXT_NODE)
-          .map((node) => node.textContent.trim())
-          .filter(Boolean)
-          .join(' ');
-        const isActive = link.classList.contains('active');
+        const href = link ? link.getAttribute('href') : '#';
+        const icon = link ? link.querySelector('i') : null;
+        const text = navItem.label || this.extractLabel(link) || 'Tab';
+        const isActive = !!(link && link.classList.contains('active'));
         const isActionItem = navItem.element.classList.contains('nav-action-item');
 
         const dropdownItem = document.createElement('a');
-        dropdownItem.className = `dropdown-item overflow-nav-item ${isActive ? 'active' : ''}`;
-        dropdownItem.href = href;
+        dropdownItem.className = `dropdown-item overflow-nav-item${isActive ? ' active' : ''}`;
+        dropdownItem.href = href || '#';
+        dropdownItem.setAttribute('role', 'menuitem');
 
-        // Copy data attributes for action items
-        if (isActionItem) {
-          const dataAction = link.getAttribute('data-action');
-          const dataSize = link.getAttribute('data-size');
-          const dataTitle = link.getAttribute('data-title');
-
-          if (dataAction) dropdownItem.setAttribute('data-action', dataAction);
-          if (dataSize) dropdownItem.setAttribute('data-size', dataSize);
-          if (dataTitle) dropdownItem.setAttribute('data-title', dataTitle);
-
-          // Copy the show-modal class
+        if (isActionItem && link) {
+          ['data-action', 'data-size', 'data-title'].forEach((attr) => {
+            const value = link.getAttribute(attr);
+            if (value) dropdownItem.setAttribute(attr, value);
+          });
           if (link.classList.contains('show-modal')) {
             dropdownItem.classList.add('show-modal');
           }
@@ -1523,11 +1871,23 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
 
         if (icon) {
           const iconClone = icon.cloneNode(true);
-          iconClone.className = icon.className.replace('me-1_5', 'me-2');
+          iconClone.classList.remove('me-1_5', 'me-1', 'ti-sm');
           dropdownItem.appendChild(iconClone);
         }
 
-        dropdownItem.appendChild(document.createTextNode(text));
+        const label = document.createElement('span');
+        label.className = 'overflow-nav-label';
+        label.textContent = text;
+        dropdownItem.appendChild(label);
+
+        if (link) {
+          const badges = link.querySelectorAll(
+            '.rider-tab-badges, .rider-tab-count-badge, .rider-inventory-count-badge, .rider-expired-count-dot, .rider-expired-docs-bubble'
+          );
+          badges.forEach((badge) => {
+            dropdownItem.appendChild(badge.cloneNode(true));
+          });
+        }
 
         return dropdownItem;
       }
@@ -1551,8 +1911,7 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         const isActive = !!(checkbox && checkbox.checked);
         card.classList.toggle('active', isActive);
         if (subtitle) {
-          const categoryName = card.getAttribute('data-category') || 'Not assigned';
-          subtitle.textContent = isActive ? 'Assigned to rider' : categoryName;
+          subtitle.textContent = isActive ? 'Assigned' : 'Tap to set';
         }
       });
     }
@@ -1912,7 +2271,7 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
       }
 
       .nav-align-top.rider-profile-tabs .card-body {
-        padding-top: 1.55rem !important;
+        padding-top: 1.35rem !important;
       }
       
       #mainNavigation {
@@ -1922,43 +2281,53 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         list-style: none;
         margin: 0;
         padding: 0;
-        gap: 0.25rem;
+        gap: 0;
+        width: max-content;
+        max-width: 100%;
+        justify-content: flex-start;
       }
       
       #mainNavigation .nav-item {
-        flex-shrink: 0;
+        flex: 0 0 auto;
+        min-width: 0;
         white-space: nowrap;
         display: flex;
       }
       
       #mainNavigation .nav-link {
-        padding: 0.375rem 0.75rem;
-        font-size: 0.875rem;
+        width: auto;
+        justify-content: center;
+        padding: 0.3rem 0.45rem;
+        font-size: 0.78rem;
         border-radius: 0.375rem;
         text-decoration: none;
         display: flex;
         align-items: center;
         position: relative;
         overflow: visible;
+        white-space: nowrap;
         transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
       }
       
       .overflow-nav-item {
-        display: flex;
+        display: flex !important;
         align-items: center;
+        gap: 0.55rem;
+        color: #1e293b !important;
       }
       
       .overflow-nav-item.active {
-        background-color: var(--bs-primary);
-        color: white;
+        background: #eff4fb !important;
+        color: #1e4b8e !important;
       }
       
       .overflow-nav-item i {
-        width: 16px;
-        height: 16px;
+        width: 1.15rem;
+        height: 1.15rem;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        font-size: 1.05rem !important;
       }
       
       .permanent-action {
@@ -1993,30 +2362,34 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         display: flex !important; /* Override any CSS hiding */
       }
       
-      /* Dropdown styling */
-      #actiondropdown {
+      /* Overflow more button stays inline with tabs (no gap) */
+      .rider-view-nav-scroll {
+        flex: 0 1 auto !important;
+        width: auto !important;
+      }
+
+      .rider-nav-overflow-dropdown {
         flex-shrink: 0 !important;
-        border: 1px solid var(--bs-border-color);
-        background: white;
-        color: var(--bs-body-color);
-        // display: none; /* Initially hidden */
+        margin-left: 0.15rem;
+      }
+
+      .rider-nav-overflow-dropdown[hidden] {
+        display: none !important;
+      }
+
+      .rider-nav-overflow-dropdown:not([hidden]) {
+        display: inline-flex !important;
         align-items: center;
-        justify-content: center;
       }
-      
-      #actiondropdown:hover {
-        background-color: var(--bs-light);
-        border-color: var(--bs-primary);
+
+      .rider-nav-more-btn {
+        flex-shrink: 0 !important;
       }
-      
-      .dropdown-menu {
+
+      .rider-nav-overflow-menu {
         max-height: 400px;
         overflow-y: auto;
-        border-radius: 0.5rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        border: 1px solid var(--bs-border-color);
         margin-top: 0.25rem;
-        min-width: 180px;
       }
       
       /* Ensure dropdown stays within viewport */
@@ -2038,38 +2411,42 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
       }
       
       /* Highlight active items in dropdown */
-      .dropdown-item.active {
-        background-color: var(--bs-primary) !important;
-        color: white !important;
+      .rider-nav-overflow-menu .dropdown-item.active,
+      .rider-nav-overflow-menu .overflow-nav-item.active {
+        background: #eff4fb !important;
+        color: #1e4b8e !important;
       }
       
-      /* Make navigation more compact on smaller screens */
+      /* Make navigation more compact on smaller screens — keep icons readable; overflow JS handles fit. */
       @media (max-width: 768px) {
         .nav-align-top .card-body {
           padding: 0.5rem !important;
         }
 
         .nav-align-top.rider-profile-tabs .card-body {
-          padding-top: 1.35rem !important;
+          padding-top: 1.2rem !important;
         }
         
         #mainNavigation .nav-link {
-          padding: 0.25rem 0.5rem !important;
-          font-size: 0.8rem;
+          padding: 0.3rem 0.4rem !important;
+          font-size: 0.78rem !important;
         }
         
-        #mainNavigation .nav-link i {
-          font-size: 0.8rem !important;
-          margin-right: 0.25rem !important;
+        #mainNavigation .nav-link i,
+        #mainNavigation .nav-link i.ti-sm {
+          display: inline-flex !important;
+          font-size: 1rem !important;
+          margin-right: 0 !important;
         }
         
         .nav-action-item .nav-link {
-          padding: 0.25rem 0.5rem !important;
-          font-size: 0.75rem;
+          padding: 0.3rem 0.4rem !important;
+          font-size: 0.78rem !important;
         }
-        
-        #actiondropdown {
-          padding: 0.25rem 0.5rem !important;
+
+        .rider-nav-more-btn {
+          width: 1.65rem;
+          height: 1.65rem;
         }
       }
       
@@ -2080,16 +2457,16 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         }
 
         .nav-align-top.rider-profile-tabs .card-body {
-          padding-top: 1.2rem !important;
+          padding-top: 1.1rem !important;
         }
         
         #mainNavigation .nav-link {
-          padding: 0.25rem 0.4rem !important;
-          font-size: 0.75rem;
+          padding: 0.22rem 0.28rem !important;
+          font-size: 0.68rem;
         }
         
         #mainNavigation .nav-link i {
-          margin-right: 0.1rem !important;
+          margin-right: 0.08rem !important;
         }
         
         .dropdown-menu {
@@ -2108,9 +2485,10 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         #mainNavigation .nav-link i {
           display: none; /* Hide icons on very small screens */
         }
-        
-        #actiondropdown {
-          padding: 0.2rem 0.4rem !important;
+
+        .rider-nav-more-btn {
+          width: 1.55rem;
+          height: 1.55rem;
         }
       }
       

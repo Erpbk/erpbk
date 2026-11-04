@@ -6,9 +6,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class Loan extends BaseModel
 {
-    use LogsActivity, SoftDeletes, BranchScope;
+    use LogsActivity, SoftDeletes, BranchScope, TracksUserAttribution;
 
     public const STATUS_DRAFT = 'draft';
 
@@ -49,6 +51,7 @@ class Loan extends BaseModel
         'notes',
         'created_by',
         'deleted_by',
+        'updated_by'
     ];
 
     protected $casts = [

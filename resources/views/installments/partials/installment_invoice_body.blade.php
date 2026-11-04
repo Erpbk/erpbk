@@ -2,11 +2,13 @@
     $settings = company_table('settings')->pluck('value', 'name')->toArray();
     $first = $installments->first();
     $totalAmount = (float) $installments->sum('amount');
-    $paidSum = (float) $installments->where('status', 'paid')->sum('amount');
-    $pendingSum = (float) $installments->where('status', 'pending')->sum('amount');
+    $paidSum = (float) $installments->where('status', 'paid')->sum('amount')
+        + (float) $installments->where('status', 'partial')->sum('paid_amount');
+    $pendingSum = (float) $installments->filter(fn ($i) => in_array($i->status, ['pending', 'partial'], true))
+        ->sum(fn ($i) => max(0, (float) $i->amount - (float) ($i->paid_amount ?? 0)));
     $planRefTotal = $first->total_amount !== null && $first->total_amount !== '' ? (float) $first->total_amount : $totalAmount;
     $paidCount = $installments->where('status', 'paid')->count();
-    $pendingCount = $installments->where('status', 'pending')->count();
+    $pendingCount = $installments->whereIn('status', ['pending', 'partial'])->count();
 @endphp
 
 <div class="visa-installment-invo-wrap">
@@ -35,7 +37,7 @@
         <div class="flex-row-cards">
             <div class="rider-card">
                 <div class="card-header">
-                    <strong>ðŸ‘¤ Rider Details</strong>
+                    <strong>Rider Details</strong>
                 </div>
                 <div class="details-grid">
                     <span class="detail-label">Rider ID:</span>
@@ -44,22 +46,22 @@
                     <span class="detail-value">{{ $rider->name }}</span>
                     <span class="detail-label">Rider Status:</span>
                     <span class="detail-value" @if(isset($rider->status) && in_array((int) $rider->status, [3,4,5], true)) style="color:red;" @endif>
-                        {{ isset($rider->status) ? \App\Helpers\General::RiderStatus($rider->status) : 'â€”' }}
+                        {{ isset($rider->status) ? \App\Helpers\General::RiderStatus($rider->status) : '—' }}
                     </span>
                     <span class="detail-label">Mobile:</span>
-                    <span class="detail-value">{{ $rider->personal_contact ?? $rider->company_contact ?? (@$rider->sim->number) ?? 'â€”' }}</span>
+                    <span class="detail-value">{{ $rider->personal_contact ?? $rider->company_contact ?? (@$rider->sim->number) ?? '—' }}</span>
                     <span class="detail-label">Joining Date:</span>
-                    <span class="detail-value">{{ $rider->doj ? \Carbon\Carbon::parse($rider->doj)->format('d/m/Y') : 'â€”' }}</span>
+                    <span class="detail-value">{{ !empty($rider->doj) ? \Carbon\Carbon::parse($rider->doj)->format('d/m/Y') : '—' }}</span>
                     <span class="detail-label">Client:</span>
-                    <span class="detail-value">{{ @$rider->vendor->name ?? 'â€”' }}</span>
+                    <span class="detail-value">{{ @$rider->vendor->name ?? '—' }}</span>
                     <span class="detail-label">Fleet Supervisor:</span>
-                    <span class="detail-value">{{ $rider->fleet_supervisor ?? 'â€”' }}</span>
+                    <span class="detail-value">{{ $rider->fleet_supervisor ?? '—' }}</span>
                 </div>
             </div>
 
             <div class="details-card">
                 <div class="card-header">
-                    <strong>ðŸ“„ Plan Summary</strong>
+                    <strong>Plan Summary</strong>
                 </div>
                 <div class="details-grid">
                     <span class="detail-label">Invoice No:</span>
@@ -67,9 +69,9 @@
                     <span class="detail-label">Invoice Date:</span>
                     <span class="detail-value">{{ $first->created_at->format('d/m/Y') }}</span>
                     <span class="detail-label">Plan reference:</span>
-                    <span class="detail-value">{{ $first->reference_number ?? 'â€”' }}</span>
+                    <span class="detail-value">{{ $first->reference_number ?? '—' }}</span>
                     <span class="detail-label">Installments:</span>
-                    <span class="detail-value">{{ $installments->count() }} (Paid {{ $paidCount }} Â· Pending {{ $pendingCount }})</span>
+                    <span class="detail-value">{{ $installments->count() }} (Paid {{ $paidCount }} · Pending {{ $pendingCount }})</span>
                     <span class="detail-label">Plan total (ref):</span>
                     <span class="detail-value">{{ \App\Helpers\Currency::format($planRefTotal, 2) }}</span>
                     <span class="detail-label">Ledger key:</span>
@@ -103,7 +105,7 @@
                     @endforeach
                     <tr class="accent-total">
                         <td colspan="4" style="text-align:right; font-weight:bold;">Total installments ({{ $installments->count() }})</td>
-                        <td style="text-align:center; font-weight:bold;">â€”</td>
+                        <td style="text-align:center; font-weight:bold;">—</td>
                         <td class="num" style="font-weight:bold;">{{ number_format($totalAmount, 2) }}</td>
                     </tr>
                 </tbody>
@@ -130,7 +132,7 @@
         </div>
 
         <div class="notes-section">
-            <strong>ðŸ“Œ Note:</strong><br>
+            <strong>Note:</strong><br>
             All installment payments are due as per the billing month above. This plan is binding once acknowledged.
             Changes must be agreed in writing. Early payment does not imply a discount unless specified.
         </div>

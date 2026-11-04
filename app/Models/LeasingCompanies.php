@@ -5,11 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
+use App\Traits\HasInvoiceNoteLabels;
 use App\Traits\BranchScope;
+
+use App\Traits\TracksUserAttribution;
 
 class LeasingCompanies extends BaseModel
 {
-  use LogsActivity, SoftDeletes, BranchScope;
+  use LogsActivity, SoftDeletes, BranchScope, HasInvoiceNoteLabels, TracksUserAttribution;
 
   public $table = 'leasing_companies';
 
@@ -21,8 +24,15 @@ class LeasingCompanies extends BaseModel
     'trn_number',
     'detail',
     'account_id',
-    'status'
-  ];
+    'status',
+    'invoice_note',
+    'invoice_note_label',
+    'terms_and_conditions',
+    'terms_and_conditions_label',
+    'created_by',
+    'updated_by',
+    'deleted_by'
+    ];
 
   protected $casts = [
     'name' => 'string',
@@ -41,7 +51,11 @@ class LeasingCompanies extends BaseModel
     'contact_number' => 'nullable|string|max:100',
     'trn_number' => 'nullable|string|max:100',
     'detail' => 'nullable|string|max:65535',
-
+    'invoice_note' => 'nullable|string',
+    'invoice_note_label' => 'nullable|string|max:100',
+    'terms_and_conditions' => 'nullable|string',
+    'terms_and_conditions_label' => 'nullable|string|max:100',
+    'status' => 'nullable',
     'created_at' => 'nullable',
     'updated_at' => 'nullable'
   ];
@@ -59,6 +73,18 @@ class LeasingCompanies extends BaseModel
    */
   public static function dropdownWithOwnOption(): array
   {
+    $opts = self::select('id', 'name')->pluck('name', 'id')->toArray();
+
+    return ['' => 'Select', self::OWN_OPTION_VALUE => self::ownOptionLabel()] + $opts;
+  }
+
+  public const OWN_OPTION_VALUE = 'own';
+
+  /**
+   * Display label for the top-bar / form "own vehicles" option (tenant company name).
+   */
+  public static function ownOptionLabel(): string
+  {
     $currentCompany = view()->shared('currentCompany');
     $companyName = trim((string) (
       \App\Helpers\Common::getSetting('company_name')
@@ -66,13 +92,12 @@ class LeasingCompanies extends BaseModel
       ?: 'Own'
     ));
 
-    if ($companyName === '') {
-      $companyName = 'Own';
-    }
+    return $companyName !== '' ? $companyName : 'Own';
+  }
 
-    $opts = self::select('id', 'name')->pluck('name', 'id')->toArray();
-
-    return ['' => 'Select', 'own' => $companyName] + $opts;
+  public static function isOwnOptionValue(mixed $value): bool
+  {
+    return strtolower(trim((string) $value)) === self::OWN_OPTION_VALUE;
   }
 
   function account()

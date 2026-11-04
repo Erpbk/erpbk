@@ -134,4 +134,42 @@ class EntityExpiry
             'files_expiring' => $files['expiring'],
         ];
     }
+
+    /**
+     * Expired / expiring-soon counts for visa_expenses.expiry_date for a rider or employee.
+     *
+     * @return array{expired: int, expiring: int}
+     */
+    public static function visaExpenseCounts(?int $riderId, ?int $employeeId = null, int $days = 30): array
+    {
+        $empty = ['expired' => 0, 'expiring' => 0];
+        if (($riderId === null || $riderId < 1) && ($employeeId === null || $employeeId < 1)) {
+            return $empty;
+        }
+        if (! Schema::hasTable('visa_expenses') || ! Schema::hasColumn('visa_expenses', 'expiry_date')) {
+            return $empty;
+        }
+
+        $today = now()->startOfDay()->toDateString();
+        $end = now()->addDays(max(0, $days))->toDateString();
+
+        try {
+            $base = CompanyQuery::table('visa_expenses')->whereNotNull('expiry_date');
+            if ($employeeId !== null && $employeeId > 0) {
+                $base->where('employee_id', $employeeId);
+            } else {
+                $base->where('rider_id', $riderId);
+            }
+
+            return [
+                'expired' => (int) (clone $base)->whereDate('expiry_date', '<', $today)->count(),
+                'expiring' => (int) (clone $base)
+                    ->whereDate('expiry_date', '>=', $today)
+                    ->whereDate('expiry_date', '<=', $end)
+                    ->count(),
+            ];
+        } catch (\Throwable $e) {
+            return $empty;
+        }
+    }
 }

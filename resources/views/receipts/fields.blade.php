@@ -79,8 +79,13 @@
 </div>
 <!-- Voucher Attachment Field -->
 <div class="form-group col-sm-6">
-  {!! Form::label('attachment', 'Attachment:') !!}
-  {!! Form::file('attachment', ['class' => 'form-control']) !!}
+  @include('partials.universal_document_upload', [
+    'name' => 'attachment',
+    'label' => 'Attachment:',
+    'required' => false,
+    'inputClass' => 'form-control',
+    'showHint' => true,
+  ])
 </div>
 <!-- Description Field -->
 <div class="form-group col-sm-12">

@@ -111,6 +111,83 @@ if (! function_exists('user_can')) {
     }
 }
 
+if (! function_exists('company_app_url')) {
+    /**
+     * Absolute URL under the current tenant: /app/{company_slug}/{path}.
+     * Use as a fallback when a named route is missing on a partially deployed server.
+     */
+    function company_app_url(string $path = '', array $query = []): string
+    {
+        $slug = request()->route('company_slug');
+        $path = ltrim($path, '/');
+        $url = $slug
+            ? url('app/' . $slug . ($path !== '' ? '/' . $path : ''))
+            : url($path);
+
+        if ($query !== []) {
+            $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($query);
+        }
+
+        return $url;
+    }
+}
+
+if (! function_exists('safe_route')) {
+    /**
+     * Like route(), but never throws RouteNotFoundException.
+     * When $fallbackPath is given (tenant-relative, e.g. "employeeInvoices/export"),
+     * builds company_app_url() instead of returning "#".
+     *
+     * @param  mixed  $parameters
+     */
+    function safe_route(string $name, $parameters = [], ?string $fallbackPath = null, bool $absolute = true): string
+    {
+        if (\Illuminate\Support\Facades\Route::has($name)) {
+            return route($name, $parameters, $absolute);
+        }
+
+        if ($fallbackPath !== null) {
+            $query = [];
+            if (is_array($parameters)) {
+                $routeKeys = ['id', 'employee', 'employeeInvoice', 'attendance', 'rider', 'company_slug', 'refType', 'ref_type', 'user_type'];
+                $path = $fallbackPath;
+                foreach ($parameters as $key => $value) {
+                    if (is_int($key)) {
+                        continue;
+                    }
+                    $token = '{' . $key . '}';
+                    if (str_contains($path, $token)) {
+                        $path = str_replace($token, (string) $value, $path);
+                        continue;
+                    }
+                    if (in_array($key, $routeKeys, true)) {
+                        continue;
+                    }
+                    $query[$key] = $value;
+                }
+                if (str_contains($path, '{id}')) {
+                    foreach (['id', 'employee', 'employeeInvoice', 'attendance', 'rider', 0] as $idKey) {
+                        if (array_key_exists($idKey, $parameters) && $parameters[$idKey] !== null && $parameters[$idKey] !== '') {
+                            $path = str_replace('{id}', (string) $parameters[$idKey], $path);
+                            break;
+                        }
+                    }
+                }
+
+                return company_app_url($path, $query);
+            }
+
+            if ($parameters !== [] && $parameters !== null && str_contains($fallbackPath, '{id}')) {
+                return company_app_url(str_replace('{id}', (string) $parameters, $fallbackPath));
+            }
+
+            return company_app_url($fallbackPath);
+        }
+
+        return '#';
+    }
+}
+
 if (! function_exists('field_visible')) {
     /**
      * Whether the current user may SEE a field of a module.
@@ -301,5 +378,64 @@ if (! function_exists('delete_error_response')) {
         return $redirectTo
             ? redirect($redirectTo)
             : redirect()->back();
+    }
+}
+
+if (! function_exists('resolve_linked_account_id')) {
+    /**
+     * Resolve Chart of Accounts id from a model that stores account_id / account relation.
+     */
+    function resolve_linked_account_id($model): ?int
+    {
+        if (! $model) {
+            return null;
+        }
+
+        if (! empty($model->account_id)) {
+            return (int) $model->account_id;
+        }
+
+        if (isset($model->account) && $model->account && ! empty($model->account->id)) {
+            return (int) $model->account->id;
+        }
+
+        return null;
+    }
+}
+
+if (! function_exists('linked_account_delete_block_reason')) {
+    /**
+     * Block soft-delete / delete-request when a linked COA account has activity.
+     * Ignores branch scope so approval is never queued for blocked records.
+     */
+    function linked_account_delete_block_reason(?int $accountId, string $entityLabel = 'Record'): ?string
+    {
+        if (! $accountId) {
+            return null;
+        }
+
+        $transactionCount = \App\Models\Transactions::withoutGlobalScope('branch')
+            ->where('account_id', $accountId)
+            ->count();
+
+        if ($transactionCount > 0) {
+            return $entityLabel . ' cannot be deleted. The linked account has '
+                . $transactionCount
+                . ' transaction(s). Remove related transactions first.';
+        }
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('ledger_entries')) {
+            $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
+                ->where('account_id', $accountId)
+                ->count();
+
+            if ($ledgerEntriesCount > 0) {
+                return $entityLabel . ' cannot be deleted. The linked account has '
+                    . $ledgerEntriesCount
+                    . ' ledger entry(ies).';
+            }
+        }
+
+        return null;
     }
 }

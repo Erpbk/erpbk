@@ -7,8 +7,12 @@ use App\Helpers\General;
 use App\Models\EmployeeInvoices;
 use App\Models\Payment;
 use App\Models\Transactions;
+use App\Models\Vouchers;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Support\CompanyContext;
+use App\Support\ResourceLinks;
 use Illuminate\Support\Facades\DB;
 
 class EmployeeInvoiceViewDataBuilder
@@ -166,7 +170,7 @@ class EmployeeInvoiceViewDataBuilder
     /**
      * @return array<string, mixed>
      */
-    public function build(EmployeeInvoices $employeeInvoice): array
+    public function build(EmployeeInvoices $employeeInvoice, bool $includePriorCarry = true): array
     {
         $settings = $this->normalizeSettings(
             company_table('settings')->pluck('value', 'name')->toArray()
@@ -183,8 +187,9 @@ class EmployeeInvoiceViewDataBuilder
         $ledger_additions = $ledger['additions'];
 
         // Previous balance from employee ledger before this billing month (carry-forward).
+        // Omit for invoice payment-status checks so paying this invoice's own net marks it Paid.
         $employee_balance = 0.0;
-        if ($accountId) {
+        if ($includePriorCarry && $accountId) {
             $employee_balance = round((float) Transactions::where('account_id', $accountId)
                 ->whereDate('billing_month', '<', $monthStart)
                 ->sum(DB::raw('debit - credit')), 2);
@@ -240,12 +245,7 @@ class EmployeeInvoiceViewDataBuilder
 
         $finalAmount = round($items_total - $total_deductions + $total_additions, 2);
 
-        $paid_amount = 0.0;
-        if ($accountId) {
-            $paid_amount = round((float) Payment::where('payee_account_id', $accountId)
-                ->whereDate('billing_month', $monthStart)
-                ->sum('amount'), 2);
-        }
+        $paid_amount = $this->paidAmountAgainstInvoice($employeeInvoice, $accountId, $monthStart);
 
         $employee_balance_final = round($finalAmount - $paid_amount, 2);
 
@@ -288,19 +288,124 @@ class EmployeeInvoiceViewDataBuilder
     }
 
     /**
+     * Payment vouchers (PV / PAY) recorded against this employee invoice.
+     *
+     * @return Collection<int, Vouchers>
+     */
+    public function paymentVouchersForInvoice(EmployeeInvoices $employeeInvoice, ?int $accountId = null): Collection
+    {
+        $accountId = $accountId
+            ?? ($employeeInvoice->employee?->account_id ? (int) $employeeInvoice->employee->account_id : null);
+
+        $invoiceId = (int) $employeeInvoice->id;
+        $patterns = array_values(array_filter([
+            $employeeInvoice->invoice_number ?? null,
+            'Employee Invoice #'.$invoiceId,
+            'Invoice #'.$invoiceId,
+            'EMP_INV'.str_pad((string) $invoiceId, 5, '0', STR_PAD_LEFT),
+        ]));
+
+        $transCodes = Transactions::query()
+            ->where('reference_type', 'EmployeeInvoice')
+            ->where('reference_id', $invoiceId)
+            ->when($accountId, fn ($q) => $q->where('account_id', $accountId))
+            ->distinct()
+            ->pluck('trans_code')
+            ->filter()
+            ->values();
+
+        $voucherIdsFromPayments = collect();
+        if ($accountId) {
+            $voucherIdsFromPayments = Payment::query()
+                ->where('payee_account_id', $accountId)
+                ->whereNotNull('voucher_id')
+                ->where(function ($q) use ($patterns, $invoiceId) {
+                    ResourceLinks::whereContainsInvoiceId($q, $invoiceId);
+                    foreach ($patterns as $pattern) {
+                        $q->orWhere('reference', 'like', '%'.$pattern.'%')
+                            ->orWhere('description', 'like', '%'.$pattern.'%');
+                    }
+                })
+                ->pluck('voucher_id')
+                ->filter()
+                ->values();
+        }
+
+        if ($transCodes->isEmpty() && $voucherIdsFromPayments->isEmpty() && $patterns === []) {
+            return collect();
+        }
+
+        return Vouchers::query()
+            ->where(function ($q) use ($transCodes, $voucherIdsFromPayments, $patterns, $invoiceId) {
+                if ($transCodes->isNotEmpty()) {
+                    $q->orWhereIn('trans_code', $transCodes);
+                }
+                if ($voucherIdsFromPayments->isNotEmpty()) {
+                    $q->orWhereIn('id', $voucherIdsFromPayments);
+                }
+                $q->orWhere(function ($inner) use ($patterns, $invoiceId) {
+                    $inner->whereIn('voucher_type', ['PV', 'PAY'])
+                        ->where(function ($text) use ($patterns, $invoiceId) {
+                            $text->where('remarks', 'like', '%Employee Invoice #'.$invoiceId.'%')
+                                ->orWhere('remarks', 'like', '%Invoice #'.$invoiceId.'%');
+                            foreach ($patterns as $pattern) {
+                                $text->orWhere('reference_number', 'like', '%'.$pattern.'%')
+                                    ->orWhere('remarks', 'like', '%'.$pattern.'%');
+                            }
+                        });
+                });
+            })
+            ->orderByDesc('trans_date')
+            ->orderByDesc('id')
+            ->get()
+            ->unique('id')
+            ->values();
+    }
+
+    /**
+     * Prefetch outstanding summaries for listing/export pages.
+     *
+     * @param  iterable<int, EmployeeInvoices>  $invoices
+     */
+    public function preloadOutstandingSummaries($invoices): void
+    {
+        $models = collect($invoices)->filter(fn ($invoice) => $invoice instanceof EmployeeInvoices)->values();
+        if ($models->isEmpty()) {
+            return;
+        }
+
+        $collection = $invoices instanceof EloquentCollection
+            ? $invoices->filter(fn ($invoice) => $invoice instanceof EmployeeInvoices)->values()
+            : new EloquentCollection($models->all());
+        $collection->loadMissing(['employee', 'items']);
+        $this->applySequentialOutstanding($collection);
+    }
+
+    /**
      * Outstanding amounts as shown on the Employee Invoice (after deductions/additions).
      *
      * @return array{final_amount: float, paid_amount: float, balance: float}
      */
-    public function outstandingAmounts(EmployeeInvoices $employeeInvoice): array
+    public function outstandingAmounts(EmployeeInvoices $employeeInvoice, bool $includePriorCarry = true): array
     {
-        $data = $this->build($employeeInvoice);
+        $data = $this->build($employeeInvoice, $includePriorCarry);
 
         return [
             'final_amount' => (float) $data['finalAmount'],
             'paid_amount' => (float) $data['paid_amount'],
             'balance' => (float) $data['employee_balance_final'],
         ];
+    }
+
+    /**
+     * Outstanding for Paid / Partial status only — this invoice's month net, without
+     * prior-month ledger carry-forward (which belongs to older unpaid periods).
+     *
+     * @return array{final_amount: float, paid_amount: float, balance: float}
+     */
+    public function outstandingAmountsForStatus(EmployeeInvoices $employeeInvoice): array
+    {
+        return $this->outstandingAmounts($employeeInvoice, false);
     }
 
     /**
@@ -370,18 +475,61 @@ class EmployeeInvoiceViewDataBuilder
         $totalAdditions = round($monthAdditions + ($carry < 0 ? abs($carry) : 0), 2);
         $finalAmount = round($itemsTotal - $totalDeductions + $totalAdditions, 2);
 
-        $paidAmount = 0.0;
-        if ($accountId) {
-            $paidAmount = round((float) Payment::where('payee_account_id', $accountId)
-                ->whereDate('billing_month', $monthStart)
-                ->sum('amount'), 2);
-        }
+        $paidAmount = $this->paidAmountAgainstInvoice($employeeInvoice, $accountId, $monthStart);
 
         return [
             'final_amount' => $finalAmount,
             'paid_amount' => $paidAmount,
             'balance' => round($finalAmount - $paidAmount, 2),
         ];
+    }
+
+    /**
+     * Amount paid against this invoice.
+     *
+     * Prefers per-payment allocations on partial_paid_amount (multi-invoice vouchers).
+     * Legacy Payment-module rows for the billing month are still counted when they are
+     * not already represented in those allocations.
+     */
+    private function paidAmountAgainstInvoice(EmployeeInvoices $employeeInvoice, ?int $accountId, string $monthStart): float
+    {
+        $partials = $employeeInvoice->partial_paid_amount ?? [];
+        if (! is_array($partials)) {
+            $partials = [];
+        }
+
+        $partialSum = round((float) array_sum($partials), 2);
+        $allocatedPaymentIds = array_values(array_filter(array_map('intval', array_keys($partials))));
+
+        $linked = 0.0;
+        $legacy = 0.0;
+        if ($accountId) {
+            $invoiceId = (int) $employeeInvoice->id;
+            if (ResourceLinks::columnExists('payments')) {
+                $linkedQuery = Payment::where('payee_account_id', $accountId)
+                    ->where('resource_links', 'like', '%'.ResourceLinks::containsInvoiceIdPayload($invoiceId).'%');
+                if ($allocatedPaymentIds !== []) {
+                    $linkedQuery->whereNotIn('id', $allocatedPaymentIds);
+                }
+                $linked = round((float) $linkedQuery->sum('amount'), 2);
+            }
+
+            $legacyQuery = Payment::where('payee_account_id', $accountId)
+                ->whereDate('billing_month', $monthStart);
+            if ($allocatedPaymentIds !== []) {
+                $legacyQuery->whereNotIn('id', $allocatedPaymentIds);
+            }
+            // Avoid double-counting payments already counted via resource_links.
+            if (ResourceLinks::columnExists('payments')) {
+                $legacyQuery->where(function ($q) use ($invoiceId) {
+                    $q->whereNull('resource_links')
+                        ->orWhere('resource_links', 'not like', '%'.ResourceLinks::containsInvoiceIdPayload($invoiceId).'%');
+                });
+            }
+            $legacy = round((float) $legacyQuery->sum('amount'), 2);
+        }
+
+        return round($partialSum + $linked + $legacy, 2);
     }
 
     private function invoiceItemsTotal(EmployeeInvoices $employeeInvoice): float

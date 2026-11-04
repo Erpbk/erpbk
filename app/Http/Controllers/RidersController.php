@@ -54,10 +54,14 @@ use App\Services\Email\UserEmailService;
 use App\Services\Permissions\RiderStatusPermissionSync;
 use App\Services\Permissions\TopBarOptionPermissionSync;
 use App\Services\Permissions\TopBarPermissionSync;
+use App\Services\Rider\RiderAdvanceLoanService;
 use App\Services\RiderHistoryLogger;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
+use App\Support\CompanyScope;
+use App\Support\RiderDocumentChecklist;
 use App\Support\RiderDocumentReplacement;
+use App\Support\RiderVoucherPermissions;
 use App\Support\SimAssigneeContactSync;
 use App\Support\TopBarNumericStatus;
 use App\Traits\GlobalPagination;
@@ -71,7 +75,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\FuelCards;
@@ -96,9 +99,16 @@ class RidersController extends AppBaseController
    */
   private function riderTopStatusFilterOptions(): array
   {
+    $builtInLabels = Riders::employmentStatusFilterLabels();
+    $builtInKeys = array_map('strtolower', $builtInLabels);
+    $builtInOptions = array_map(
+      static fn(string $label): array => ['value' => $label, 'label' => $label],
+      $builtInLabels
+    );
+
     $category = RiderTopCategory::where('rider_column', 'rider_status')->first();
     if (! $category) {
-      return [];
+      return $builtInOptions;
     }
 
     $options = RiderTopOption::withoutGlobalScope('company')
@@ -112,12 +122,10 @@ class RidersController extends AppBaseController
       || RiderStatusPermissionSync::userHasAnyVisibleStatusPermission($options);
 
     if (! $canSeeBar) {
-      return [];
+      return $builtInOptions;
     }
 
-    $reserved = ['active', 'inactive'];
-
-    return RiderStatusPermissionSync::filterOptionsForTopBar($options)
+    $dynamic = RiderStatusPermissionSync::filterOptionsForTopBar($options)
       ->map(function ($option) {
         $name = trim((string) $option->name);
 
@@ -126,11 +134,13 @@ class RidersController extends AppBaseController
           'label' => $name,
         ];
       })
-      ->filter(function (array $row) use ($reserved) {
-        return $row['value'] !== '' && ! in_array(strtolower($row['value']), $reserved, true);
+      ->filter(function (array $row) use ($builtInKeys) {
+        return $row['value'] !== '' && ! in_array(strtolower($row['value']), $builtInKeys, true);
       })
       ->values()
       ->all();
+
+    return array_values(array_merge($builtInOptions, $dynamic));
   }
 
   /**
@@ -148,13 +158,195 @@ class RidersController extends AppBaseController
       return;
     }
 
-    $isHardcodedLifecycle = in_array($status, ['Active', 'Inactive'], true);
+    $isHardcodedLifecycle = in_array($status, Riders::employmentStatusFilterLabels(), true);
     if (! $isHardcodedLifecycle && ! RiderStatusPermissionSync::canAccessStatusName($status)) {
       // Unauthorized status filters are omitted from the sidebar; ignore crafted values.
       return;
     }
 
     Riders::applyCurrentStatusFilter($query, $status);
+  }
+
+  /**
+   * Quick search across list-relevant rider fields (shared by index + filterAjax).
+   */
+  private function applyRiderQuickSearch($query, ?string $search): void
+  {
+    $search = trim((string) $search);
+    if ($search === '') {
+      return;
+    }
+
+    $like = '%' . $search . '%';
+    $riderColumns = array_flip(Schema::getColumnListing('riders'));
+
+    $query->where(function ($q) use ($search, $like, $riderColumns) {
+      $q->where('riders.name', 'like', $like)
+        ->orWhere('riders.rider_id', 'like', $like)
+        ->orWhere('riders.fleet_supervisor', 'like', $like)
+        ->orWhere('riders.customer_id', 'like', $like)
+        ->orWhereExists(function ($subQuery) use ($like) {
+          $subQuery->select(\DB::raw(1))
+            ->from('customers')
+            ->whereColumn('customers.id', 'riders.customer_id')
+            ->where('customers.name', 'like', $like);
+        });
+
+      if (isset($riderColumns['personal_contact'])) {
+        $q->orWhere('riders.personal_contact', 'like', $like);
+      }
+      if (isset($riderColumns['company_contact'])) {
+        $q->orWhere('riders.company_contact', 'like', $like);
+      }
+      if (isset($riderColumns['emirate_id'])) {
+        $q->orWhere('riders.emirate_id', 'like', $like);
+      }
+      if (isset($riderColumns['person_code'])) {
+        $q->orWhere('riders.person_code', 'like', $like);
+      }
+      if (isset($riderColumns['passport'])) {
+        $q->orWhere('riders.passport', 'like', $like);
+      }
+      if (isset($riderColumns['nationality'])) {
+        $q->orWhereExists(function ($subQuery) use ($like) {
+          $subQuery->select(\DB::raw(1))
+            ->from('countries')
+            ->whereColumn('countries.id', 'riders.nationality')
+            ->where('countries.name', 'like', $like);
+        });
+      }
+      if (isset($riderColumns['rider_status'])) {
+        $q->orWhere('riders.rider_status', 'like', $like);
+      }
+
+      $q->orWhereExists(function ($subQuery) use ($like) {
+        $subQuery->select(\DB::raw(1))
+          ->from('bikes')
+          ->whereColumn('bikes.rider_id', 'riders.id')
+          ->where('bikes.plate', 'like', $like);
+      });
+
+      // Match employment status labels (Active / Inactive / …)
+      $statusCodes = [];
+      foreach ([0, 1, 2, 3, 4, 5] as $code) {
+        $label = Riders::employmentStatusDisplay($code)['label'] ?? '';
+        if ($label !== '' && stripos($label, $search) !== false) {
+          $statusCodes[] = $code;
+        }
+      }
+      if ($statusCodes !== []) {
+        $q->orWhereIn('riders.status', $statusCodes);
+      }
+
+      if (stripos($search, 'active') !== false) {
+        $q->orWhereExists(function ($subQuery) {
+          $subQuery->select(\DB::raw(1))
+            ->from('bikes')
+            ->whereColumn('bikes.rider_id', 'riders.id')
+            ->where('bikes.warehouse', '=', 'Active');
+        });
+      }
+      if (stripos($search, 'inactive') !== false) {
+        $q->orWhereNotExists(function ($subQuery) {
+          $subQuery->select(\DB::raw(1))
+            ->from('bikes')
+            ->whereColumn('bikes.rider_id', 'riders.id')
+            ->where('bikes.warehouse', '=', 'Active');
+        });
+      }
+    });
+  }
+
+  /**
+   * Favorites first, then active employment status, then caller-supplied orderings.
+   *
+   * @param  list<int>  $favoriteIds
+   */
+  private function applyRiderListOrdering($query, array $favoriteIds = []): void
+  {
+    if ($favoriteIds !== []) {
+      $ids = implode(',', array_map('intval', $favoriteIds));
+      $query->orderByRaw("CASE WHEN riders.id IN ({$ids}) THEN 0 ELSE 1 END");
+    }
+    $query->orderByRaw('CASE WHEN riders.status = 1 THEN 0 ELSE 1 END');
+  }
+
+  /**
+   * Shared index / filterAjax query builder.
+   */
+  /**
+   * Riders matching the current list filters, eager-loaded for Excel export.
+   *
+   * @return \Illuminate\Support\Collection<int, Riders>
+   */
+  private function ridersForExport(Request $request)
+  {
+    $favoriteIds = array_map('intval', auth()->user()->favorite_rider_ids ?? []);
+    $query = $this->buildRidersIndexQuery($request, $favoriteIds);
+    $query->with(['bikes', 'country', 'branch', 'customer', 'sim', 'vendor', 'account']);
+
+    return $query->get();
+  }
+
+  private function buildRidersIndexQuery(Request $request, array $favoriteIds = [])
+  {
+    $currentMonthStart = Carbon::now()->startOfMonth()->toDateString();
+    $currentMonthEnd = Carbon::now()->endOfMonth()->toDateString();
+
+    $indexSelect = array_merge(
+      [
+        'riders.*',
+        \DB::raw('COALESCE(ra.days_count, 0) as days_count'),
+      ],
+      Riders::employmentStatusDaysSelectColumns()
+    );
+
+    $query = Riders::query()
+      ->leftJoin(
+        \DB::raw("(SELECT rider_id, COUNT(date) as days_count 
+                   FROM rider_activities 
+                   WHERE date BETWEEN '{$currentMonthStart}' AND '{$currentMonthEnd}' 
+                   GROUP BY rider_id) as ra"),
+        'riders.id',
+        '=',
+        'ra.rider_id'
+      )
+      ->select($indexSelect)
+      ->with(['branch', 'customer', 'bikes']);
+
+    $this->applyRiderListOrdering($query, $favoriteIds);
+    $query->orderBy('days_count', 'asc')->orderBy('riders.id', 'desc');
+
+    if ($request->filled('rider_id')) {
+      $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
+    }
+    if ($request->filled('branch_id')) {
+      $query->where('riders.branch_id', $request->branch_id);
+    }
+    if ($request->filled('name')) {
+      $query->where('riders.name', 'like', '%' . $request->name . '%');
+    }
+    if ($request->filled('fleet_supervisor')) {
+      $query->where('riders.fleet_supervisor', $request->fleet_supervisor);
+    }
+    if ($request->filled('hub')) {
+      $query->where('riders.hub', $request->hub);
+    }
+    if ($request->filled('customer_id')) {
+      $query->where('riders.customer_id', $request->customer_id);
+    }
+    $this->applyModuleTopBarFilters($query, $request, 'riders');
+    if ($request->filled('attendance')) {
+      $query->where('riders.attendance', $request->attendance);
+    }
+    $riderStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('rider_status'));
+    if ($riderStatusKeys !== []) {
+      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
+    }
+    $this->applyBikeAssignmentStatusFilter($query, $request);
+    $this->applyRiderQuickSearch($query, $request->input('quick_search'));
+
+    return $query;
   }
 
   /**
@@ -221,18 +413,19 @@ class RidersController extends AppBaseController
       ->all();
 
     // Always expose list columns that are useful in column control even when they are
-    // hidden from Rider Settings forms (project/designation) or removed from the riders schema (company contact / SIM).
-    $alwaysInclude = ['status', 'customer_id', 'company_contact', 'designation'];
+    // hidden from Rider Settings forms (project/designation) or SIM-managed (company contact).
+    $alwaysInclude = ['status', 'customer_id', 'personal_contact', 'company_contact', 'designation'];
 
     $dbColumns = array_values(array_unique(array_merge(
       $assignedFixedColumns,
       array_values(array_filter($alwaysInclude, function ($key) {
-        return $key === 'company_contact' || Schema::hasColumn('riders', $key);
+        return Schema::hasColumn('riders', $key);
       }))
     )));
 
     $assignedCustomFields = RiderCustomField::query()
       ->whereNotNull('category_id')
+      ->whereRaw("LOWER(TRIM(label)) != ?", ['personal contact'])
       ->orderBy('display_order')
       ->orderBy('id')
       ->get(['id', 'label']);
@@ -240,6 +433,7 @@ class RidersController extends AppBaseController
     $preferredOrder = [
       'rider_id',
       'name',
+      'personal_contact',
       'company_contact',
       'fleet_supervisor',
       'customer_id',
@@ -255,6 +449,7 @@ class RidersController extends AppBaseController
         'dob' => 'Date of Birth',
         'doj' => 'Date of Joining',
         'customer_id' => 'Project',
+        'personal_contact' => 'Personal Contact',
         'company_contact' => 'Company Contact',
         'designation' => 'Designation',
         'recruiter_id' => 'Recruiter',
@@ -444,46 +639,41 @@ class RidersController extends AppBaseController
       $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isRequired);
     }
 
-    if ($ignoreRiderId !== null) {
-      // Keep unique constraints on update, but do not force required — Field Permissions decide that.
-      $riderIdRule = $rules['rider_id'] ?? 'nullable';
-      $riderIdTokens = is_array($riderIdRule) ? $riderIdRule : explode('|', (string) $riderIdRule);
-      $riderIdTokens = array_values(array_filter($riderIdTokens, function ($token) {
-        return ! (is_string($token) && (str_starts_with($token, 'unique:') || $token === 'required' || $token === 'nullable'));
-      }));
-      $riderIdRequired = \App\Support\RoleFieldAccess::isRequired('rider', 'rider_id')
-        && \App\Support\RoleFieldAccess::canEdit('rider', 'rider_id');
-      array_unshift($riderIdTokens, $riderIdRequired ? 'required' : 'nullable');
-      $riderIdTokens[] = Rule::unique('riders', 'rider_id')->ignore($ignoreRiderId);
-      $rules['rider_id'] = $riderIdTokens;
-
-      $nameRule = $rules['name'] ?? 'nullable|string|max:191';
-      $nameTokens = is_array($nameRule) ? $nameRule : explode('|', (string) $nameRule);
-      $nameTokens = array_values(array_filter($nameTokens, function ($token) {
-        return ! (is_string($token) && (str_starts_with($token, 'unique:') || $token === 'required' || $token === 'nullable'));
-      }));
-      $nameRequired = \App\Support\RoleFieldAccess::isRequired('rider', 'name')
-        && \App\Support\RoleFieldAccess::canEdit('rider', 'name');
-      array_unshift($nameTokens, $nameRequired ? 'required' : 'nullable');
-      if (! in_array('string', $nameTokens, true)) {
-        $nameTokens[] = 'string';
+    // Replace string unique:* rules so soft-deleted riders are excluded on create and update.
+    foreach ($this->riderUniqueFieldKeys() as $uniqueKey) {
+      if (! isset($riderColumns[$uniqueKey])) {
+        continue;
       }
-      if (! in_array('max:191', $nameTokens, true)) {
-        $nameTokens[] = 'max:191';
-      }
-      $nameTokens[] = Rule::unique('riders', 'name')->ignore($ignoreRiderId);
-      $rules['name'] = $nameTokens;
-
-      $passportRule = $rules['passport'] ?? 'nullable|string|max:191';
-      $passportTokens = is_array($passportRule) ? $passportRule : explode('|', (string) $passportRule);
-      $passportTokens = array_values(array_filter($passportTokens, function ($token) {
+      $baseRule = $rules[$uniqueKey] ?? 'nullable|string|max:191';
+      $tokens = is_array($baseRule) ? $baseRule : explode('|', (string) $baseRule);
+      $tokens = array_values(array_filter($tokens, function ($token) {
         return ! (is_string($token) && str_starts_with($token, 'unique:'));
       }));
-      $passportTokens[] = Rule::unique('riders', 'passport')->ignore($ignoreRiderId);
-      $rules['passport'] = $passportTokens;
+      $uniqueRule = $this->riderUniqueFieldRule($uniqueKey, $ignoreRiderId);
+      if ($uniqueRule !== null) {
+        $tokens[] = $uniqueRule;
+      }
+      $rules[$uniqueKey] = $tokens;
     }
 
     return array_merge($rules, $this->dynamicFieldRules());
+  }
+
+  /**
+   * @return list<string>
+   */
+  private function riderUniqueFieldKeys(): array
+  {
+    return ['rider_id', 'name', 'passport'];
+  }
+
+  private function riderUniqueFieldRule(string $column, ?int $ignoreRiderId = null): ?\Illuminate\Validation\Rules\Unique
+  {
+    if (! Schema::hasColumn('riders', $column)) {
+      return null;
+    }
+
+    return CompanyScope::unique('riders', $column, $ignoreRiderId);
   }
 
   public function __construct(RidersRepository $ridersRepo)
@@ -500,103 +690,17 @@ class RidersController extends AppBaseController
       abort(403, 'Unauthorized action.');
     }
 
-    // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-
-    $currentMonthStart = Carbon::now()->startOfMonth()->toDateString();
-    $currentMonthEnd = Carbon::now()->endOfMonth()->toDateString();
-
-    $indexSelect = array_merge(
-      [
-        'riders.*',
-        \DB::raw('COALESCE(ra.days_count, 0) as days_count'),
-      ],
-      Riders::employmentStatusDaysSelectColumns()
-    );
-
-    $query = Riders::query()
-      ->leftJoin(
-        \DB::raw("(SELECT rider_id, COUNT(date) as days_count 
-                   FROM rider_activities 
-                   WHERE date BETWEEN '{$currentMonthStart}' AND '{$currentMonthEnd}' 
-                   GROUP BY rider_id) as ra"),
-        'riders.id',
-        '=',
-        'ra.rider_id'
-      )
-      ->select($indexSelect)
-      ->orderBy('days_count', 'asc')
-      ->with(['branch', 'customer', 'sim', 'bikes']);
-    if ($request->filled('rider_id')) {
-      $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
-    }
-    if ($request->filled('branch_id')) {
-      $query->where('riders.branch_id', $request->branch_id);
-    }
-    if ($request->filled('name')) {
-      $query->where('riders.name', 'like', '%' . $request->name . '%');
-    }
-    if ($request->filled('fleet_supervisor')) {
-      $query->where('riders.fleet_supervisor', $request->fleet_supervisor);
-    }
-    if ($request->filled('hub')) {
-      $query->where('riders.hub', $request->hub);
-    }
-    if ($request->filled('customer_id')) {
-      $query->where('riders.customer_id', $request->customer_id);
-    }
-    $this->applyModuleTopBarFilters($query, $request, 'riders');
-    if ($request->filled('attendance')) {
-      $query->where('riders.attendance', $request->attendance);
-    }
-    // Filter by rider status (active = 1, inactive = not 1)
-    $riderStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('rider_status'));
-    if ($riderStatusKeys !== []) {
-      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
-    }
-    $this->applyBikeAssignmentStatusFilter($query, $request);
-    if ($request->filled('quick_search')) {
-      $search = $request->input('quick_search');
-
-      // Use exists/subqueries instead of joins to avoid ambiguous columns
-      // when combined with other filters (customer_id, status, etc.).
-      $query->where(function ($q) use ($search) {
-        $q->where('riders.name', 'like', "%{$search}%")
-          ->orWhere('riders.rider_id', 'like', "%{$search}%")
-          ->orWhere('riders.fleet_supervisor', 'like', "%{$search}%")
-          ->orWhere('riders.customer_id', 'like', "%{$search}%")
-          ->orWhereExists(function ($subQuery) use ($search) {
-            $subQuery->select(\DB::raw(1))
-              ->from('customers')
-              ->whereColumn('customers.id', 'riders.customer_id')
-              ->where('customers.name', 'like', "%{$search}%");
-          });
-        if (stripos($search, 'active') !== false) {
-          $q->orWhereExists(function ($subQuery) {
-            $subQuery->select(\DB::raw(1))
-              ->from('bikes')
-              ->whereColumn('bikes.rider_id', 'riders.id')
-              ->where('bikes.warehouse', '=', 'Active');
-          });
-        }
-        if (stripos($search, 'inactive') !== false) {
-          $q->orWhereNotExists(function ($subQuery) {
-            $subQuery->select(\DB::raw(1))
-              ->from('bikes')
-              ->whereColumn('bikes.rider_id', 'riders.id')
-              ->where('bikes.warehouse', '=', 'Active');
-          });
-        }
-      });
-    }
-
-    // Apply pagination using the trait
+    $favoriteIds = array_map('intval', auth()->user()->favorite_rider_ids ?? []);
+    $query = $this->buildRidersIndexQuery($request, $favoriteIds);
     $data = $this->applyPagination($query, $paginationParams);
 
     return view('riders.index', array_merge([
       'data' => $data,
       'tableColumns' => $this->buildRidersIndexTableColumns(),
       'riderTopStatusFilterOptions' => $this->riderTopStatusFilterOptions(),
+      'hideModuleTopBarSlider' => true,
+      'favoriteRiderIds' => $favoriteIds,
     ], $this->moduleTopBarListingData($request, 'riders')));
   }
 
@@ -605,110 +709,20 @@ class RidersController extends AppBaseController
    */
   public function filterAjax(Request $request)
   {
-    // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-
-    $currentMonthStart = Carbon::now()->startOfMonth()->toDateString();
-    $currentMonthEnd = Carbon::now()->endOfMonth()->toDateString();
-
-    $indexSelect = array_merge(
-      [
-        'riders.*',
-        \DB::raw('COALESCE(ra.days_count, 0) as days_count'),
-      ],
-      Riders::employmentStatusDaysSelectColumns()
-    );
-
-    $query = Riders::query()
-      ->leftJoin(
-        \DB::raw("(SELECT rider_id, COUNT(date) as days_count 
-                   FROM rider_activities 
-                   WHERE date BETWEEN '{$currentMonthStart}' AND '{$currentMonthEnd}' 
-                   GROUP BY rider_id) as ra"),
-        'riders.id',
-        '=',
-        'ra.rider_id'
-      )
-      ->select($indexSelect)
-      ->orderBy('days_count', 'desc')
-      ->orderBy('riders.id', 'desc')
-      ->with(['branch', 'customer', 'sim', 'bikes']);
-
-    if ($request->filled('rider_id')) {
-      $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
-    }
-    if ($request->filled('name')) {
-      $query->where('riders.name', 'like', '%' . $request->name . '%');
-    }
-    if ($request->filled('fleet_supervisor')) {
-      $query->where('riders.fleet_supervisor', $request->fleet_supervisor);
-    }
-    if ($request->filled('hub')) {
-      $query->where('riders.hub', $request->hub);
-    }
-    if ($request->filled('customer_id')) {
-      $query->where('riders.customer_id', $request->customer_id);
-    }
-    $this->applyModuleTopBarFilters($query, $request, 'riders');
-    if ($request->filled('attendance')) {
-      $query->where('riders.attendance', $request->attendance);
-    }
-
-    // Filter by rider status (active = 1, inactive = not 1)
-    $riderStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('rider_status'));
-    if ($riderStatusKeys !== []) {
-      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
-    }
-
-    $this->applyBikeAssignmentStatusFilter($query, $request);
-
-    if ($request->filled('quick_search')) {
-      $search = $request->input('quick_search');
-
-      $query->where(function ($q) use ($search) {
-        $q->where('riders.name', 'like', "%{$search}%")
-          ->orWhere('riders.rider_id', 'like', "%{$search}%")
-          ->orWhere('riders.fleet_supervisor', 'like', "%{$search}%")
-          ->orWhere('riders.customer_id', 'like', "%{$search}%")
-          ->orWhereExists(function ($subQuery) use ($search) {
-            $subQuery->select(\DB::raw(1))
-              ->from('customers')
-              ->whereColumn('customers.id', 'riders.customer_id')
-              ->where('customers.name', 'like', "%{$search}%");
-          });
-        if (stripos($search, 'active') !== false) {
-          $q->orWhereExists(function ($subQuery) {
-            $subQuery->select(\DB::raw(1))
-              ->from('bikes')
-              ->whereColumn('bikes.rider_id', 'riders.id')
-              ->where('bikes.warehouse', '=', 'Active');
-          });
-        }
-        if (stripos($search, 'inactive') !== false) {
-          $q->orWhereNotExists(function ($subQuery) {
-            $subQuery->select(\DB::raw(1))
-              ->from('bikes')
-              ->whereColumn('bikes.rider_id', 'riders.id')
-              ->where('bikes.warehouse', '=', 'Active');
-          });
-        }
-      });
-    }
-
-    // Apply pagination using the trait
+    $favoriteIds = array_map('intval', auth()->user()->favorite_rider_ids ?? []);
+    $query = $this->buildRidersIndexQuery($request, $favoriteIds);
     $data = $this->applyPagination($query, $paginationParams);
 
     $tableData = view('riders.table', [
       'data' => $data,
       'tableColumns' => $this->buildRidersIndexTableColumns(),
+      'favoriteRiderIds' => $favoriteIds,
     ])->render();
 
-    // Use global pagination component
-    if (method_exists($data, 'links')) {
-      $paginationLinks = $data->links('components.global-pagination')->render();
-    } else {
-      $paginationLinks = '';
-    }
+    $paginationLinks = method_exists($data, 'total')
+      ? view('components.riders-demo-pagination', ['paginator' => $data])->render()
+      : '';
 
     return response()->json([
       'success' => true,
@@ -778,6 +792,7 @@ class RidersController extends AppBaseController
       $account->parent_id = $parentAccount;
       $account->ref_id = $riders->id;
       $account->branch_id = $riders->branch_id;
+      $account->is_locked = true;
       $account->save();
 
       if ($items) {
@@ -868,10 +883,12 @@ class RidersController extends AppBaseController
     // $rider_items = $rider->items;
     $result = $rider->toArray();
     $job_status = JobStatus::where('RID', $id)->orderByDesc('id')->get();
-    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm();
+    $fieldsByCategory = RiderCustomField::appendCompanyContactProfileField(
+      RiderCustomField::fieldsByCategoryForForm()
+    );
 
     // Get dropdown data for edit forms
-    $countries = Countries::pluck('name', 'id')->prepend('Select', '');
+    $countries = Countries::query()->orderBy('name')->pluck('name', 'id')->prepend('Select', '');
     $vendors = Vendors::pluck('name', 'id')->prepend('Select', '');
     $customers = Customers::pluck('name', 'id')->prepend('Select', '');
 
@@ -1016,23 +1033,17 @@ class RidersController extends AppBaseController
 
     $isAdministrator = Auth::user()?->isAdmin() === true;
 
-    // Non-administrators cannot delete a rider that still has ledger or related records.
+    // Block before any delete request / soft-delete when the linked account has activity.
+    if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($riders), 'Rider')) {
+      return delete_error_response($blockReason, route('riders.index'));
+    }
+
+    // Non-administrators cannot delete a rider that still has related records.
     // Administrators may proceed and also remove the Chart of Accounts account (soft delete).
     if (! $isAdministrator) {
-      // Check if rider account has any transactions (like Banks does)
-      if ($riders->account_id) {
-        $accountTransactions = Transactions::where('account_id', $riders->account_id)->count();
-        if ($accountTransactions > 0) {
-          return delete_error_response(
-            'Cannot delete rider. The rider account has ' . $accountTransactions . ' transaction(s). Please remove all transactions first.',
-            route('riders.index')
-          );
-        }
-      }
-
       // Check if rider has any vouchers (by ref_id or rider_id)
       $vouchersCount = Vouchers::where(function ($query) use ($id) {
-        $query->where('ref_id', $id);
+        $query->where('ref_id', $id)->orWhere('rider_id', $id);
       })->count();
 
       if ($vouchersCount > 0) {
@@ -1502,6 +1513,7 @@ class RidersController extends AppBaseController
       $account->ref_name = 'Rider';
       $account->parent_id = $parentAccount->id;
       $account->ref_id = $rider->id;
+      $account->is_locked = true;
       $account->save();
 
       $rider->account_id = $account->id;
@@ -1783,14 +1795,25 @@ class RidersController extends AppBaseController
 
     $data = $query->orderBy('date', 'desc')->get();
 
-    // Calculate totals from database
+    // Match Valid Day badge logic used in the activities table.
+    $dayStatus = static function ($item): string {
+      $orders = (float) ($item->delivered_orders ?? 0);
+      $hours = (float) ($item->login_hr ?? 0);
+      if ($hours == 0.0) {
+        return 'off';
+      }
+      if (($orders >= 5 && $hours >= 10) || ($orders >= 10)) {
+        return 'valid';
+      }
+
+      return 'invalid';
+    };
+
     $totals = [
       'working_days' => $data->count(),
-      'valid_days' => $data->where('delivery_rating', 'Yes')->count(),
-      'invalid_days' => $data->where('delivery_rating', 'No')->count(),
-      'off_days' => $data->filter(function ($item) {
-        return $item->delivery_rating != 'Yes' && $item->delivery_rating != 'No';
-      })->count(),
+      'valid_days' => $data->filter(fn($item) => $dayStatus($item) === 'valid')->count(),
+      'invalid_days' => $data->filter(fn($item) => $dayStatus($item) === 'invalid')->count(),
+      'off_days' => $data->filter(fn($item) => $dayStatus($item) === 'off')->count(),
       'total_orders' => $data->sum('delivered_orders'),
       'total_rejected' => $data->sum('rejected_orders'),
       'total_hours' => $data->sum('login_hr'),
@@ -1959,6 +1982,8 @@ class RidersController extends AppBaseController
    */
   public function importVouchers(Request $request)
   {
+    RiderVoucherPermissions::authorize('IMPORT', $request->isMethod('post') ? 'create' : 'view');
+
     if ($request->isMethod('post')) {
       $request->validate([
         'file' => 'required|mimes:xlsx|max:50000',
@@ -1985,6 +2010,8 @@ class RidersController extends AppBaseController
    */
   public function importRiderVouchers(Request $request)
   {
+    RiderVoucherPermissions::authorize('IMPORT', $request->isMethod('post') ? 'create' : 'view');
+
     if ($request->isMethod('post')) {
       $request->validate([
         'file' => 'required|mimes:xlsx|max:50000',
@@ -1994,8 +2021,24 @@ class RidersController extends AppBaseController
 
       try {
         Excel::import(new ImportRiderVoucherOnly, $request->file('file'));
+
+        if ($request->expectsJson() || $request->ajax()) {
+          return response()->json([
+            'success' => true,
+            'message' => 'Rider vouchers imported successfully.',
+            'reload' => true,
+          ]);
+        }
+
         Flash::success('Rider vouchers imported successfully.');
       } catch (\Throwable $e) {
+        if ($request->expectsJson() || $request->ajax()) {
+          return response()->json([
+            'success' => false,
+            'message' => 'Error importing rider vouchers: ' . $e->getMessage(),
+          ], 422);
+        }
+
         Flash::error('Error importing rider vouchers: ' . $e->getMessage());
       }
 
@@ -2027,6 +2070,7 @@ class RidersController extends AppBaseController
 
   public function advanceloan($company_slug, $rider_id)
   {
+    RiderVoucherPermissions::authorize('AL', 'create');
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
@@ -2043,58 +2087,33 @@ class RidersController extends AppBaseController
 
       return redirect(route('riders.index'));
     }
-    $expectedFiles = RiderDocumentType::expectedFilesStructure();
 
     $files = CompanyQuery::table('files')
       ->where('type', 'rider')
       ->where('type_id', $rider_id)
       ->get();
 
+    $checklist = RiderDocumentChecklist::forRider($riders);
+    $uploadedCount = collect($checklist)->where('status', 'complete')->count();
+    $pendingCount = collect($checklist)->whereIn('status', ['missing', 'partial'])->count();
     $missingFiles = [];
-    $fileStatus = [];
-
-    // Check single documents
-    foreach ($expectedFiles['single'] as $key => $name) {
-      $found = false;
-      foreach ($files as $riderFile) {
-        if (str_contains(strtolower($riderFile->name), $key)) {
-          $found = true;
-          break;
-        }
+    foreach ($checklist as $row) {
+      if ($row['status'] === 'complete') {
+        continue;
       }
-
-      if (! $found) {
-        $missingFiles[$key] = $name;
+      if ($row['kind'] === 'dual') {
+        if (empty($row['front_file'])) {
+          $missingFiles[$row['key'] . '_front'] = ($row['front_label'] ?: 'Front') . ' — ' . $row['label'];
+        }
+        if (empty($row['back_file'])) {
+          $missingFiles[$row['key'] . '_back'] = ($row['back_label'] ?: 'Back') . ' — ' . $row['label'];
+        }
+      } else {
+        $missingFiles[$row['key']] = $row['label'];
       }
     }
 
-    // Check dual documents (match file name containing key + front/first or back/second)
-    foreach ($expectedFiles['dual'] as $key => $sides) {
-      $foundFront = false;
-      $foundBack = false;
-      foreach ($files as $riderFile) {
-        $name = strtolower($riderFile->name);
-        if (! str_contains($name, $key)) {
-          continue;
-        }
-        if (str_contains($name, 'back') || str_contains($name, 'second')) {
-          $foundBack = true;
-        } elseif (str_contains($name, 'front') || str_contains($name, 'first')) {
-          $foundFront = true;
-        } else {
-          $foundBack = true;
-          $foundFront = true;
-        }
-      }
-      if (! $foundFront) {
-        $missingFiles[$key . '_front'] = $sides['front'];
-      }
-      if (! $foundBack) {
-        $missingFiles[$key . '_back'] = $sides['back'];
-      }
-    }
-
-    return view('riders.document', compact('missingFiles', 'files', 'riders'));
+    return view('riders.document', compact('missingFiles', 'files', 'riders', 'checklist', 'uploadedCount', 'pendingCount'));
   }
 
   public function inventory($company_slug, $rider_id)
@@ -2408,9 +2427,89 @@ class RidersController extends AppBaseController
     return view('riders.send_email', compact('rider', 'emailBranding'));
   }
 
-  public function exportRiders()
+  public function exportRiders(Request $request)
   {
-    return Excel::download(new RiderExport, 'Riders_export_' . now() . '.xlsx');
+    $riders = $this->ridersForExport($request);
+
+    return Excel::download(new RiderExport($riders), 'Riders_export_' . now() . '.xlsx');
+  }
+
+  /**
+   * Download blank or sample master rider import template.
+   */
+  public function importRidersTemplate(Request $request)
+  {
+    if (! \App\Support\RoleFieldAccess::canAccessModule('rider') || ! auth()->user()?->can('riders_rider_create')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    return app(\App\Services\Rider\RiderMasterImportService::class)->downloadTemplate($request->boolean('sample'));
+  }
+
+  /**
+   * Preview master rider import (xlsx/csv) without saving.
+   */
+  public function importRidersPreview(Request $request)
+  {
+    if (! \App\Support\RoleFieldAccess::canAccessModule('rider') || ! auth()->user()?->can('riders_rider_create')) {
+      return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+    }
+
+    $request->validate([
+      'file' => 'required|file|mimes:xlsx,xls,csv,txt|max:10240',
+    ]);
+
+    try {
+      $result = app(\App\Services\Rider\RiderMasterImportService::class)->preview($request->file('file'));
+
+      return response()->json([
+        'success' => true,
+        'rows' => $result['rows'],
+        'counts' => $result['counts'],
+        'ignored' => $result['ignored'],
+      ]);
+    } catch (\InvalidArgumentException $e) {
+      return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+    } catch (\Throwable $e) {
+      Log::error('Rider import preview failed: ' . $e->getMessage());
+
+      return response()->json(['success' => false, 'message' => 'Could not read this file'], 422);
+    }
+  }
+
+  /**
+   * Commit previewed master rider import rows.
+   */
+  public function importRidersCommit(Request $request)
+  {
+    if (! \App\Support\RoleFieldAccess::canAccessModule('rider') || ! auth()->user()?->can('riders_rider_create')) {
+      return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+    }
+
+    $rows = $request->input('rows', []);
+    if (! is_array($rows) || $rows === []) {
+      return response()->json(['success' => false, 'message' => 'No rows to import'], 422);
+    }
+
+    try {
+      $result = app(\App\Services\Rider\RiderMasterImportService::class)->commit($rows);
+      $msg = 'Import finished: ' . $result['saved'] . ' saved';
+      if ($result['skipped'] > 0) {
+        $msg .= ', ' . $result['skipped'] . ' skipped';
+      }
+
+      return response()->json([
+        'success' => true,
+        'message' => $msg,
+        'saved' => $result['saved'],
+        'skipped' => $result['skipped'],
+        'errors' => $result['errors'],
+      ]);
+    } catch (\Throwable $e) {
+      Log::error('Rider import commit failed: ' . $e->getMessage());
+
+      return response()->json(['success' => false, 'message' => 'Import failed: ' . $e->getMessage()], 500);
+    }
   }
 
   public function exportCustomizableRiders(Request $request)
@@ -2438,17 +2537,11 @@ class RidersController extends AppBaseController
       }
     }
 
-    // Get current filters from session or request
-    $filters = [
-      'rider_id' => $request->input('rider_id') ?: session('riders_filter.rider_id'),
-      'name' => $request->input('name') ?: session('riders_filter.name'),
-      'fleet_supervisor' => $request->input('fleet_supervisor') ?: session('riders_filter.fleet_supervisor'),
-      'status' => $request->input('status') ?: session('riders_filter.status'),
-      'quick_search' => $request->input('quick_search') ?: session('riders_filter.quick_search'),
-    ];
+    // Use the same filtered query as the riders list (top-bar cards, sidebar, quick search, etc.)
+    $riders = $this->ridersForExport($request);
 
     // Create customizable export
-    $export = new CustomizableRiderExport($visibleColumns, $columnOrder, $filters);
+    $export = new CustomizableRiderExport($visibleColumns, $columnOrder, [], $riders);
 
     // Generate filename with format
     $timestamp = now()->format('Y-m-d_H-i-s');
@@ -3147,14 +3240,9 @@ class RidersController extends AppBaseController
   public function storeadvanceloan(Request $request)
   {
     try {
-      if (! VoucherType::isCodeAllowedForModule('AL', 'riders')) {
-        return response()->json(['errors' => ['error' => 'Advance Loan voucher type (AL) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
-      }
-      \DB::beginTransaction();
-
+      RiderVoucherPermissions::authorize('AL', 'create');
       $this->mergeVoucherBranchId($request);
 
-      // Validate the request
       $request->validate([
         'account_id' => 'required|array|min:2',
         'account_id.*' => 'required|integer',
@@ -3163,102 +3251,48 @@ class RidersController extends AppBaseController
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
         'branch_id' => 'nullable|numeric|exists:branches,id',
+        'invoice_id' => 'nullable|numeric|exists:rider_invoices,id',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
       ]);
 
-      // Get rider account (first entry should be the rider's liability account)
       $riderAccountId = $request->account_id[0];
-
-      if (empty($riderAccountId)) {
-        throw new \Exception('Rider account ID is required');
-      }
-
-      $riderAccount = Accounts::find($riderAccountId);
-
-      if (! $riderAccount) {
-        throw new \Exception('Rider account not found with ID: ' . $riderAccountId);
-      }
-
-      // Get the second account (credit account - should be Advance Loan account)
       $creditAccountId = $request->account_id[1];
-
-      // Get amounts
-      $riderAmount = $request->dr_amount[0] ?? 0;
-      $creditAmount = $request->dr_amount[1] ?? 0;
-
-      // Use the first amount for both entries if only one amount is provided
-      if ($creditAmount == 0) {
-        $creditAmount = $riderAmount;
+      $riderAmount = (float) ($request->dr_amount[0] ?? 0);
+      if ($riderAmount < 0.01) {
+        $riderAmount = (float) ($request->dr_amount[1] ?? 0);
       }
 
-      // Generate transaction code
-      $transCode = Account::trans_code();
-
-      // Create voucher entry
-      $voucherData = [
-        'trans_date' => $request->trans_date ?? date('Y-m-d'),
-        'voucher_type' => 'AL', // Advance Loan
-        'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => $creditAccountId,
-        'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
+      $result = app(RiderAdvanceLoanService::class)->create([
+        'rider_account_id' => (int) $riderAccountId,
+        'bank_account_id' => (int) $creditAccountId,
         'amount' => $riderAmount,
-        'remarks' => 'Advance Loan to Rider',
-        'ref_id' => $riderAccount->ref_id, // Rider ID
+        'trans_date' => $request->trans_date ?? date('Y-m-d'),
+        'billing_month' => $request->billing_month ?? null,
         'reference_number' => $request->reference_number ?? null,
-        'trans_code' => $transCode,
-        'Created_By' => auth()->id(),
-        'status' => 1,
+        'payment_type' => $request->payment_type ?? 1,
         'branch_id' => $request->input('branch_id') ?: null,
+        'invoice_id' => $request->filled('invoice_id') ? (int) $request->invoice_id : null,
+        'debit_narration' => $request->narration[0] ?? 'Advance Loan Received',
+        'credit_narration' => $request->narration[1] ?? null,
+        'remarks' => 'Advance Loan to Rider',
         'custom_field_values' => $request->input('voucher_custom_fields', []),
-      ];
+        'attach_file' => $this->storeRiderVoucherAttachmentFile($request, 'AL'),
+      ]);
 
-      $voucher = Vouchers::create($voucherData);
-
-      // Create debit transaction for rider account (first entry)
-      $debitTransaction = [
-        'account_id' => $riderAccountId,
-        'reference_id' => $voucher->id,
-        'reference_type' => 'AL',
-        'trans_code' => $transCode,
-        'trans_date' => $voucherData['trans_date'],
-        'narration' => $request->narration[0] ?? 'Advance Loan Received',
-        'debit' => $riderAmount,
-        'branch_id' => $request->input('branch_id') ?: null,
-        'billing_month' => $voucherData['billing_month'],
-        'created_By' => auth()->id(),
-      ];
-
-      Transactions::create($debitTransaction);
-
-      // Create credit transaction for advance loan account (second entry)
-      $creditTransaction = [
-        'account_id' => $creditAccountId,
-        'reference_id' => $voucher->id,
-        'reference_type' => 'AL',
-        'trans_code' => $transCode,
-        'trans_date' => $voucherData['trans_date'],
-        'narration' => $request->narration[1] ?? 'Advance Loan Given to ' . $riderAccount->name,
-        'credit' => $creditAmount,
-        'billing_month' => $voucherData['billing_month'],
-        'Created_By' => auth()->id(),
-        'branch_id' => $request->input('branch_id') ?: null,
-      ];
-
-      Transactions::create($creditTransaction);
-
-      \DB::commit();
-
-      // Return success response
       return response()->json([
         'success' => true,
         'message' => 'Advance loan recorded successfully',
-        'voucher_id' => $voucher->id,
-        'trans_code' => $transCode,
+        'voucher_id' => $result['voucher']->id,
+        'trans_code' => $result['trans_code'],
         'reload' => true,
       ]);
+    } catch (\InvalidArgumentException $e) {
+      return response()->json([
+        'success' => false,
+        'message' => $e->getMessage(),
+        'errors' => ['error' => $e->getMessage()],
+      ], 422);
     } catch (\Exception $e) {
-      \DB::rollback();
-
-      // Log the request data for debugging
       \Log::error('Advance loan error', [
         'request_data' => $request->all(),
         'error' => $e->getMessage(),
@@ -3279,6 +3313,7 @@ class RidersController extends AppBaseController
 
   public function cod($company_slug, $rider_id)
   {
+    RiderVoucherPermissions::authorize('COD', 'create');
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
@@ -3289,6 +3324,7 @@ class RidersController extends AppBaseController
 
   public function penalty($company_slug, $rider_id)
   {
+    RiderVoucherPermissions::authorize('PN', 'create');
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
@@ -3300,6 +3336,7 @@ class RidersController extends AppBaseController
   public function storecod(Request $request)
   {
     try {
+      RiderVoucherPermissions::authorize('COD', 'create');
       if (! VoucherType::isCodeAllowedForModule('COD', 'riders')) {
         return response()->json(['errors' => ['error' => 'COD voucher type is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
       }
@@ -3316,6 +3353,7 @@ class RidersController extends AppBaseController
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
         'branch_id' => 'nullable|numeric|exists:branches,id',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3351,7 +3389,10 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'COD', // COD
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => GlobalAccounts::id('COD_ACCOUNT'),
+        // Prefer configured COD_ACCOUNT; otherwise the selected credit account / COD_PARENT.
+        'payment_from' => GlobalAccounts::idOrNull('COD_ACCOUNT')
+          ?: (int) $creditAccountId
+          ?: GlobalAccounts::id('COD_PARENT'),
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
         'remarks' => 'COD Amount to Rider',
@@ -3362,6 +3403,7 @@ class RidersController extends AppBaseController
         'status' => 1,
         'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
+        'attach_file' => $this->storeRiderVoucherAttachmentFile($request, 'COD'),
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -3432,6 +3474,7 @@ class RidersController extends AppBaseController
   public function storepenalty(Request $request)
   {
     try {
+      RiderVoucherPermissions::authorize('PN', 'create');
       if (! VoucherType::isCodeAllowedForModule('PN', 'riders')) {
         return response()->json(['errors' => ['error' => 'Penalty voucher type (PN) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
       }
@@ -3448,6 +3491,7 @@ class RidersController extends AppBaseController
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
         'branch_id' => 'nullable|numeric|exists:branches,id',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3494,6 +3538,7 @@ class RidersController extends AppBaseController
         'status' => 1,
         'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
+        'attach_file' => $this->storeRiderVoucherAttachmentFile($request, 'PN'),
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -3564,6 +3609,7 @@ class RidersController extends AppBaseController
 
   public function incentive($company_slug, $rider_id)
   {
+    RiderVoucherPermissions::authorize('INC', 'create');
     $rider = $this->findAccessibleRider((int) $rider_id);
     if (empty($rider)) {
       Flash::error('Rider not found');
@@ -3579,6 +3625,7 @@ class RidersController extends AppBaseController
 
   public function payment($company_slug, $rider_id)
   {
+    RiderVoucherPermissions::authorize('PAY', 'create');
     $rider = $this->findAccessibleRider((int) $rider_id);
     if (empty($rider)) {
       Flash::error('Rider not found');
@@ -3598,6 +3645,7 @@ class RidersController extends AppBaseController
   public function storepayment(Request $request)
   {
     try {
+      RiderVoucherPermissions::authorize('PAY', 'create');
       if (! VoucherType::isCodeAllowedForModule('PAY', 'riders')) {
         return response()->json(['errors' => ['error' => 'Payment voucher type (PAY) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
       }
@@ -3660,6 +3708,7 @@ class RidersController extends AppBaseController
         'status' => 1,
         'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
+        'attach_file' => $this->storeRiderVoucherAttachmentFile($request, 'PAY'),
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -3730,6 +3779,18 @@ class RidersController extends AppBaseController
 
   public function payments(Request $request)
   {
+    if (
+      ! RiderVoucherPermissions::canAny('PAY', ['view', 'create'])
+      && ! RiderVoucherPermissions::canAny('IMPORT', ['view', 'create'])
+      && ! RiderVoucherPermissions::canAny('COD', ['view', 'create'])
+      && ! RiderVoucherPermissions::canAny('PN', ['view', 'create'])
+      && ! RiderVoucherPermissions::canAny('INC', ['view', 'create'])
+      && ! RiderVoucherPermissions::canAny('VC', ['view', 'create'])
+      && ! RiderVoucherPermissions::canAny('AL', ['view', 'create'])
+    ) {
+      abort(403, 'Unauthorized action.');
+    }
+
     $accountIds = Riders::whereNotNull('account_id')->pluck('account_id')->toArray();
 
     if (empty($accountIds)) {
@@ -3739,18 +3800,30 @@ class RidersController extends AppBaseController
     }
 
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Payment::query()->latest('date_of_payment');
-    $query->whereIn('payee_account_id', $accountIds);
+    $query = Payment::query()
+      ->with(['payeeAccount', 'voucher', 'bank.account'])
+      ->latest('date_of_payment')
+      ->whereIn('payee_account_id', $accountIds)
+      ->applyListFilters($request);
 
     $data = $this->applyPagination($query, $paginationParams);
-    $voucherTypes = $this->riderVoucherTypeOptions();
+    $banks = \App\Models\Banks::active()->get();
 
-    return view('riders.payments', compact('data', 'voucherTypes'));
+    if ($request->ajax()) {
+      $tableData = view('payments.table', compact('data'))->render();
+
+      return response()->json([
+        'tableData' => $tableData,
+      ]);
+    }
+
+    return view('riders.payments', compact('data', 'banks'));
   }
 
   public function storeincentive(Request $request)
   {
     try {
+      RiderVoucherPermissions::authorize('INC', 'create');
       if (! VoucherType::isCodeAllowedForModule('INC', 'riders')) {
         return response()->json(['errors' => ['error' => 'Incentive voucher type (INC) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
       }
@@ -3767,6 +3840,7 @@ class RidersController extends AppBaseController
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
         'branch_id' => 'nullable|numeric|exists:branches,id',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3812,6 +3886,7 @@ class RidersController extends AppBaseController
         'status' => 1,
         'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
+        'attach_file' => $this->storeRiderVoucherAttachmentFile($request, 'INC'),
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -3882,6 +3957,7 @@ class RidersController extends AppBaseController
 
   public function vendorcharges($company_slug, $rider_id)
   {
+    RiderVoucherPermissions::authorize('VC', 'create');
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
@@ -3891,17 +3967,18 @@ class RidersController extends AppBaseController
   }
 
   /**
-   * Active rider voucher types shown in the unified voucher modal / payments Add New.
+   * Active rider voucher types shown in the unified voucher modal / rider profile actions.
+   * Filtered by the current user's create permission for each type.
    *
    * @return array<string, string>
    */
   protected function riderVoucherTypeOptions(): array
   {
-    $riderVoucherCodes = ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC'];
+    $riderVoucherCodes = ['PAY', 'COD', 'PN', 'INC', 'VC', 'AL'];
     $activeTypes = VoucherType::activeCodeLabelMapForModule('riders');
     $voucherTypes = [];
     foreach ($riderVoucherCodes as $code) {
-      if (isset($activeTypes[$code])) {
+      if (isset($activeTypes[$code]) && RiderVoucherPermissions::can($code, 'create')) {
         $voucherTypes[$code] = $activeTypes[$code];
       }
     }
@@ -3922,7 +3999,13 @@ class RidersController extends AppBaseController
     $preselectedType = strtoupper(trim((string) $request->get('type', '')));
     $voucherTypes = $this->riderVoucherTypeOptions();
     if ($preselectedType !== '' && ! isset($voucherTypes[$preselectedType])) {
+      if (RiderVoucherPermissions::prefixForCode($preselectedType) !== null) {
+        abort(403, 'Unauthorized action.');
+      }
       $preselectedType = '';
+    }
+    if ($voucherTypes === [] && $preselectedType === '') {
+      abort(403, 'Unauthorized action.');
     }
 
     $riderOptions = Riders::query()
@@ -3935,7 +4018,8 @@ class RidersController extends AppBaseController
       : null;
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
-    $requireRiderSelect = true;
+    // Only show the Rider picker when opening without a known rider (e.g. global create).
+    $requireRiderSelect = empty($rider);
 
     return view('riders.voucher-modal', compact(
       'rider',
@@ -3950,7 +4034,7 @@ class RidersController extends AppBaseController
   }
 
   /**
-   * Unified voucher modal for a specific rider: AL, COD, PN, INC, PAY, VC.
+   * Unified voucher modal for a specific rider: COD, PN, INC, PAY, VC.
    */
   public function voucher($company_slug, $rider_id)
   {
@@ -3964,6 +4048,9 @@ class RidersController extends AppBaseController
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
     $voucherTypes = $this->riderVoucherTypeOptions();
+    if ($voucherTypes === []) {
+      abort(403, 'Unauthorized action.');
+    }
     $requireRiderSelect = false;
     $preselectedType = '';
     $riderOptions = collect();
@@ -3983,6 +4070,7 @@ class RidersController extends AppBaseController
   public function storevendorcharges(Request $request)
   {
     try {
+      RiderVoucherPermissions::authorize('VC', 'create');
       if (! VoucherType::isCodeAllowedForModule('VC', 'riders')) {
         return response()->json(['errors' => ['error' => 'Vendor Charges voucher type (VC) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
       }
@@ -3999,6 +4087,7 @@ class RidersController extends AppBaseController
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
         'branch_id' => 'nullable|numeric|exists:branches,id',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -4045,6 +4134,7 @@ class RidersController extends AppBaseController
         'status' => 1,
         'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
+        'attach_file' => $this->storeRiderVoucherAttachmentFile($request, 'VC'),
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -4261,6 +4351,31 @@ class RidersController extends AppBaseController
         'message' => 'Error adding recruiter: ' . $e->getMessage(),
       ], 500);
     }
+  }
+
+  /**
+   * Store an optional voucher attachment when the user has upload permission.
+   */
+  protected function storeRiderVoucherAttachmentFile(Request $request, string $code): ?string
+  {
+    if (! $request->hasFile('attachment')) {
+      return null;
+    }
+
+    if (! RiderVoucherPermissions::canUpload($code)) {
+      return null;
+    }
+
+    $file = $request->file('attachment');
+    if (! $file || ! $file->isValid()) {
+      return null;
+    }
+
+    $safeBase = preg_replace('/[^A-Za-z0-9._-]/', '_', $file->getClientOriginalName()) ?: 'document';
+    $fileName = time() . '_' . $safeBase;
+    PublicStorageDisk::storeUploadedFile($file, 'vouchers', $fileName);
+
+    return $fileName;
   }
 
   /**

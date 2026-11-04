@@ -149,7 +149,19 @@ $projects = $projects ?? collect();
 
           <div class="form-group col-md-12">
             <label for="billing_month">Billing Month</label>
-            <input type="month" name="billing_month" class="form-control" value="{{ request('billing_month') ?? date('Y-m') }}">
+            <input type="month" name="billing_month" class="form-control" value="{{ request('billing_month') }}">
+          </div>
+
+          <div class="form-group col-md-12">
+            <label for="customer_id">Filter by Project</label>
+            <select class="form-control" id="customer_id" name="customer_id">
+              <option value="" selected>Select</option>
+              @foreach($projects as $project)
+              <option value="{{ $project->id }}" {{ (string) request('customer_id') === (string) $project->id ? 'selected' : '' }}>
+                {{ $project->name }}
+              </option>
+              @endforeach
+            </select>
           </div>
 
           <div class="form-group col-md-12">
@@ -220,7 +232,7 @@ $projects = $projects ?? collect();
         up to <strong>{{ \Carbon\Carbon::parse(request('to_date'))->format('d M Y') }}</strong>
         @elseif(request('billing_month'))
         for billing month
-        <strong>{{ \Carbon\Carbon::parse(request('billing_month') . '-01')->format('M Y') }}</strong>
+        <strong>{{ \Carbon\Carbon::parse(request('billing_month') . '-01')->format('M-Y') }}</strong>
         @else
         across all activity records
         @endif.
@@ -363,6 +375,11 @@ $projects = $projects ?? collect();
     $('#valid_day').select2({
       dropdownParent: $('#searchTopbody'),
       placeholder: "Filter By Valid Day",
+      allowClear: true,
+    });
+    $('#customer_id').select2({
+      dropdownParent: $('#searchTopbody'),
+      placeholder: "Filter By Project",
       allowClear: true,
     });
     $('#bike_assignment_status').select2({
@@ -685,7 +702,7 @@ $projects = $projects ?? collect();
 
         Swal.fire({
           icon: 'error',
-          title: '⚠️ Import Failed',
+          title: '?? Import Failed',
           html: errorList,
           confirmButtonText: 'OK',
           confirmButtonColor: '#dc3545',
@@ -698,7 +715,7 @@ $projects = $projects ?? collect();
         // Single error message
         Swal.fire({
           icon: 'error',
-          title: '⚠️ Import Failed',
+          title: '?? Import Failed',
           text: errorMessage,
           confirmButtonText: 'OK',
           confirmButtonColor: '#dc3545'
@@ -710,7 +727,7 @@ $projects = $projects ?? collect();
     if (successMessage) {
       Swal.fire({
         icon: 'success',
-        title: '✅ Import Successful',
+        title: '? Import Successful',
         text: successMessage,
         confirmButtonText: 'OK',
         confirmButtonColor: '#28a745',

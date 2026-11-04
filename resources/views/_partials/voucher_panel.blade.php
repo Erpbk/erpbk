@@ -13,15 +13,28 @@
 </div>
 <div id="voucherListSidebarBackdrop" class="voucher-list-sidebar-backdrop" aria-hidden="true"></div>
 
-{{-- Voucher detail panel (right) + layout so list and panel sit side by side --}}
+{{-- Module menu | All Vouchers | voucher detail --}}
 <style>
-  /* Voucher list sidebar: left panel, fixed, hidden by default */
+  :root {
+    --voucher-menu-offset: 16.25rem;
+    --voucher-list-width: 280px;
+  }
+  html.layout-without-menu,
+  .layout-wrapper.layout-without-menu {
+    --voucher-menu-offset: 0px;
+  }
+
+  /* While vouchers are open, keep the full module menu width reserved. */
+  body.voucher-panels-open {
+    --voucher-menu-offset: 16.25rem;
+  }
+
   .voucher-list-sidebar-wrapper {
     display: none;
     position: fixed;
-    left: 0;
+    left: var(--voucher-menu-offset);
     top: 0;
-    width: 280px;
+    width: var(--voucher-list-width);
     max-width: 28%;
     height: 100%;
     z-index: 1085;
@@ -36,20 +49,40 @@
   .voucher-list-sidebar-wrapper .voucher-list-sidebar-row { cursor: pointer; transition: background 0.15s ease; }
   .voucher-list-sidebar-wrapper .voucher-list-sidebar-row:hover { background: rgba(0,0,0,0.04); }
 
-  /* Backdrop: only dims the main content; does not cover list or detail panel */
   .voucher-list-sidebar-backdrop {
     display: none;
     position: fixed;
-    left: 0;
+    left: calc(var(--voucher-menu-offset) + var(--voucher-list-width));
     top: 0;
-    width: 100%;
+    width: calc(100% - var(--voucher-menu-offset) - var(--voucher-list-width));
     height: 100%;
     background: rgba(0,0,0,0.15);
     z-index: 1078;
   }
   .voucher-list-sidebar-backdrop.visible { display: block !important; }
 
-  /* Voucher detail panel: default (no list) */
+  /* Same module sidebar as the parent module — visible and usable. */
+  body.voucher-panels-open #layout-menu.layout-menu {
+    z-index: 1095 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  body.voucher-panels-open #layout-menu.menu-vertical {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    height: 100% !important;
+    width: 16.25rem !important;
+    max-width: 16.25rem !important;
+  }
+  body.voucher-panels-open .layout-overlay.layout-menu-toggle {
+    display: none !important;
+  }
+
   #voucherPanel.voucher-panel-offcanvas.offcanvas-end {
     width: 75% !important;
     max-width: none;
@@ -58,27 +91,60 @@
     flex-direction: column;
     height: 100%;
   }
-  /* When list sidebar is visible: detail panel sits immediately to its right (no gap) */
   body.voucher-panels-open #voucherPanel.voucher-panel-offcanvas.offcanvas-end {
-    left: 280px !important;
+    left: calc(var(--voucher-menu-offset) + var(--voucher-list-width)) !important;
     right: 0 !important;
-    width: calc(100% - 280px) !important;
+    width: calc(100% - var(--voucher-menu-offset) - var(--voucher-list-width)) !important;
     max-width: none;
   }
-  /* Backdrop must not cover the list so clicking the list does not close the panel */
   body.voucher-panels-open .offcanvas-backdrop {
-    left: 280px !important;
-    width: calc(100% - 280px) !important;
+    left: calc(var(--voucher-menu-offset) + var(--voucher-list-width)) !important;
+    width: calc(100% - var(--voucher-menu-offset) - var(--voucher-list-width)) !important;
   }
   #voucherPanel .offcanvas-body { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
   #voucherPanel .voucher-panel-footer { flex-shrink: 0; border-top: 1px solid var(--bs-border-color); padding: 0.75rem 1rem; text-align: left; background: var(--bs-body-bg); }
-  @media (max-width: 768px) {
-    body.voucher-panels-open #voucherPanel.voucher-panel-offcanvas.offcanvas-end { left: 0 !important; width: 100% !important; }
-    body.voucher-panels-open .offcanvas-backdrop { left: 0 !important; width: 100% !important; }
+
+  /* Fold / tablet (< 1200): All Vouchers numbers on the left; module nav stays closed. */
+  @media (max-width: 1199.98px) {
+    body.voucher-panels-open {
+      --voucher-menu-offset: 0px;
+      --voucher-list-width: min(300px, 36vw);
+    }
+    /* Do not force the module menu open — it would cover the voucher list. */
+    body.voucher-panels-open #layout-menu.layout-menu,
+    body.voucher-panels-open #layout-menu.menu-vertical {
+      visibility: hidden !important;
+      pointer-events: none !important;
+      transform: translateX(-100%) !important;
+      z-index: 1 !important;
+    }
+    body.voucher-panels-open .voucher-list-sidebar-wrapper.visible {
+      left: 0 !important;
+      width: var(--voucher-list-width) !important;
+      max-width: 42% !important;
+      z-index: 1090 !important;
+      display: flex !important;
+    }
+    .voucher-list-sidebar-backdrop {
+      left: var(--voucher-list-width) !important;
+      width: calc(100% - var(--voucher-list-width)) !important;
+    }
+    body.voucher-panels-open #voucherPanel.voucher-panel-offcanvas.offcanvas-end {
+      left: var(--voucher-list-width) !important;
+      right: 0 !important;
+      width: calc(100% - var(--voucher-list-width)) !important;
+      min-width: 0;
+    }
+    body.voucher-panels-open .offcanvas-backdrop {
+      left: var(--voucher-list-width) !important;
+      width: calc(100% - var(--voucher-list-width)) !important;
+    }
   }
   @media (max-width: 576px) {
-    #voucherPanel.voucher-panel-offcanvas.offcanvas-end { width: 100% !important; min-width: 0; }
-    .voucher-list-sidebar-wrapper { width: 100% !important; max-width: none !important; }
+    body.voucher-panels-open {
+      --voucher-list-width: min(260px, 78vw);
+    }
+    #voucherPanel.voucher-panel-offcanvas.offcanvas-end { min-width: 0; }
   }
 </style>
 <div class="offcanvas offcanvas-end voucher-panel-offcanvas" data-bs-scroll="true" data-bs-backdrop="true" tabindex="-1" id="voucherPanel" aria-labelledby="voucherPanelTitle">

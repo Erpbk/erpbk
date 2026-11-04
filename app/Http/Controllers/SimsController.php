@@ -7,11 +7,13 @@ use App\Http\Requests\CreateSimsRequest;
 use App\Http\Requests\UpdateSimsRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
+use App\Models\SimInvoice;
 use App\Models\SimInvoiceItem;
 use App\Repositories\SimsRepository;
 use App\Models\Sims;
 use App\Models\Riders;
 use App\Models\Employee;
+use App\Services\AssignmentClipboardNote;
 use App\Services\EmployeeHistoryLogger;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
@@ -100,6 +102,7 @@ class SimsController extends AppBaseController
             'active' => $statsQuery->clone()->where('status', (string) Sims::STATUS_ASSIGNED)->count(),
             'deactivated' => $statsQuery->clone()->where('status', (string) Sims::STATUS_DEACTIVATED)->count(),
             'in_office' => $statsQuery->clone()->where('status', (string) Sims::STATUS_IN_OFFICE)->count(),
+            'lost' => $statsQuery->clone()->where('status', (string) Sims::STATUS_LOST)->count(),
             'user_absconded' => $userAbscondedCount,
             'companies' => $companyStats,
         ];
@@ -126,6 +129,8 @@ class SimsController extends AppBaseController
                 $query->where('status', (string) Sims::STATUS_IN_OFFICE);
             } elseif (in_array($statusFilter, ['deactivated', 'inactive'], true)) {
                 $query->where('status', (string) Sims::STATUS_DEACTIVATED);
+            } elseif (in_array($statusFilter, ['lost'], true)) {
+                $query->where('status', (string) Sims::STATUS_LOST);
             } elseif (in_array($statusFilter, ['user_absconded', 'absconded'], true)) {
                 $query->whereAssigneeAbsconded();
             }
@@ -184,13 +189,34 @@ class SimsController extends AppBaseController
     {
         $computedColumns = [
             'rider_name' => 'Name',
+            'emi' => 'IMEI',
         ];
 
         // Get all columns from sims table
         $filteredColumns = \Illuminate\Support\Facades\Schema::getColumnListing('sims');
 
-        // Columns to exclude
-        $exclude = ['id', 'created_at', 'updated_at', 'deleted_by', 'deleted_at', 'fleet_supervisor', 'created_by', 'updated_by', 'company_id', 'branch_id','assign_type'];
+        // Columns to exclude (lost_* stay on the SIM show page, not the list table)
+        $exclude = [
+            'id',
+            'created_at',
+            'updated_at',
+            'deleted_by',
+            'deleted_at',
+            'fleet_supervisor',
+            'created_by',
+            'updated_by',
+            'company_id',
+            'branch_id',
+            'assign_type',
+            'lost_date',
+            'lost_rider_id',
+            'lost_employee_id',
+            'lost_amount',
+            'lost_voucher_id',
+            'lost_trans_code',
+            'lost_remarks',
+            'lost_by',
+        ];
 
         // Final filtered columns
         $dbColumns = array_diff($filteredColumns, $exclude);
@@ -297,6 +323,10 @@ class SimsController extends AppBaseController
             'employee',
             'createdBy',
             'updatedBy',
+            'lostRider',
+            'lostEmployee',
+            'lostBy',
+            'lostVoucher',
         ])->find($id);
 
         if (empty($sims)) {
@@ -313,19 +343,31 @@ class SimsController extends AppBaseController
             ->withQueryString()
             ->appends(['tab' => 'assignments']);
 
-        $invoiceItems = SimInvoiceItem::query()
-            ->with(['invoice.company'])
-            ->where('sim_id', $sims->id)
-            ->whereHas('invoice')
+        $invoiceItems = SimInvoice::query()
+            ->with('company')
+            ->whereIn('id', function ($q) use ($sims) {
+                $q->select('inv_id')
+                    ->from('sim_invoice_items')
+                    ->where('sim_id', $sims->id);
+            })
             ->orderByDesc('id')
             ->paginate(10, ['*'], 'invoice_page')
             ->withQueryString()
             ->appends(['tab' => 'invoices']);
 
+        $invoiceItems->getCollection()->transform(function (SimInvoice $invoice) use ($sims) {
+            $lines = SimInvoiceItem::where('inv_id', $invoice->id)->where('sim_id', $sims->id)->get();
+            $invoice->setAttribute('charges_excl', round($lines->sum(fn ($l) => ((float) $l->amount - (float) $l->tax)), 2));
+            $invoice->setAttribute('vat_sum', round($lines->sum('tax'), 2));
+            $invoice->setAttribute('line_total', round($lines->sum('amount'), 2));
+
+            return $invoice;
+        });
+
         $invoiceTotals = SimInvoiceItem::query()
             ->where('sim_id', $sims->id)
             ->whereHas('invoice')
-            ->selectRaw('COUNT(*) as bills, COALESCE(SUM(rental_amount), 0) as rental, COALESCE(SUM(total_amount), 0) as total')
+            ->selectRaw('COUNT(DISTINCT inv_id) as bills, COALESCE(SUM(amount - tax), 0) as rental, COALESCE(SUM(amount), 0) as total')
             ->first();
 
         return view('sims.show', compact('sims', 'histories', 'invoiceItems', 'invoiceTotals'));
@@ -401,6 +443,12 @@ class SimsController extends AppBaseController
         if ($sims->isDeactivated()) {
             return response()->json([
                 'errors' => ['error' => 'This SIM is deactivated and cannot be assigned. Activate it first.'],
+            ], 422);
+        }
+
+        if ($sims->isLost()) {
+            return response()->json([
+                'errors' => ['error' => 'This SIM is marked as lost and cannot be assigned.'],
             ], 422);
         }
 
@@ -497,7 +545,12 @@ class SimsController extends AppBaseController
                     $sims->histories()->create([
                         'note_date' => $request->note_date,
                         'assigned_by' => auth()->id(),
-                        'notes' => $request->notes ?? '',
+                        'notes' => AssignmentClipboardNote::forSim(
+                            $sims->fresh(['telecomCompany']),
+                            $employee,
+                            $request->note_date,
+                            $request->notes ?? null
+                        ),
                         'employee_id' => $assignTo,
                         'rider_id' => null,
                     ]);
@@ -521,10 +574,16 @@ class SimsController extends AppBaseController
                         'branch_id' => $assignBranchId,
                     ]);
 
+                    $rider->loadMissing('customer');
                     $sims->histories()->create([
                         'note_date' => $request->note_date,
                         'assigned_by' => auth()->id(),
-                        'notes' => $request->notes ?? '',
+                        'notes' => AssignmentClipboardNote::forSim(
+                            $sims->fresh(['telecomCompany']),
+                            $rider,
+                            $request->note_date,
+                            $request->notes ?? null
+                        ),
                         'rider_id' => $assignTo,
                         'employee_id' => null,
                     ]);
@@ -642,7 +701,11 @@ class SimsController extends AppBaseController
                 $history->update([
                     'return_date' => $request->return_date,
                     'returned_by' => auth()->id(),
-                    'notes' => $request->notes ?? '',
+                    'notes' => AssignmentClipboardNote::withReturn(
+                        $history->notes,
+                        $request->return_date,
+                        $request->notes ?? null
+                    ),
                 ]);
             }
 
@@ -741,6 +804,103 @@ class SimsController extends AppBaseController
     }
 
     /**
+     * Charge the holding rider/employee for a SIM that was lost or never returned.
+     * Posted as an Inventory Loss (IL) voucher.
+     */
+    public function chargeLost(Request $request, $company_slug, string $id)
+    {
+        if (! user_can('sims_sim_edit')) {
+            if ($request->isMethod('get')) {
+                abort(403, 'Unauthorized action.');
+            }
+
+            return response()->json(['message' => 'You do not have permission to charge for a lost SIM.'], 403);
+        }
+
+        $sim = Sims::find($id);
+        if (! $sim) {
+            if ($request->isMethod('get')) {
+                abort(404, 'SIM Not Found');
+            }
+
+            return response()->json(['message' => 'SIM Not Found'], 404);
+        }
+
+        if ($sim->isLost()) {
+            $message = 'This SIM is already marked as lost.';
+            if ($request->isMethod('get') || $request->ajax()) {
+                return response()->json(['message' => $message], 422);
+            }
+            Flash::error($message);
+
+            return redirect()->back();
+        }
+
+        if ($request->isMethod('get')) {
+            $sim->load('telecomCompany');
+            $chargeable = $sim->chargeablePerson();
+
+            return view('sims.charge_lost', [
+                'sim' => $sim,
+                'person' => $chargeable['model'] ?? null,
+                'personType' => $chargeable['type'] ?? null,
+            ]);
+        }
+
+        $data = $this->validate($request, [
+            'amount' => 'required|numeric|min:0.01',
+            'lost_date' => 'required|date',
+            'billing_month' => 'required|date',
+            'remarks' => 'nullable|string|max:1000',
+        ], [
+            'amount.required' => 'Please enter the amount to charge.',
+            'amount.min' => 'Charge amount must be greater than zero.',
+            'lost_date.required' => 'Please provide the date the SIM was lost.',
+            'billing_month.required' => 'Please select the billing month for the voucher.',
+        ]);
+
+        $billingMonth = \Carbon\Carbon::parse($data['billing_month'])->startOfMonth()->format('Y-m-d');
+
+        DB::beginTransaction();
+
+        try {
+            $result = app(\App\Services\SimLossService::class)->chargePersonForLostSim(
+                $sim,
+                (float) $data['amount'],
+                $data['lost_date'],
+                $billingMonth,
+                $data['remarks'] ?? null,
+                auth()->id()
+            );
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            Flash::error($e->getMessage());
+
+            return redirect()->back();
+        }
+
+        $personLabel = $result['person']->name ?? ($result['person_type'] === 'employee' ? 'the employee' : 'the rider');
+        $message = 'SIM marked as lost. ' . number_format($result['amount'], 2)
+            . ' charged to ' . $personLabel
+            . ' on Inventory Loss voucher ' . ($result['voucher']->formatted_id ?? 'IL-' . str_pad((string) $result['voucher']->id, 4, '0', STR_PAD_LEFT)) . '.';
+
+        if ($request->ajax()) {
+            return response()->json(['message' => $message, 'reload' => true]);
+        }
+
+        Flash::success($message);
+
+        return redirect()->back();
+    }
+
+    /**
      * Unassigned SIMs in a given status, shaped for the shared picker partial.
      *
      * @return list<array{id: int, primary: string, secondary: string}>
@@ -781,6 +941,10 @@ class SimsController extends AppBaseController
         $historyCount = $sims->histories()->count();
         if ($historyCount > 0) {
             return $this->respondSimDeleteError('Cannot delete SIM because it has usage history. Please keep the record or clear history before deleting.');
+        }
+
+        if (SimInvoiceItem::where('sim_id', $sims->id)->exists()) {
+            return $this->respondSimDeleteError('Cannot delete SIM because it is included on a SIM invoice.');
         }
 
         if ((int) $sims->status === Sims::STATUS_ASSIGNED) {

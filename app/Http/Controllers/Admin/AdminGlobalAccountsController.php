@@ -104,7 +104,7 @@ class AdminGlobalAccountsController extends Controller
             $account->status = (int) ($validated['status'] ?? 1);
             $account->notes = $validated['notes'] ?? null;
             $account->is_fixed = true;
-            $account->is_locked = 0;
+            $account->is_locked = true;
             $account->company_id = null;
             $account->save();
 
@@ -156,7 +156,7 @@ class AdminGlobalAccountsController extends Controller
             'label' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
-            'link_mode' => ['required', 'in:keep,create,link'],
+            'link_mode' => ['required', 'in:keep,create,link,unlink'],
             'account_type' => ['required', 'string', 'max:50'],
             'account_id' => ['required_if:link_mode,link', 'nullable', Rule::exists('accounts', 'id')],
             'account_name' => ['required_if:link_mode,create', 'nullable', 'string', 'max:100'],
@@ -166,12 +166,19 @@ class AdminGlobalAccountsController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $accountId = $globalAccount->account_id;
+        $previousAccountId = $globalAccount->account_id ? (int) $globalAccount->account_id : null;
+        $accountId = $previousAccountId;
 
-        if ($validated['link_mode'] === 'link') {
+        if ($validated['link_mode'] === 'unlink') {
+            $this->unmarkAccountFixed($previousAccountId);
+            $accountId = null;
+        } elseif ($validated['link_mode'] === 'link') {
             $newAccountId = (int) $validated['account_id'];
             $this->enforceSharedAccount($newAccountId, $globalAccount->id);
             $this->guardAccountChange($globalAccount, $newAccountId);
+            if ($previousAccountId !== null && $previousAccountId !== $newAccountId) {
+                $this->unmarkAccountFixed($previousAccountId);
+            }
             $this->markAccountFixed($newAccountId);
             $accountId = $newAccountId;
         } elseif ($validated['link_mode'] === 'create') {
@@ -183,7 +190,7 @@ class AdminGlobalAccountsController extends Controller
             $account->status = (int) ($validated['status'] ?? 1);
             $account->notes = $validated['notes'] ?? null;
             $account->is_fixed = true;
-            $account->is_locked = 0;
+            $account->is_locked = true;
             $account->company_id = null;
             $account->save();
 
@@ -192,6 +199,7 @@ class AdminGlobalAccountsController extends Controller
                 $account->save();
             }
 
+            $this->unmarkAccountFixed($previousAccountId);
             $accountId = $account->id;
         }
 
@@ -213,7 +221,9 @@ class AdminGlobalAccountsController extends Controller
         $this->ensureSuperAdmin();
 
         $code = $globalAccount->code;
+        $linkedAccountId = $globalAccount->account_id ? (int) $globalAccount->account_id : null;
         $globalAccount->delete();
+        $this->unmarkAccountFixed($linkedAccountId);
         $this->resolver->flushCache($code);
 
         return redirect()->route('admin.global-accounts.index')->with('success', 'Global account deleted successfully.');
@@ -327,7 +337,24 @@ class AdminGlobalAccountsController extends Controller
     {
         $account = Accounts::withoutGlobalScopes(['company', 'branch'])->findOrFail($accountId);
         $account->is_fixed = true;
+        $account->is_locked = true;
         $account->company_id = null;
+        $account->save();
+    }
+
+    private function unmarkAccountFixed(?int $accountId): void
+    {
+        if ($accountId === null) {
+            return;
+        }
+
+        $account = Accounts::withoutGlobalScopes(['company', 'branch'])->find($accountId);
+        if (!$account) {
+            return;
+        }
+
+        $account->is_fixed = false;
+        $account->is_locked = false;
         $account->save();
     }
 

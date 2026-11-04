@@ -71,7 +71,7 @@ class ReportController extends Controller
 
     $billingMonthLabel = $fromCarbon->equalTo($toCarbon)
       ? $fromCarbon->format('F Y')
-      : $fromCarbon->format('M Y') . ' - ' . $toCarbon->format('M Y');
+      : $fromCarbon->format('M-Y') . ' - ' . $toCarbon->format('M-Y');
 
     $salikMonthValues = [];
     $cursor = $fromCarbon->copy();
@@ -775,7 +775,7 @@ class ReportController extends Controller
 
     $periodLabel = $fromCarbon->equalTo($toCarbon)
       ? $fromCarbon->format('F Y')
-      : $fromCarbon->format('M Y') . ' - ' . $toCarbon->format('M Y');
+      : $fromCarbon->format('M-Y') . ' - ' . $toCarbon->format('M-Y');
 
     $salikMonthValues = [];
     $cursor = $fromCarbon->copy();

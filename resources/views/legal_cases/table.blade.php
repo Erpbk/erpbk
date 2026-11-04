@@ -31,7 +31,7 @@
                   class="form-control form-control-sm d-none">
             </td>@endif
             @if($vf('billing_month'))<td>
-               <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</span>
+               <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M-Y') }}</span>
                @can('legal_case_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-legal-field" data-id="{{ $r->id }}" data-field="billing">
                   <i class="fa fa-edit text-primary"></i>
@@ -148,10 +148,8 @@
             year: 'numeric'
          });
          var bm = new Date(data.billing_month + '-01');
-         if (billDisp) billDisp.textContent = bm.toLocaleDateString('en-US', {
-            month: 'short',
-            year: 'numeric'
-         });
+         if (billDisp) var monthShort = bm.toLocaleDateString('en-US', { month: 'short' });
+            billDisp.textContent = monthShort + '-' + bm.getFullYear();
       }).catch(function() {
          if (typeof Swal !== 'undefined') {
             Swal.fire({

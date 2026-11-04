@@ -94,7 +94,7 @@ class VatController extends Controller
                     'date' => Common::DateFormat($row->trans_date),
                     'account_name' => $row->account ? ($row->account->account_code . '-' . $row->account->name) : 'N/A',
                     'reference_number' => $row->voucher ? ($row->voucher->reference_number ?? '-') : '-',
-                    'billing_month' => $row->billing_month ? date('M Y', strtotime($row->billing_month)) : '',
+                    'billing_month' => $row->billing_month ? date('M-Y', strtotime($row->billing_month)) : '',
                     'voucher' => $this->getVoucherText($row),
                     'narration' => $this->getNarration($row, $viewFile),
                     'debit' => number_format($row->debit, 2),
@@ -273,7 +273,7 @@ class VatController extends Controller
      * Create a VV (VAT Return) voucher when filing a return. Exactly 3 entries:
      * 1. Debit: VAT on Sales (1025)
      * 2. Credit: VAT on Purchases (1023)
-     * 3. Credit (or Debit if refund): VAT Payable (1027) = VAT on Sales − VAT on Purchases
+     * 3. Credit (or Debit if refund): VAT Payable (1027) = VAT on Sales - VAT on Purchases
      */
     private function createVatReturnVoucher(
         VatReturn $vatReturn,
@@ -447,7 +447,7 @@ class VatController extends Controller
             'bankCashAccounts' => $bankCashAccounts,
             'allAccounts' => $allAccounts,
             'defaultDebitAccountId' => self::VAT_PAYMENT_DEFAULT_DEBIT_ACCOUNT,
-            'defaultDebitAccountName' => $defaultAccount ? $defaultAccount->account_code . ' – ' . $defaultAccount->name : '1027',
+            'defaultDebitAccountName' => $defaultAccount ? $defaultAccount->account_code . ' � ' . $defaultAccount->name : '1027',
             'prefillAmount' => $prefillAmount,
             'prefillReference' => $prefillReference,
             'vatReturnId' => $vatReturnId,

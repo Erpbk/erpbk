@@ -24,7 +24,7 @@
                </a>
          </td>
             <td>{{ \Carbon\Carbon::parse($invoice->inv_date)->format('d M Y') }}</td>
-            <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}</td>
+            <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M-Y') }}</td>
             <td>{{ $invoice->Customer->name ?? '-' }}</td>
             <td>{{ \App\Helpers\Currency::format($invoice->subtotal ?? 0) }}</td>
             <td>{{ \App\Helpers\Currency::format($invoice->vat ?? 0) }}</td>

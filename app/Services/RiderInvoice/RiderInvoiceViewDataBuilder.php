@@ -276,7 +276,7 @@ class RiderInvoiceViewDataBuilder
 
         return [
             'billing_month_label' => $riderInvoice->billing_month
-                ? date('M Y', strtotime((string) $riderInvoice->billing_month))
+                ? date('M-Y', strtotime((string) $riderInvoice->billing_month))
                 : '—',
             'invoice_total' => $invoiceTotal,
             'previous_balance' => $previous,

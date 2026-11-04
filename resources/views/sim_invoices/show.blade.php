@@ -49,7 +49,7 @@
     ? (is_object($invoice->inv_date) ? $invoice->inv_date->format('d M Y') : date('d M Y', strtotime($invoice->inv_date)))
     : '';
     $billingLabel = $invoice->billing_month
-    ? date('M Y', strtotime($invoice->billing_month))
+    ? date('M-Y', strtotime($invoice->billing_month))
     : '';
     $pivotColumns = $pivotColumns ?? collect();
     $pivotRows = $pivotRows ?? [];

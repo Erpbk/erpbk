@@ -22,35 +22,39 @@ $printUrl = route('payments.show', array_filter([
         ?? (!empty($payment->voucher_id) ? \App\Models\Vouchers::query()->with(['approvalEvents', 'approvedByUser', 'rejectedByUser'])->find($payment->voucher_id) : null);
 @endphp
 <div class="rpv-page">
-    <div class="rpv-toolbar d-flex flex-wrap gap-2 mb-3 align-items-center justify-content-end">
-        @if($approvalVoucher)
-            <x-voucher-approval.status-badge :voucher="$approvalVoucher" />
-        @endif
-        <a href="javascript:void(0);"
-            class="btn btn-sm btn-outline-secondary show-modal"
-            data-size="xl"
-            data-title="Edit Payment"
-            data-action="{{ $editUrl }}"
-            data-collapse-sidebar="1">
-            <i class="fa fa-pencil"></i> Edit
-        </a>
-        @if($approvalVoucher)
-            <x-voucher-approval.panel :voucher="$approvalVoucher" />
-        @endif
-        <a href="javascript:void(0);"
-            class="btn btn-sm btn-outline-secondary show-modal"
-            data-size="xl"
-            data-title="Clone Payment"
-            data-action="{{ $cloneUrl }}"
-            data-collapse-sidebar="1">
-            <i class="fa fa-copy"></i> Clone
-        </a>
-        <a href="{{ $printUrl }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-            <i class="fa fa-print"></i> Print
-        </a>
-        <a href="{{ $pdfUrl }}" class="btn btn-sm btn-primary">
-            <i class="fa fa-file-pdf"></i> Download PDF
-        </a>
+    <div class="rpv-toolbar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom no-print">
+        <div class="d-flex align-items-center gap-2">
+            @if($approvalVoucher)
+                <x-voucher-approval.status-badge :voucher="$approvalVoucher" />
+            @endif
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <a href="javascript:void(0);"
+                class="btn btn-sm btn-outline-primary show-modal"
+                data-size="xl"
+                data-title="Edit Payment"
+                data-action="{{ $editUrl }}"
+                data-collapse-sidebar="1">
+                <i class="ti ti-edit me-1"></i> Edit
+            </a>
+            @if($approvalVoucher)
+                <x-voucher-approval.panel :voucher="$approvalVoucher" />
+            @endif
+            <a href="javascript:void(0);"
+                class="btn btn-sm btn-outline-primary show-modal"
+                data-size="xl"
+                data-title="Clone Payment"
+                data-action="{{ $cloneUrl }}"
+                data-collapse-sidebar="1">
+                <i class="ti ti-copy me-1"></i> Clone
+            </a>
+            <a href="{{ $printUrl }}" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener">
+                <i class="ti ti-printer me-1"></i> Print
+            </a>
+            <a href="{{ $pdfUrl }}" class="btn btn-sm btn-outline-primary">
+                <i class="ti ti-file-description me-1"></i> Download PDF
+            </a>
+        </div>
     </div>
 
     @include('payments.partials.voucher_document_body')

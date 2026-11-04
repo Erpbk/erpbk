@@ -117,7 +117,7 @@
                     @endphp
                     <tr class="text-center">
                         <td>
-                            <a href="javascript:void(0);" data-action="{{ $invoiceRoute }}" class="show-modal-right" data-size="xl" data-title="Salik Invoice for {{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}">
+                            <a href="javascript:void(0);" data-action="{{ $invoiceRoute }}" class="show-modal-right" data-size="xl" data-title="Salik Invoice for {{ \Carbon\Carbon::parse($invoice->billing_month)->format('M-Y') }}">
                                 {{ $invoice->inv_id }}
                             </a>
                         </td>

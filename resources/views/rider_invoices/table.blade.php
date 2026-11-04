@@ -37,7 +37,7 @@
          </td>
          <td style="white-space: nowrap;"><a href="javascript:void(0);" data-action="{{ route('riderInvoices.show', $r->id) }}" data-size="xl" class="show-modal-right">{{ $r->invoice_number }}</a></td>
          <td>{{ $r->inv_date ? \Carbon\Carbon::parse($r->inv_date)->format('d M Y') : '—' }}</td>
-         <td>{{ $r->billing_month ? \Carbon\Carbon::parse($r->billing_month)->format('M Y') : '—' }}</td>
+         <td>{{ $r->billing_month ? \Carbon\Carbon::parse($r->billing_month)->format('M-Y') : '—' }}</td>
          <td>{{ $rider?->person_code ?? '—' }}</td>
          <td class="name">
             @if($rider)

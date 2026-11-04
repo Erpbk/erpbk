@@ -46,7 +46,8 @@ class ModuleTopBarFieldValueResolver
     }
 
     /**
-     * Active visa status names for Visa Expense top-bar option pickers.
+     * Visa status names for Visa Expense top-bar option pickers.
+     * Includes inactive tickets so historical expense tops can still be configured.
      *
      * @return list<string>
      */
@@ -61,7 +62,6 @@ class ModuleTopBarFieldValueResolver
         }
 
         return VisaStatus::query()
-            ->where('is_active', 1)
             ->orderBy('display_order')
             ->orderBy('name')
             ->pluck('name')

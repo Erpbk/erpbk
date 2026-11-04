@@ -31,7 +31,7 @@
                   class="form-control form-control-sm d-none">
             </td>
             <td>
-               <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</span>
+               <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M-Y') }}</span>
                @can('bikes_registration_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-br-field" data-id="{{ $r->id }}" data-field="billing">
                   <i class="fa fa-edit text-primary"></i>

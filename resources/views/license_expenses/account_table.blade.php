@@ -118,7 +118,7 @@
       if (!empty($nextUnpaid->date)) {
       $nextWhen = \Carbon\Carbon::parse($nextUnpaid->date)->format('d M Y');
       } elseif (!empty($nextUnpaid->billing_month)) {
-      $nextWhen = \Carbon\Carbon::parse($nextUnpaid->billing_month)->format('M Y');
+      $nextWhen = \Carbon\Carbon::parse($nextUnpaid->billing_month)->format('M-Y');
       }
       } catch (\Throwable $e) {
       $nextWhen = '';

@@ -29,6 +29,7 @@ use App\Models\Transactions;
 use App\Models\VisaStatus;
 use App\Models\ExpenseAccount;
 use App\Repositories\VisaExpensesRepository;
+use App\Services\DeleteRequestService;
 use App\Services\Module\ModuleTopBarFieldValueResolver;
 use App\Services\Module\TopBarListingService;
 use App\Services\TransactionService;
@@ -968,9 +969,10 @@ class VisaexpenseController extends AppBaseController
             return collect();
         }
 
+        // Top-bar options are independent of ticket active/inactive: deactivated
+        // tickets may still have historical expenses and should keep showing stats.
         $byName = VisaStatus::query()
             ->with('renewalCategories')
-            ->where('is_active', 1)
             ->whereIn('name', $optionNames)
             ->get()
             ->keyBy(fn ($status) => trim((string) $status->name));
@@ -1684,7 +1686,14 @@ class VisaexpenseController extends AppBaseController
                 ->filter(static fn($label, $accId) => $accId !== '' && $accId !== null);
         }
 
-        return view('visa_expenses.pay_form', compact('data', 'accounts', 'rider', 'bankCashAccounts'));
+        return view('visa_expenses.pay_form', [
+            'formMode' => 'pay',
+            'expense' => $data,
+            'data' => $data,
+            'accounts' => $accounts,
+            'rider' => $rider,
+            'bankCashAccounts' => $bankCashAccounts,
+        ]);
     }
 
     public function payfine(Request $request)
@@ -1695,7 +1704,12 @@ class VisaexpenseController extends AppBaseController
             $validated = $request->validate([
                 'id' => 'required|exists:visa_expenses,id',
                 'account' => 'required|exists:accounts,id',
+                'payment_type' => 'required|integer|in:1,2,3,4',
                 'expiry_date' => 'required|date',
+                'date' => 'required|date',
+                'billing_month' => 'required|date_format:Y-m',
+                'amount' => 'required|numeric|min:0',
+                'reference_number' => 'required|string|max:255',
                 'narration' => 'nullable|string|max:1000',
                 'vat_percent' => 'nullable|numeric|min:0|max:100',
                 'vat_amount' => 'nullable|numeric|min:0',
@@ -1732,28 +1746,36 @@ class VisaexpenseController extends AppBaseController
                 ));
             }
 
+            $billingMonth = $validated['billing_month'].'-01';
+            $transDate = $validated['date'];
+            $baseAmount = round((float) $validated['amount'], 2);
+            $referenceNumber = trim((string) $validated['reference_number']);
+            $narration = trim((string) ($validated['narration'] ?? ''));
+            if ($narration === '') {
+                $narration = $expense->detail ?: 'Visa Expense Payment';
+            }
+
+            // Sync ticket fields when the pay form differs from the saved expense.
+            $expense->date = $transDate;
+            $expense->trans_date = $transDate;
+            $expense->billing_month = $billingMonth;
+            $expense->amount = $baseAmount;
+            $expense->reference_number = $referenceNumber;
+            $expense->detail = $narration;
             $expense->pay_account = $validated['account'];
             $expense->payment_status = 'paid';
             $expense->expiry_date = $validated['expiry_date'];
 
             $payAccount = Accounts::findOrFail($validated['account']);
-            $payment_type_flag = match ($request->input('payment_type', $payAccount->account_type)) {
-                'Liability' => 1,
-                'Asset' => 0,
-                default => ($payAccount->account_type === 'Liability' ? 1 : 0),
-            };
+            $paymentType = (int) $validated['payment_type'];
+            // Ledger direction follows the paying account type, not Cash/Cheque/Online/Credit.
+            $isLiabilityPayAccount = $payAccount->account_type === 'Liability';
 
             $docFile = null;
             if ($request->hasFile('attach_file')) {
                 $docFile = $request->file('attach_file')->store('vouchers', 'public');
             }
 
-            $narration = trim((string) ($validated['narration'] ?? ''));
-            if ($narration === '') {
-                $narration = $expense->detail ?: 'Visa Expense Payment';
-            }
-
-            $baseAmount = round((float) $expense->amount, 2);
             $vatPercent = round((float) ($validated['vat_percent'] ?? 0), 4);
             $vatAmount = round((float) ($validated['vat_amount'] ?? 0), 2);
             if ($vatAmount <= 0 && $vatPercent > 0 && $baseAmount > 0) {
@@ -1763,9 +1785,6 @@ class VisaexpenseController extends AppBaseController
 
             $trans_code = Account::trans_code();
             $TransactionService = new TransactionService();
-
-            $billingMonth = $expense->billing_month ?? date('Y-m-01');
-            $transDate = $expense->trans_date ?? Carbon::today()->format('Y-m-d');
 
             if ($baseAmount > 0) {
                 $TransactionService->recordTransaction([
@@ -1815,13 +1834,11 @@ class VisaexpenseController extends AppBaseController
                 'trans_code'       => $trans_code,
                 'trip_date'        => $request->trip_date,
                 'billing_month'    => $billingMonth,
-                'payment_type'     => $payment_type_flag,
+                'payment_type'     => $paymentType,
                 'voucher_type'     => 'LV',
-                'remarks'          => $vatAmount > 0
-                    ? ('Visa Expense Voucher (incl. VAT ' . number_format($vatAmount, 2) . ')')
-                    : 'Visa Expense Voucher',
+                'remarks'          => $narration,
                 'amount'           => $grandTotal,
-                'reference_number' => $expense->reference_number ?? null,
+                'reference_number' => $referenceNumber !== '' ? $referenceNumber : null,
                 'Created_By'       => $request->Created_By ?? auth()->id(),
                 'attach_file'      => $docFile,
                 'pay_account'      => $validated['account'],
@@ -1838,7 +1855,7 @@ class VisaexpenseController extends AppBaseController
             $opening_balance = $lastLedger ? $lastLedger->closing_balance : 0.00;
             $debit_balance = $credit_balance = 0.00;
 
-            if ($payment_type_flag === 1) {
+            if ($isLiabilityPayAccount) {
                 $debit_balance = $total_amount;
                 $closing_balance = $opening_balance + $total_amount;
             } else {
@@ -1897,18 +1914,53 @@ class VisaexpenseController extends AppBaseController
             abort(403, 'Unauthorized action.');
         }
 
-        $visaExpenses = visa_expenses::find($id);
-        $data = ExpenseAccount::query()->visa()->where('id', $visaExpenses->expense_account_id ?? $visaExpenses->rider_id)->first();
-        if (empty($visaExpenses)) {
+        $expense = visa_expenses::find($id);
+        if (empty($expense)) {
             Flash::error('Visa Expenses not found');
 
             return redirect(route('visaExpenses.index'));
         }
-        $categoryId = (int) ($visaExpenses->renewal_category_id
-            ?? $data->renewal_category_id
+        if (DeleteRequestService::isPaidExpense($expense)) {
+            Flash::error('Paid visa expenses cannot be edited. Edit the LV voucher instead.');
+
+            return redirect()->back();
+        }
+
+        $accounts = ExpenseAccount::query()->visa()->with(['rider', 'employee'])
+            ->where('id', $expense->expense_account_id)
+            ->first()
+            ?? ExpenseAccount::query()
+                ->visa()
+                ->with(['rider', 'employee'])
+                ->where(function ($q) use ($expense) {
+                    if ($expense->employee_id) {
+                        $q->where('employee_id', $expense->employee_id);
+                    } else {
+                        $q->where('rider_id', $expense->rider_id);
+                    }
+                })
+                ->when($expense->renewal_category_id, fn ($q) => $q->where('renewal_category_id', $expense->renewal_category_id))
+                ->orderBy('id')
+                ->first();
+
+        $rider = $accounts && $accounts->isEmployeeAccount()
+            ? ($accounts->employee ?? Employee::find($accounts->employee_id ?? $expense->employee_id))
+            : ($accounts?->rider ?? Riders::find($accounts?->rider_id ?? $expense->rider_id));
+
+        $categoryId = (int) ($expense->renewal_category_id
+            ?? $accounts?->renewal_category_id
             ?? VisaRenewalCategoryService::defaultCategory()->id);
         $visaStatuses = VisaRenewalCategoryService::activeStatusesForCategory($categoryId);
-        return view('visa_expenses.edit', compact('data', 'visaExpenses', 'visaStatuses'));
+
+        return view('visa_expenses.edit', [
+            'formMode' => 'edit',
+            'expense' => $expense,
+            'visaExpenses' => $expense,
+            'accounts' => $accounts,
+            'data' => $accounts,
+            'rider' => $rider,
+            'visaStatuses' => $visaStatuses,
+        ]);
     }
 
     /**
@@ -1924,19 +1976,32 @@ class VisaexpenseController extends AppBaseController
 
         try {
             $visaExpenses = visa_expenses::findOrFail($request->id);
-            $previousBillingMonth = $visaExpenses->billing_month;
-            $billingMonth = $request->billing_month . "-01";
+            if (DeleteRequestService::isPaidExpense($visaExpenses)) {
+                DB::rollBack();
+                Flash::error('Paid visa expenses cannot be edited. Edit the LV voucher instead.');
 
-            $request->validate([
+                return redirect()->back();
+            }
+
+            $validated = $request->validate([
                 'reference_number' => 'required|string|max:255',
+                'date' => 'required|date',
+                'billing_month' => 'required|date_format:Y-m',
+                'amount' => 'required|numeric|min:0',
+                'visa_status' => 'required|string|max:50',
+                'detail' => 'required|string|max:500',
             ]);
 
-            $visaExpenses->visa_status = $request->visa_status;
+            $previousBillingMonth = $visaExpenses->billing_month;
+            $billingMonth = $validated['billing_month'].'-01';
+
+            $visaExpenses->visa_status = $validated['visa_status'];
             $visaExpenses->billing_month = $billingMonth;
-            $visaExpenses->date = $request->date;
-            $visaExpenses->amount = $request->amount;
-            $visaExpenses->detail = $request->detail;
-            $visaExpenses->reference_number = $request->reference_number;
+            $visaExpenses->date = $validated['date'];
+            $visaExpenses->trans_date = $validated['date'];
+            $visaExpenses->amount = round((float) $validated['amount'], 2);
+            $visaExpenses->detail = $validated['detail'];
+            $visaExpenses->reference_number = $validated['reference_number'];
             $visaExpenses->save();
 
             $this->syncPaidExpenseFinancials($visaExpenses, 'LV', 'LV', $previousBillingMonth);
@@ -1946,6 +2011,324 @@ class VisaexpenseController extends AppBaseController
         } catch (\Exception $e) {
             DB::rollBack();
             Flash::error('Error updating Visa Expense: ' . $e->getMessage());
+        }
+
+        return redirect()->back();
+    }
+
+    /**
+     * Edit a paid visa expense LV voucher using the shared pay form.
+     */
+    public function editLv(Request $request, $company_slug, $id)
+    {
+        if (!VisaExpenseAccess::canManageEntries('edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $expense = visa_expenses::with('vouchers')->findOrFail($id);
+
+        if ($expense->payment_status !== 'paid') {
+            return response(
+                '<div class="alert alert-warning m-2 mb-0">Only paid expenses have an LV voucher to edit. Use Pay instead.</div>',
+                200
+            );
+        }
+
+        $voucher = $expense->vouchers->firstWhere('voucher_type', 'LV')
+            ?? $expense->vouchers->first()
+            ?? Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'LV')->first();
+
+        if (!$voucher) {
+            return response(
+                '<div class="alert alert-warning m-2 mb-0">No LV voucher found for this expense.</div>',
+                200
+            );
+        }
+
+        $accounts = ExpenseAccount::query()->visa()->with(['rider', 'employee'])->find($expense->expense_account_id)
+            ?? ExpenseAccount::query()
+                ->visa()
+                ->with(['rider', 'employee'])
+                ->where(function ($q) use ($expense) {
+                    if ($expense->employee_id) {
+                        $q->where('employee_id', $expense->employee_id);
+                    } else {
+                        $q->where('rider_id', $expense->rider_id);
+                    }
+                })
+                ->when($expense->renewal_category_id, fn ($q) => $q->where('renewal_category_id', $expense->renewal_category_id))
+                ->orderBy('id')
+                ->first();
+
+        $rider = $accounts && $accounts->isEmployeeAccount()
+            ? ($accounts->employee ?? Employee::find($accounts->employee_id ?? $expense->employee_id))
+            : ($accounts?->rider ?? Riders::find($accounts?->rider_id ?? $expense->rider_id));
+
+        $bankCashAccounts = $this->visaExpensePaymentAccountOptions();
+        if ($bankCashAccounts->isEmpty()) {
+            $bankCashAccounts = Accounts::bankAndCashDropdown()
+                ->filter(static fn ($label, $accId) => $accId !== '' && $accId !== null);
+        }
+
+        $selectedPayAccountId = $voucher->pay_account
+            ?: $expense->pay_account
+            ?: Transactions::where('trans_code', $voucher->trans_code)->where('credit', '>', 0)->value('account_id');
+
+        if ($selectedPayAccountId && !$bankCashAccounts->has((int) $selectedPayAccountId)) {
+            $nm = Accounts::where('id', $selectedPayAccountId)->value('name');
+            if ($nm) {
+                $bankCashAccounts->put((int) $selectedPayAccountId, $nm . ' (current)');
+            }
+        }
+
+        $vatAccountId = (int) (GlobalAccounts::idOrNull('VAT_PURCHASE_ACCOUNT') ?? 0);
+        $vatAmount = 0.0;
+        $baseDebit = round((float) $expense->amount, 2);
+        $transactions = Transactions::where('trans_code', $voucher->trans_code)->get();
+        foreach ($transactions as $tx) {
+            if ((float) $tx->debit > 0 && $vatAccountId > 0 && (int) $tx->account_id === $vatAccountId) {
+                $vatAmount += (float) $tx->debit;
+            }
+        }
+        $vatAmount = round($vatAmount, 2);
+        $defaultVatPercent = $baseDebit > 0 && $vatAmount > 0
+            ? round(($vatAmount / $baseDebit) * 100, 4)
+            : 0;
+
+        $selectedPaymentType = (int) ($voucher->payment_type ?? 0);
+        if (!in_array($selectedPaymentType, [1, 2, 3, 4], true)) {
+            $selectedPaymentType = '';
+        }
+
+        return view('visa_expenses.pay_form', [
+            'formMode' => 'lv_edit',
+            'expense' => $expense,
+            'data' => $expense,
+            'accounts' => $accounts,
+            'rider' => $rider,
+            'voucher' => $voucher,
+            'bankCashAccounts' => $bankCashAccounts,
+            'selectedPayAccountId' => $selectedPayAccountId,
+            'selectedPaymentType' => $selectedPaymentType,
+            'defaultVatPercent' => $defaultVatPercent,
+            'defaultVatAmount' => $vatAmount,
+        ]);
+    }
+
+    /**
+     * Update a paid visa expense LV voucher (shared pay form).
+     */
+    public function updateLv(Request $request)
+    {
+        if (!VisaExpenseAccess::canManageEntries('edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $validated = $request->validate([
+                'id' => 'required|exists:visa_expenses,id',
+                'voucher_id' => 'nullable|exists:vouchers,id',
+                'account' => 'required|exists:accounts,id',
+                'payment_type' => 'required|integer|in:1,2,3,4',
+                'expiry_date' => 'required|date',
+                'date' => 'required|date',
+                'billing_month' => 'required|date_format:Y-m',
+                'amount' => 'required|numeric|min:0',
+                'reference_number' => 'required|string|max:255',
+                'narration' => 'nullable|string|max:1000',
+                'vat_percent' => 'nullable|numeric|min:0|max:100',
+                'vat_amount' => 'nullable|numeric|min:0',
+                'attach_file' => 'nullable|file|max:10240',
+            ]);
+
+            $expense = visa_expenses::findOrFail($validated['id']);
+            if ($expense->payment_status !== 'paid') {
+                DB::rollBack();
+                Flash::error('Only paid visa expenses can update the LV voucher.');
+
+                return redirect()->back()->withInput();
+            }
+
+            $voucher = null;
+            if (!empty($validated['voucher_id'])) {
+                $voucher = Vouchers::where('id', $validated['voucher_id'])
+                    ->where('voucher_type', 'LV')
+                    ->where('ref_id', $expense->id)
+                    ->first();
+            }
+            if (!$voucher) {
+                $voucher = Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'LV')->first();
+            }
+            if (!$voucher) {
+                throw new \RuntimeException('No LV voucher found for this expense.');
+            }
+
+            $previousBillingMonth = $expense->billing_month;
+            $billingMonth = $validated['billing_month'] . '-01';
+            $transDate = $validated['date'];
+            $baseAmount = round((float) $validated['amount'], 2);
+            $referenceNumber = trim((string) $validated['reference_number']);
+            $narration = trim((string) ($validated['narration'] ?? ''));
+            if ($narration === '') {
+                $narration = $expense->detail ?: ($voucher->remarks ?: 'Visa Expense Payment');
+            }
+
+            $vatPercent = round((float) ($validated['vat_percent'] ?? 0), 4);
+            $vatAmount = round((float) ($validated['vat_amount'] ?? 0), 2);
+            if ($vatAmount <= 0 && $vatPercent > 0 && $baseAmount > 0) {
+                $vatAmount = round(($baseAmount * $vatPercent) / 100, 2);
+            }
+            $grandTotal = round($baseAmount + $vatAmount, 2);
+            $paymentType = (int) $validated['payment_type'];
+            $newPayAccountId = (int) $validated['account'];
+            $visaExpenseAccountId = (int) GlobalAccounts::id('VISA_EXPENSE_ACCOUNT');
+            $vatAccountId = (int) (GlobalAccounts::idOrNull('VAT_PURCHASE_ACCOUNT') ?? 0);
+
+            if ($newPayAccountId === $visaExpenseAccountId) {
+                throw new \RuntimeException('Cannot use the visa expense account as the payment (credit) side.');
+            }
+
+            $expense->date = $transDate;
+            $expense->trans_date = $transDate;
+            $expense->billing_month = $billingMonth;
+            $expense->amount = $baseAmount;
+            $expense->reference_number = $referenceNumber;
+            $expense->detail = $narration;
+            $expense->pay_account = $newPayAccountId;
+            $expense->expiry_date = $validated['expiry_date'];
+            $expense->save();
+
+            $transactions = Transactions::where('trans_code', $voucher->trans_code)->get();
+            $oldAccountIds = $transactions->pluck('account_id')->filter()->unique()->values();
+            $debitTx = $transactions->first(function ($tx) use ($vatAccountId) {
+                return (float) $tx->debit > 0
+                    && !($vatAccountId > 0 && (int) $tx->account_id === $vatAccountId);
+            });
+            $vatTx = $vatAccountId > 0
+                ? $transactions->first(fn ($tx) => (float) $tx->debit > 0 && (int) $tx->account_id === $vatAccountId)
+                : null;
+            $creditTx = $transactions->first(fn ($tx) => (float) $tx->credit > 0);
+
+            if ($debitTx) {
+                $debitTx->debit = $baseAmount;
+                $debitTx->credit = 0;
+                $debitTx->account_id = $visaExpenseAccountId;
+                $debitTx->trans_date = $transDate;
+                $debitTx->billing_month = $billingMonth;
+                $debitTx->narration = $narration;
+                $debitTx->save();
+            } elseif ($baseAmount > 0) {
+                (new TransactionService())->recordTransaction([
+                    'account_id'     => $visaExpenseAccountId,
+                    'reference_id'   => $expense->id,
+                    'reference_type' => 'LV',
+                    'trans_code'     => $voucher->trans_code,
+                    'trans_date'     => $transDate,
+                    'narration'      => $narration,
+                    'debit'          => $baseAmount,
+                    'billing_month'  => $billingMonth,
+                    'branch_id'      => $expense->branch_id,
+                ]);
+            }
+
+            if ($vatAmount > 0) {
+                if ($vatTx) {
+                    $vatTx->debit = $vatAmount;
+                    $vatTx->credit = 0;
+                    $vatTx->account_id = $vatAccountId;
+                    $vatTx->trans_date = $transDate;
+                    $vatTx->billing_month = $billingMonth;
+                    $vatTx->narration = 'VAT: ' . $narration;
+                    $vatTx->save();
+                } else {
+                    (new TransactionService())->recordTransaction([
+                        'account_id'     => $vatAccountId,
+                        'reference_id'   => $expense->id,
+                        'reference_type' => 'LV',
+                        'trans_code'     => $voucher->trans_code,
+                        'trans_date'     => $transDate,
+                        'narration'      => 'VAT: ' . $narration,
+                        'debit'          => $vatAmount,
+                        'billing_month'  => $billingMonth,
+                        'branch_id'      => $expense->branch_id,
+                    ]);
+                }
+            } elseif ($vatTx) {
+                Transactions::hardDeleteMatching(fn ($q) => $q->where('id', $vatTx->id));
+            }
+
+            if ($creditTx) {
+                $creditTx->credit = $grandTotal;
+                $creditTx->debit = 0;
+                $creditTx->account_id = $newPayAccountId;
+                $creditTx->trans_date = $transDate;
+                $creditTx->billing_month = $billingMonth;
+                $creditTx->narration = $narration;
+                $creditTx->save();
+            } elseif ($grandTotal > 0) {
+                (new TransactionService())->recordTransaction([
+                    'account_id'     => $newPayAccountId,
+                    'reference_id'   => $expense->id,
+                    'reference_type' => 'LV',
+                    'trans_code'     => $voucher->trans_code,
+                    'trans_date'     => $transDate,
+                    'narration'      => $narration,
+                    'credit'         => $grandTotal,
+                    'billing_month'  => $billingMonth,
+                    'branch_id'      => $expense->branch_id,
+                ]);
+            }
+
+            $voucherUpdate = [
+                'trans_date'       => $transDate,
+                'billing_month'    => $billingMonth,
+                'payment_type'     => $paymentType,
+                'remarks'          => $narration,
+                'amount'           => $grandTotal,
+                'reference_number' => $referenceNumber !== '' ? $referenceNumber : null,
+                'Updated_By'       => auth()->id(),
+            ];
+            if (Schema::hasColumn('vouchers', 'pay_account')) {
+                $voucherUpdate['pay_account'] = $newPayAccountId;
+            }
+            if ($request->hasFile('attach_file')) {
+                $voucherUpdate['attach_file'] = $request->file('attach_file')->store('vouchers', 'public');
+            }
+            $voucher->update($voucherUpdate);
+
+            $accountIds = $oldAccountIds
+                ->push($newPayAccountId)
+                ->push($visaExpenseAccountId)
+                ->when($vatAccountId > 0, fn ($c) => $c->push($vatAccountId))
+                ->filter()
+                ->unique();
+
+            $months = collect([$billingMonth, $previousBillingMonth])
+                ->filter()
+                ->map(function ($month) {
+                    $month = (string) $month;
+
+                    return strlen($month) <= 7 ? $month . '-01' : $month;
+                })
+                ->unique()
+                ->values();
+
+            foreach ($accountIds as $accountId) {
+                foreach ($months as $month) {
+                    DeleteRequestService::recalculateLedgerAfterVoucherDeletion((int) $accountId, $month);
+                }
+            }
+            DeleteRequestService::recalculateExpenseRiderLedger($expense);
+
+            DB::commit();
+            Flash::success('LV voucher updated successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Flash::error('Error updating LV voucher: ' . $e->getMessage());
+
+            return redirect()->back()->withInput();
         }
 
         return redirect()->back();
@@ -1965,6 +2348,12 @@ class VisaexpenseController extends AppBaseController
         ]);
 
         $row = visa_expenses::findOrFail($validated['id']);
+        if (DeleteRequestService::isPaidExpense($row)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Paid visa expenses cannot be edited inline. Edit the LV voucher instead.',
+            ], 422);
+        }
         $previousBillingMonth = $row->billing_month;
 
         DB::beginTransaction();
@@ -2244,6 +2633,11 @@ class VisaexpenseController extends AppBaseController
         }
 
         $visaExpenses = visa_expenses::find($id);
+        if ($visaExpenses && DeleteRequestService::isPaidExpense($visaExpenses)) {
+            return delete_error_response(
+                'Paid visa expenses cannot be deleted. Delete the LV voucher instead.'
+            );
+        }
 
         return $this->destroyExpenseEntry(
             $visaExpenses,
@@ -2289,6 +2683,10 @@ class VisaexpenseController extends AppBaseController
                 $expense = visa_expenses::find($id);
                 if (!$expense) {
                     $errors[] = "Expense #{$id} not found.";
+                    continue;
+                }
+                if (DeleteRequestService::isPaidExpense($expense)) {
+                    $errors[] = "Expense #{$id} is paid and cannot be deleted. Delete the LV voucher instead.";
                     continue;
                 }
 

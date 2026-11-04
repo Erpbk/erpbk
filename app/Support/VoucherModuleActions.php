@@ -72,6 +72,19 @@ class VoucherModuleActions
             ];
         }
 
+        if ($type === 'LV') {
+            $expenseId = ! empty($voucher->ref_id) ? (int) $voucher->ref_id : null;
+            if ($expenseId) {
+                return [
+                    'edit_url' => route('VisaExpense.editLv', $withSlug(['id' => $expenseId])),
+                    'edit_title' => 'Edit LV Voucher',
+                    'edit_size' => 'xl',
+                    'delete_url' => route('vouchers.destroy', $withSlug(['voucher' => $voucher->trans_code])),
+                    'module' => 'visa_expense',
+                ];
+            }
+        }
+
         return [
             'edit_url' => route('vouchers.edit', $withSlug(['voucher' => $voucher->trans_code])),
             'edit_title' => 'Edit Voucher No. ' . $voucherLabel,

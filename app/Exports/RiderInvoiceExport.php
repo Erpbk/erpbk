@@ -38,7 +38,7 @@ class RiderInvoiceExport extends DefaultValueBinder implements FromCollection, W
             : '';
 
         $billingMonth = $invoice->billing_month
-            ? Carbon::parse($invoice->billing_month)->format('M Y')
+            ? Carbon::parse($invoice->billing_month)->format('M-Y')
             : '';
 
         $invDate = $invoice->inv_date

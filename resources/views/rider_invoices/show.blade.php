@@ -256,7 +256,7 @@
     $invoiceDateLabel = optional($riderInvoice->inv_date)->format('d M Y')
     ?? optional($riderInvoice->created_at)->format('d M Y')
     ?? '';
-    $billingLabel = date('M Y', strtotime($riderInvoice->billing_month));
+    $billingLabel = date('M-Y', strtotime($riderInvoice->billing_month));
     $hasTemplateItems = View::exists($templateView ?? '')
     || ($riderInvoice->items && $riderInvoice->items->count() > 0);
     @endphp

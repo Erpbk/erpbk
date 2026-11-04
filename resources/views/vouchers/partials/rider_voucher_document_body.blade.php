@@ -2,9 +2,16 @@
     $isPdf = !empty($isPdf);
     $isPrint = $isPdf || request()->boolean('print') || (bool) request()->get('print');
     $brand = $brand ?? [];
-    $blue = $brand['primary_color'] ?? '#1e4b8f';
-    $blueSoft = $brand['primary_soft'] ?? '#eef4fc';
-    $blueLine = $brand['border_color'] ?? '#c5d8f0';
+    if (empty($brand['primary_color']) || empty($brand['primary_soft']) || empty($brand['border_color'])) {
+        $brand = array_merge(
+            app(\App\Services\Agreements\AgreementPdfBranding::class)
+                ->colorPalette(\App\Support\CompanyContext::id()),
+            $brand
+        );
+    }
+    $blue = (string) ($brand['primary_color'] ?? '');
+    $blueSoft = (string) ($brand['primary_soft'] ?? ($brand['primary_light'] ?? ''));
+    $blueLine = (string) ($brand['border_color'] ?? '');
     $money = $formatMoney ?? static fn ($n) => \App\Helpers\Currency::format((float) $n);
     $showSignature = !empty($settings['show_signature']);
     $logoSrc = $logoSrc ?? ($brand['logo_src'] ?? ($brand['logo_url'] ?? null));
@@ -43,10 +50,6 @@ $payeeFontSize = $payeeLen > 36
     line-height: 1.45;
 }
 .rpv-doc * { box-sizing: border-box; }
-.rpv-accent {
-    height: {{ $isPdf ? '4px' : '5px' }};
-    background: var(--rpv-blue);
-}
 .rpv-sheet { padding: {{ $isPdf ? '14px 16px 16px' : '26px 30px 24px' }}; }
 .rpv-hdr {
     width: 100%;
@@ -321,7 +324,6 @@ $payeeFontSize = $payeeLen > 36
 </style>
 
 <div class="rpv-doc">
-    <div class="rpv-accent"></div>
     <div class="rpv-sheet">
         <table class="rpv-hdr" cellpadding="0" cellspacing="0">
             <tr>

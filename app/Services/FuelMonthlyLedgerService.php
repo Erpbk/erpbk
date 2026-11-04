@@ -118,7 +118,7 @@ class FuelMonthlyLedgerService
         $transDate = Carbon::parse($activeRows->max('trans_date'))->format('Y-m-d');
         $branchId = $rider->branch_id;
         $riderName = $rider->name ?? ('Rider #' . $rider->id);
-        $monthLabel = Carbon::parse($billingMonthDate)->format('M Y');
+        $monthLabel = Carbon::parse($billingMonthDate)->format('M-Y');
 
         $totalAmount = (float) $activeRows->sum('total');
         $totalVat = (float) $activeRows->sum('vat_amount');
@@ -133,7 +133,7 @@ class FuelMonthlyLedgerService
                 'reference_type' => 'fuel',
                 'trans_code' => $transCode,
                 'trans_date' => $transDate,
-                'narration' => 'Fuel Charges - ' . Carbon::parse($billingMonthDate)->format('M Y'),
+                'narration' => 'Fuel Charges - ' . Carbon::parse($billingMonthDate)->format('M-Y'),
                 'debit' => $riderDebit,
                 'credit' => 0,
                 'billing_month' => $billingMonthDate,

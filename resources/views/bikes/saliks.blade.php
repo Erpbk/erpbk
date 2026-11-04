@@ -38,7 +38,7 @@
                         -
                         @endif
                     </td>
-                    <td>{{ $trip->billing_month ? \Carbon\Carbon::parse($trip->billing_month)->format('M Y') : '-' }}</td>
+                    <td>{{ $trip->billing_month ? \Carbon\Carbon::parse($trip->billing_month)->format('M-Y') : '-' }}</td>
                     <td>{{ \App\Helpers\General::DateFormat($trip->trip_date) }}</td>
                     <td>{{ $trip->trip_time instanceof \Carbon\CarbonInterface ? $trip->trip_time->format('H:i') : ($trip->trip_time ?: '-') }}</td>
                     <td>{{ $trip->toll_gate ?: '-' }}</td>

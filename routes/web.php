@@ -469,6 +469,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('VisaExpense/deleteaccount/{id}', [VisaexpenseController::class, 'deleteaccount'])->name('VisaExpense.deleteaccount');
     Route::post('VisaExpense/payfine', [VisaexpenseController::class, 'payfine'])->name('VisaExpense.payfine');
     Route::get('VisaExpense/pay-form/{id}', [VisaexpenseController::class, 'payForm'])->name('VisaExpense.payForm');
+    Route::get('VisaExpense/edit-lv/{id}', [VisaexpenseController::class, 'editLv'])->name('VisaExpense.editLv');
+    Route::post('VisaExpense/update-lv', [VisaexpenseController::class, 'updateLv'])->name('VisaExpense.updateLv');
     Route::get('VisaExpense/edit-voucher-credit/{visaExpense}', [VisaexpenseController::class, 'editVoucherCreditForm'])->name('VisaExpense.editVoucherCreditForm');
     Route::post('VisaExpense/update-voucher-credit', [VisaexpenseController::class, 'updateVoucherCredit'])->name('VisaExpense.updateVoucherCredit');
 

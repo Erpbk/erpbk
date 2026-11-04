@@ -307,13 +307,18 @@ class VouchersController extends Controller
     }
 
     $riderDoc = app(\App\Services\Voucher\RiderModuleVoucherViewData::class);
+    $visaDoc = app(\App\Services\Voucher\VisaExpenseVoucherViewData::class);
 
     if (request()->ajax() || request()->wantsJson()) {
       return view('vouchers.show_modal', compact('voucher', 'editDeleteFlags'));
     }
 
-    if ($riderDoc->supports($voucher)) {
-      $doc = $riderDoc->build($voucher);
+    $docBuilder = $riderDoc->supports($voucher)
+      ? $riderDoc
+      : ($visaDoc->supports($voucher) ? $visaDoc : null);
+
+    if ($docBuilder) {
+      $doc = $docBuilder->build($voucher);
 
       if (request()->boolean('print') || request()->get('print')) {
         return view('vouchers.rider_voucher_print', array_merge($doc, ['doc' => $doc]));
@@ -377,6 +382,12 @@ class VouchersController extends Controller
     }
     if ($moduleActions['module'] === 'expenses') {
       return app(ExpenseController::class)->editVoucher($company_slug, $vouchers->id);
+    }
+    if ($moduleActions['module'] === 'visa_expense') {
+      $expenseId = $vouchers->ref_id ?: null;
+      if ($expenseId) {
+        return app(VisaexpenseController::class)->editLv($request, $company_slug, $expenseId);
+      }
     }
 
     // Load full ledger lines for every other voucher type (JV, etc.), including any approval holds.

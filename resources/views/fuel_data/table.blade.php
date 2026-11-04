@@ -23,7 +23,7 @@
          @if($vf('trans_no'))<td>{{ $r->trans_no }} @include('delete_requests._pending_badge', ['model' => $r])</td>@endif
          @if($vf('trans_date'))<td>{{ $r->trans_date->format('d M Y') }}</td>@endif
          @if($vf('trans_date'))<td>{{ $r->trans_date->format('h:i:s') }}</td>@endif
-         @if($vf('billing_month'))<td>{{$r->billing_month->format('M Y') ?? ''}}</td>@endif
+         @if($vf('billing_month'))<td>{{$r->billing_month->format('M-Y') ?? ''}}</td>@endif
          @if($vf('card_no'))<td><a href="{{ route('fuelCards.show', $r->card?->id ?? 0) }}" target="_blank">{{ $r->card_no ?? '-' }}</a></td>@endif
          @if($vf('rider_id'))<td><a href="{{ route('rider.ledger', $r->rider_id) }}" target="_blank">{{ $r->rider->name ?? '-' }}</a></td>@endif
          <td>

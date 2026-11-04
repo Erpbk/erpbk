@@ -40,7 +40,7 @@
                         </tr>
                         <tr>
                             <td><strong>Billing Month:</strong></td>
-                            <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}</td>
+                            <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M-Y') }}</td>
                         </tr>
                         <tr>
                             <td><strong>Description:</strong></td>

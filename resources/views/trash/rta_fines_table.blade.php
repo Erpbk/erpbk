@@ -44,7 +44,7 @@
       <tr class="text-center">
          <td>{{ App\Helpers\General::DateFormat($r->trip_date) }}</td>
          <td>{{$r->trip_time}}</td>
-         <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
+         <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M-Y') }}</td>
          <td><a href="{{ $fileUrl }}" target="_blank">{{$r->ticket_no}}</a></td>
          <td>
             @if ($voucher)

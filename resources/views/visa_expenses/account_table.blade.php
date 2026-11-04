@@ -223,7 +223,7 @@ foreach ($pageAccounts as $pageAccount) {
          try {
             $nextWhen = !empty($nextUnpaid->date)
                ? \Carbon\Carbon::parse($nextUnpaid->date)->format('d M Y')
-               : (!empty($nextUnpaid->billing_month) ? \Carbon\Carbon::parse($nextUnpaid->billing_month)->format('M Y') : '');
+               : (!empty($nextUnpaid->billing_month) ? \Carbon\Carbon::parse($nextUnpaid->billing_month)->format('M-Y') : '');
          } catch (\Throwable $e) { $nextWhen = ''; }
       }
 

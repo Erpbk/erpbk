@@ -22,7 +22,7 @@
             ? $maintenance->maintenance_date->format('d M Y')
             : '';
         $billingLabel = $maintenance->billing_month
-            ? $maintenance->billing_month->format('M Y')
+            ? $maintenance->billing_month->format('M-Y')
             : '';
         $items = $maintenance->maintenanceItems ?? collect();
         $subtotalAmount = (float) ($maintenance->subtotal ?? $items->sum(function ($i) {

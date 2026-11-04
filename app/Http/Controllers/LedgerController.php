@@ -167,7 +167,7 @@ class LedgerController extends Controller
     //     // Handle different reference types
     //     $voucher_text = $this->getVoucherText($row);
 
-    //     $month = "<span style='white-space: nowrap;'>" . date('M Y', strtotime($row->billing_month)) . "</span>";
+    //     $month = "<span style='white-space: nowrap;'>" . date('M-Y', strtotime($row->billing_month)) . "</span>";
     //     $naration = $this->getNarration($row, $view_file);
 
     //     $data[] = (object)[
@@ -320,7 +320,7 @@ class LedgerController extends Controller
             $query->where('account_id', $request->account);
         }
 
-        // Date Filters â€” from and/or to may be set independently
+        // Date Filters — from and/or to may be set independently
         if ($request->from_date || $request->to_date) {
             if ($request->from_date) {
                 $query->where('trans_date', '>=', $request->from_date);

@@ -91,15 +91,8 @@ class Common
             return (string) $date;
         }
 
-        $format = CompanyGlobalPreferences::phpDateFormat();
-        // Keep month+year only, derived from the company date order.
-        $monthFormat = match ($format) {
-            'Y-m-d' => 'Y-m',
-            'm-d-Y' => 'm-Y',
-            default => 'm-Y',
-        };
-
-        return date($monthFormat, $timestamp);
+        // Display as Nov-2026 across voucher/payment documents and related views.
+        return date('M-Y', $timestamp);
     }
 
     public static function DateTimeFormat($date)

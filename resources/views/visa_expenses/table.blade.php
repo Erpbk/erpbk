@@ -1,6 +1,10 @@
 @push('third_party_stylesheets')
 @endpush
-@php $vf = static fn (string $f): bool => field_visible('visaexpense', $f); @endphp
+@php
+$vf = static fn (string $f): bool => field_visible('visaexpense', $f);
+$__companySlug = \App\Support\CompanyRouteContext::slug();
+$voucherEditDeleteFlags = \App\Models\VoucherType::getEditDeleteFlagsByModule('vouchers');
+@endphp
 <div class="riders-list-demo" id="visa-expenses-inline-edit-scope">
    <div class="d-flex justify-content-end mb-2 px-1">
       @can('visa_expense_entries_delete')
@@ -22,6 +26,7 @@
             @if($vf('billing_month'))<th title="Billing Month" class="sorting" tabindex="0">Billing Month <span class="ar">⇅</span></th>@endif
             @if($vf('visa_status'))<th title="Visa Status" class="sorting" tabindex="0">Visa Status <span class="ar">⇅</span></th>@endif
             @if($vf('amount'))<th title="Amount" class="sorting" tabindex="0">Amount <span class="ar">⇅</span></th>@endif
+            <th title="Total" class="sorting" tabindex="0">Total <span class="ar">⇅</span></th>
             @if($vf('expiry_date'))<th title="Expiry Date" class="sorting" tabindex="0">Expiry Date <span class="ar">⇅</span></th>@endif
             <th title="File" class="nosort">File</th>
             <th title="Voucher ID" class="sorting" tabindex="0">Voucher ID <span class="ar">⇅</span></th>
@@ -32,14 +37,19 @@
       <tbody id="rlBody">
          @forelse($data as $r)
          @php
+         $isPaidExpense = $r->payment_status === 'paid';
          $expensePendingDeletion = record_is_pending_deletion($r);
          $voucherPendingDeletion = $r->vouchers->contains(fn ($v) => record_is_pending_deletion($v));
          $rowPendingDeletion = $expensePendingDeletion || $voucherPendingDeletion;
+         $allowInlineEdit = !$isPaidExpense && !$rowPendingDeletion;
+         $entryTotal = $isPaidExpense && $r->vouchers->isNotEmpty()
+            ? (float) $r->vouchers->sum('amount')
+            : (float) $r->amount;
          @endphp
          <tr class="text-center {{ $rowPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $r->id }}" data-row-id="{{ $r->id }}">
             @can('visa_expense_entries_delete')
             <td>
-               @if(!$rowPendingDeletion)
+               @if(!$rowPendingDeletion && !$isPaidExpense)
                <input type="checkbox" class="visa-expense-checkbox" value="{{ $r->id }}" onchange="updateVisaExpenseDeleteButton(this)" style="transform:scale(1.2);cursor:pointer;">
                @endif
             </td>
@@ -47,7 +57,7 @@
             @if($vf('date'))<td>
                <span id="date_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</span>
                @can('visa_expense_entries_edit')
-               @if(!$rowPendingDeletion)
+               @if($allowInlineEdit)
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="date">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -60,9 +70,9 @@
                   class="form-control form-control-sm d-none">
             </td>@endif
             @if($vf('billing_month'))<td>
-               <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</span>
+               <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M-Y') }}</span>
                @can('visa_expense_entries_edit')
-               @if(!$rowPendingDeletion)
+               @if($allowInlineEdit)
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="billing">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -75,14 +85,14 @@
                   class="form-control form-control-sm d-none">
             </td>@endif
             @if($vf('visa_status'))
-            <td class="visa-status-flow{{ $r->payment_status === 'paid' ? ' is-done' : '' }}{{ $loop->last ? ' is-last' : '' }}">
+            <td class="visa-status-flow{{ $isPaidExpense ? ' is-done' : '' }}{{ $loop->last ? ' is-last' : '' }}">
                <span class="visa-status-bdg">{{ $r->visa_status }}</span>
             </td>
             @endif
             @if($vf('amount'))<td>
                <span id="amount_display_{{ $r->id }}">{{ number_format((float) $r->amount, 2) }}</span>
                @can('visa_expense_entries_edit')
-               @if(!$rowPendingDeletion)
+               @if($allowInlineEdit)
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="amount">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -96,11 +106,14 @@
                   value="{{ number_format((float) $r->amount, 2, '.', '') }}"
                   class="form-control form-control-sm d-none">
             </td>@endif
+            <td>
+               <span id="total_display_{{ $r->id }}">{{ number_format($entryTotal, 2) }}</span>
+            </td>
             @if($vf('expiry_date'))<td>
                @if($r->expiry_date)
                <span id="expiry_date_display_{{ $r->id }}">{{ $r->expiry_date ? \Carbon\Carbon::parse($r->expiry_date)->format('d M Y') : '-' }}</span>
                @can('visa_expense_entries_edit')
-               @if(!$rowPendingDeletion)
+               @if($allowInlineEdit)
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="expiry_date">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -148,29 +161,49 @@
             </td>
             <td>
                <span id="voucher_ids_display_{{ $r->id }}" class="d-inline-flex flex-wrap align-items-center justify-content-center gap-1">
-                  @if($r->payment_status === 'paid')
+                  @if($isPaidExpense)
                   @if($r->vouchers->isNotEmpty())
                   @foreach($r->vouchers as $voucher)
                   @php
                   $voucherNumber = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
+                  $moduleActions = \App\Support\VoucherModuleActions::forVoucher($voucher, $__companySlug);
+                  $canEditVoucher = !empty($voucherEditDeleteFlags[$voucher->voucher_type]['can_edit']);
+                  $canDeleteVoucher = !empty($voucherEditDeleteFlags[$voucher->voucher_type]['can_delete']);
                   @endphp
                   <span class="d-inline-flex align-items-center gap-1">
-                     <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucherNumber }}</a>
+                     <a href="javascript:void(0);"
+                        class="text-primary show-voucher-panel"
+                        data-action="{{ route('vouchers.show', $voucher->id) }}"
+                        data-title="{{ \App\Helpers\General::VoucherType($voucher->voucher_type) ?? $voucher->voucher_type }} #{{ $voucherNumber }}"
+                        data-collapse-sidebar="1">{{ $voucherNumber }}</a>
                      @include('delete_requests._pending_badge', ['model' => $voucher])
+                     @if(!$rowPendingDeletion)
+                     @canany(['vouchers_edit', 'voucher_edit'])
+                     @if($canEditVoucher)
+                     <a href="javascript:void(0);"
+                        class="show-modal text-body-secondary"
+                        data-size="{{ $moduleActions['edit_size'] }}"
+                        data-title="{{ $moduleActions['edit_title'] }}"
+                        data-action="{{ $moduleActions['edit_url'] }}"
+                        data-collapse-sidebar="1"
+                        title="Edit {{ $voucherNumber }}">
+                        <i class="fa fa-edit text-primary"></i>
+                     </a>
+                     @endif
+                     @endcanany
+                     @canany(['vouchers_delete', 'voucher_delete'])
+                     @if($canDeleteVoucher)
+                     <a href="javascript:void(0);"
+                        class="text-danger"
+                        onclick='confirmDelete(@json($moduleActions['delete_url']))'
+                        title="Delete {{ $voucherNumber }}">
+                        <i class="fa fa-trash"></i>
+                     </a>
+                     @endif
+                     @endcanany
+                     @endif
                   </span>@if(!$loop->last), @endif
                   @endforeach
-                  @can('visa_expense_entries_edit')
-                  @if(!$rowPendingDeletion)
-                  <a href="javascript:void(0);"
-                     class="show-modal text-body-secondary"
-                     data-size="xl"
-                     data-title="Edit payment account — {{ $r->vouchers->first()->voucher_type ?? 'LV' }}-{{ str_pad((string) ($r->vouchers->first()->id ?? 0), 4, '0', STR_PAD_LEFT) }}"
-                     data-action="{{ route('VisaExpense.editVoucherCreditForm', $r->id) }}"
-                     title="Change credit / payment account only">
-                     <i class="fa fa-edit text-primary"></i>
-                  </a>
-                  @endif
-                  @endcan
                   @else
                   <span class="text-muted">No voucher</span>
                   @endif
@@ -180,7 +213,7 @@
                </span>
             </td>
             @if($vf('payment_status'))<td>
-               @if($r->payment_status == 'paid')
+               @if($isPaidExpense)
                <span class="badge bg-success">Paid</span>
                @else
                <span class="badge bg-danger">Unpaid</span>
@@ -211,7 +244,7 @@
                         <i class="fa fa-file me-1"></i> {{ $r->vouchers->contains(fn ($v) => filled($v->attach_file)) ? 'Update Document' : 'Upload Document' }}
                      </a>
                      @endif
-                     @if($r->payment_status !== 'paid' && !$rowPendingDeletion)
+                     @if(!$isPaidExpense && !$rowPendingDeletion)
                      <a href="javascript:void(0);"
                         data-action="{{ route('VisaExpense.payForm', $r->id) }}"
                         data-size="xl"
@@ -219,15 +252,17 @@
                         class="dropdown-item waves-effect show-modal">
                         Pay
                      </a>
-                     @endif
                      <a href="javascript:void(0);" data-action="{{ route('VisaExpense.edit' , $r->id) }}" data-size="lg" data-title="Edit Visa Expense" class='dropdown-item waves-effect show-modal'>
                         Edit
                      </a>
+                     @endif
                      @endcan
                      @can('visa_expense_entries_delete')
+                     @if(!$isPaidExpense)
                      <a href="javascript:void(0);" data-delete-url="{{ route('VisaExpense.delete', $r->id) }}" class='dropdown-item confirm-modal js-delete-visa-expense' data-size="lg" data-title="Delete Sim">
                         delete
                      </a>
+                     @endif
                      @endcan
                   </div>
                </div>
@@ -308,10 +343,10 @@
             year: 'numeric'
          });
          var bm = new Date(data.billing_month + '-01');
-         if (billDisp) billDisp.textContent = bm.toLocaleDateString('en-US', {
-            month: 'short',
-            year: 'numeric'
-         });
+         if (billDisp) {
+            var monthShort = bm.toLocaleDateString('en-US', { month: 'short' });
+            billDisp.textContent = monthShort + '-' + bm.getFullYear();
+         }
       }).catch(function() {
          if (typeof Swal !== 'undefined') {
             Swal.fire({

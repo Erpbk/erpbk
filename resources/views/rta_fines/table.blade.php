@@ -34,7 +34,7 @@
                ? $r->paidVoucher->billing_month
                : $r->billing_month;
          @endphp
-         <td>{{ $billingMonthValue ? \Carbon\Carbon::parse($billingMonthValue)->format('M Y') : '-' }}</td>
+         <td>{{ $billingMonthValue ? \Carbon\Carbon::parse($billingMonthValue)->format('M-Y') : '-' }}</td>
          @endif
          @php
          $fileUrl = $r->paid_voucher_id ? asset('storage/' . $r->attachment) : asset('storage/' . $r->attachment_path);

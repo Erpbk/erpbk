@@ -83,7 +83,7 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
                 <td>
                     <span id="inst_date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
                     @if($canInlineEdit)
-                    <a href="javascript:void(0);" onclick="editDate({{ $installment->id }})" class="ms-2">
+                    <a href="javascript:void(0);" onclick="editDate({{ $installment->id }}, this)" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
                     @endif
@@ -91,15 +91,19 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
                         id="inst_date_input_{{ $installment->id }}"
                         value="{{ \Carbon\Carbon::parse($installment->date)->format('Y-m-d') }}"
                         class="form-control form-control-sm d-none"
-                        onblur="saveDate({{ $installment->id }})"
-                        onkeypress="if(event.keyCode==13) saveDate({{ $installment->id }})">
+                        onblur="saveDate({{ $installment->id }}, this)"
+                        onkeypress="if(event.keyCode==13) saveDate({{ $installment->id }}, this)">
                 </td>
                 <td>
                     <span id="inst_voucher_ids_display_{{ $installment->id }}">
                         @if($installment->vouchers->isNotEmpty())
                         @foreach($installment->vouchers as $voucher)
                         <span class="d-inline-flex align-items-center gap-1">
-                            <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucher->formatted_id }}</a>
+                            <a href="javascript:void(0);"
+                                class="text-primary show-voucher-panel"
+                                data-action="{{ route('vouchers.show', $voucher->id) }}"
+                                data-title="{{ \App\Helpers\General::VoucherType($voucher->voucher_type) ?? $voucher->voucher_type }} #{{ $voucher->formatted_id }}"
+                                data-collapse-sidebar="1">{{ $voucher->formatted_id }}</a>
                         </span>@if(!$loop->last), @endif
                         @endforeach
                         @else
@@ -129,9 +133,9 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
                     @endif
                 </td>
                 <td>
-                    <span id="inst_billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
+                    <span id="inst_billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M-Y') }}</span>
                     @if($canInlineEdit)
-                    <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }})" class="ms-2">
+                    <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }}, this)" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
                     @endif
@@ -139,13 +143,13 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
                         id="inst_billing_input_{{ $installment->id }}"
                         value="{{ \Carbon\Carbon::parse($installment->billing_month)->format('Y-m') }}"
                         class="form-control form-control-sm d-none"
-                        onblur="saveBillingMonth({{ $installment->id }})"
-                        onkeypress="if(event.keyCode==13) saveBillingMonth({{ $installment->id }})">
+                        onblur="saveBillingMonth({{ $installment->id }}, this)"
+                        onkeypress="if(event.keyCode==13) saveBillingMonth({{ $installment->id }}, this)">
                 </td>
                 <td class="text-start" style="min-width: 260px;">
                     <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->narration ? $installment->narration : '-' !!}</span>
                     @if($canInlineEdit)
-                    <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
+                    <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }}, this)" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
                     @endif
@@ -154,12 +158,12 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
                         rows="2"
                         data-original="{{ e($installment->narration ?? '') }}"
                         class="form-control form-control-sm d-none"
-                        onblur="saveNarration({{ $installment->id }})">{{ $installment->narration ?? '' }}</textarea>
+                        onblur="saveNarration({{ $installment->id }}, this)">{{ $installment->narration ?? '' }}</textarea>
                 </td>
                 <td>
                     <span id="inst_amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
                     @if($canInlineEdit)
-                    <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }})" class="ms-2">
+                    <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }}, this)" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
                     @endif
@@ -168,8 +172,8 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
                         id="inst_amount_input_{{ $installment->id }}"
                         value="{{ $installment->amount }}"
                         class="form-control form-control-sm d-none"
-                        onblur="saveAmount({{ $installment->id }})"
-                        onkeypress="if(event.keyCode==13) saveAmount({{ $installment->id }})">
+                        onblur="saveAmount({{ $installment->id }}, this)"
+                        onkeypress="if(event.keyCode==13) saveAmount({{ $installment->id }}, this)">
                 </td>
                 <td>
                     <span id="inst_created_by_display_{{ $installment->id }}">{{ $installment->created_by ? \App\Models\User::find($installment->created_by)->name :''}}</span>
@@ -268,13 +272,28 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
 </div>
 
 <script>
-    function installmentInlineScope() {
-        return document.getElementById('visa-installments-inline-edit-scope');
+    // Scope id is dynamic (e.g. visa-installment-plan-inline-edit-scope). A previous
+    // hardcoded "visa-installments-..." id made pencil edits silently no-op.
+    function installmentInlineScope(fromEl) {
+        if (fromEl && fromEl.closest) {
+            const nearest = fromEl.closest('[id$="-inline-edit-scope"]');
+            if (nearest) {
+                return nearest;
+            }
+        }
+        return document.getElementById(@json($installmentTableScope . '-inline-edit-scope'));
     }
 
-    function installmentFieldEl(field, installmentId) {
-        const scope = installmentInlineScope();
-        return scope ? scope.querySelector('#inst_' + field + '_' + installmentId) : null;
+    function installmentFieldEl(field, installmentId, fromEl) {
+        const id = 'inst_' + field + '_' + installmentId;
+        const scope = installmentInlineScope(fromEl);
+        if (scope) {
+            const scoped = scope.querySelector('#' + id);
+            if (scoped) {
+                return scoped;
+            }
+        }
+        return document.getElementById(id);
     }
 
     // Track unsaved amount changes locally until user finalizes
@@ -347,27 +366,27 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
     }
 
     // Edit functions - show input field
-    function editDate(installmentId) {
-        const dateDisplay = installmentFieldEl('date_display', installmentId);
-        const dateInput = installmentFieldEl('date_input', installmentId);
+    function editDate(installmentId, fromEl) {
+        const dateDisplay = installmentFieldEl('date_display', installmentId, fromEl);
+        const dateInput = installmentFieldEl('date_input', installmentId, fromEl);
         if (!dateDisplay || !dateInput) return;
         dateDisplay.classList.add('d-none');
         dateInput.classList.remove('d-none');
         dateInput.focus();
     }
 
-    function editBillingMonth(installmentId) {
-        const billingDisplay = installmentFieldEl('billing_display', installmentId);
-        const billingInput = installmentFieldEl('billing_input', installmentId);
+    function editBillingMonth(installmentId, fromEl) {
+        const billingDisplay = installmentFieldEl('billing_display', installmentId, fromEl);
+        const billingInput = installmentFieldEl('billing_input', installmentId, fromEl);
         if (!billingDisplay || !billingInput) return;
         billingDisplay.classList.add('d-none');
         billingInput.classList.remove('d-none');
         billingInput.focus();
     }
 
-    function editAmount(installmentId) {
-        const amountDisplay = installmentFieldEl('amount_display', installmentId);
-        const amountInput = installmentFieldEl('amount_input', installmentId);
+    function editAmount(installmentId, fromEl) {
+        const amountDisplay = installmentFieldEl('amount_display', installmentId, fromEl);
+        const amountInput = installmentFieldEl('amount_input', installmentId, fromEl);
         if (!amountDisplay || !amountInput) return;
         amountDisplay.classList.add('d-none');
         amountInput.classList.remove('d-none');
@@ -375,9 +394,9 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
         amountInput.select();
     }
 
-    function editNarration(installmentId) {
-        const narrationDisplay = installmentFieldEl('narration_display', installmentId);
-        const narrationInput = installmentFieldEl('narration_input', installmentId);
+    function editNarration(installmentId, fromEl) {
+        const narrationDisplay = installmentFieldEl('narration_display', installmentId, fromEl);
+        const narrationInput = installmentFieldEl('narration_input', installmentId, fromEl);
         if (!narrationDisplay || !narrationInput) return;
         narrationDisplay.classList.add('d-none');
         narrationInput.classList.remove('d-none');
@@ -386,9 +405,9 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
     }
 
     // Save functions - hide input and save data
-    function saveDate(installmentId) {
-        const dateInput = installmentFieldEl('date_input', installmentId);
-        const dateDisplay = installmentFieldEl('date_display', installmentId);
+    function saveDate(installmentId, fromEl) {
+        const dateInput = installmentFieldEl('date_input', installmentId, fromEl);
+        const dateDisplay = installmentFieldEl('date_display', installmentId, fromEl);
         if (!dateInput || !dateDisplay) return;
         const newValue = dateInput.value;
         const originalValue = dateInput.getAttribute('data-original') || '';
@@ -468,9 +487,9 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
         dateDisplay.classList.remove('d-none');
     }
 
-    function saveBillingMonth(installmentId) {
-        const billingInput = installmentFieldEl('billing_input', installmentId);
-        const billingDisplay = installmentFieldEl('billing_display', installmentId);
+    function saveBillingMonth(installmentId, fromEl) {
+        const billingInput = installmentFieldEl('billing_input', installmentId, fromEl);
+        const billingDisplay = installmentFieldEl('billing_display', installmentId, fromEl);
         if (!billingInput || !billingDisplay) return;
         const newValue = billingInput.value;
         const originalValue = billingInput.getAttribute('data-original') || '';
@@ -509,9 +528,9 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
         billingDisplay.classList.remove('d-none');
     }
 
-    function saveAmount(installmentId) {
-        const amountInput = installmentFieldEl('amount_input', installmentId);
-        const amountDisplay = installmentFieldEl('amount_display', installmentId);
+    function saveAmount(installmentId, fromEl) {
+        const amountInput = installmentFieldEl('amount_input', installmentId, fromEl);
+        const amountDisplay = installmentFieldEl('amount_display', installmentId, fromEl);
         if (!amountInput || !amountDisplay) return;
         const newValue = amountInput.value;
         const originalValue = amountInput.getAttribute('data-original') || '';
@@ -570,9 +589,9 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
         amountDisplay.classList.remove('d-none');
     }
 
-    function saveNarration(installmentId) {
-        const narrationInput = installmentFieldEl('narration_input', installmentId);
-        const narrationDisplay = installmentFieldEl('narration_display', installmentId);
+    function saveNarration(installmentId, fromEl) {
+        const narrationInput = installmentFieldEl('narration_input', installmentId, fromEl);
+        const narrationDisplay = installmentFieldEl('narration_display', installmentId, fromEl);
         if (!narrationInput || !narrationDisplay) return;
         const newValue = narrationInput.value.trim();
         const originalValue = (narrationInput.getAttribute('data-original') || narrationInput.defaultValue || '').trim();
@@ -642,9 +661,9 @@ $linkedReceiptsById = $linkedReceiptsById ?? collect();
 @include('visa_expenses.partials.multi_delete_scripts')
 @endonce
 <script>
-    // Store original values when page loads
+    // Store original values when page loads (capture this table's scope id in the listener).
     document.addEventListener('DOMContentLoaded', function() {
-        const scope = installmentInlineScope();
+        const scope = document.getElementById(@json($installmentTableScope . '-inline-edit-scope'));
         if (!scope) return;
 
         const dateInputs = scope.querySelectorAll('[id^="inst_date_input_"]');

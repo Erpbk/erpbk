@@ -23,7 +23,7 @@
          <td>{{ $invoice->id }}</td>
          <td><a href="javascript:void(0);" data-action="{{ route('leasingCompanyBillingInvoices.show', $invoice->id) }}" data-size="xl" class="show-modal-right">{{ $invoice->invoice_number ?? ('LBI-' . $invoice->id) }}</a></td>
          <td>{{ \Carbon\Carbon::parse($invoice->inv_date)->format('d M Y') }}</td>
-         <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}</td>
+         <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M-Y') }}</td>
          <td>{{ $invoice->customer->name ?? '-' }}</td>
          <td><span class="badge bg-info">{{ $invoice->items->count() }} bike(s)</span></td>
          <td>{{ \App\Helpers\Currency::format($invoice->subtotal ?? 0, 2) }}</td>

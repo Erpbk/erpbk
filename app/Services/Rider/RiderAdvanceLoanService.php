@@ -86,8 +86,8 @@ class RiderAdvanceLoanService
         if ($invoice) {
             $invoiceLabel = $invoice->invoice_number ?: ('#' . $invoice->id);
             $monthLabel = $invoice->billing_month
-                ? date('M Y', strtotime((string) $invoice->billing_month))
-                : date('M Y', strtotime($billingMonth));
+                ? date('M-Y', strtotime((string) $invoice->billing_month))
+                : date('M-Y', strtotime($billingMonth));
             $remarks = trim($remarks . ' | Invoice ' . $invoiceLabel . ' (' . $monthLabel . ')');
         }
 

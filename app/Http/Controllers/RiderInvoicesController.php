@@ -142,7 +142,7 @@ class RiderInvoicesController extends AppBaseController
 
         $billingMonthLabel = 'All';
         if ($request->filled('billing_month')) {
-            $billingMonthLabel = Carbon::parse($request->billing_month)->format('M Y');
+            $billingMonthLabel = Carbon::parse($request->billing_month)->format('M-Y');
         }
 
         $moneyRows = (clone $statsQuery)->with(['rider', 'items'])->get();

@@ -31,7 +31,7 @@ class RiderInvoicesDataTable extends DataTable
         return $riderInvoices->inv_date ? Common::DateFormat($riderInvoices->inv_date) : '';
       })
       ->addColumn('billing_month', function (RiderInvoices $riderInvoices) {
-        return date('M Y', strtotime($riderInvoices->billing_month));
+        return date('M-Y', strtotime($riderInvoices->billing_month));
       })
       ->addColumn('project', function (RiderInvoices $riderInvoices) {
         return e($riderInvoices->customer?->name ?? $riderInvoices->rider?->customer?->name ?? '—');

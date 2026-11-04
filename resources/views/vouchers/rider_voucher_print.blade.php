@@ -12,7 +12,12 @@
     </style>
 </head>
 <body>
-    @include('vouchers.partials.rider_voucher_document_body', array_merge($doc ?? [], ['isPdf' => false]))
+    @include(
+        !empty($isVisaExpenseDocument)
+            ? 'vouchers.partials.visa_expense_voucher_document_body'
+            : 'vouchers.partials.rider_voucher_document_body',
+        array_merge($doc ?? [], ['isPdf' => false])
+    )
     @if(request()->boolean('print') || request()->get('print'))
     <script>window.onload = function () { window.print(); };</script>
     @endif

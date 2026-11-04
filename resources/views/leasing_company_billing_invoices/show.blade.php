@@ -48,7 +48,7 @@
     $invoiceDateLabel = $invoice->inv_date
     ? (is_object($invoice->inv_date) ? $invoice->inv_date->format('d M Y') : date('d M Y', strtotime($invoice->inv_date)))
     : '';
-    $billingLabel = date('M Y', strtotime($invoice->billing_month));
+    $billingLabel = date('M-Y', strtotime($invoice->billing_month));
     @endphp
 
     @if(empty($isPdf))

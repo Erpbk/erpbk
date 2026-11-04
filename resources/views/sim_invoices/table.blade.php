@@ -24,7 +24,7 @@
                     @include('delete_requests._pending_badge', ['model' => $invoice])
                 </td>
                 <td>{{ \Carbon\Carbon::parse($invoice->inv_date)->format('d M Y') }}</td>
-                <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}</td>
+                <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M-Y') }}</td>
                 <td>{{ $invoice->company->name ?? '-' }}</td>
                 <td><span class="badge bg-info">{{ $invoice->sims_count ?? ($invoice->relationLoaded('items') ? $invoice->items->pluck('sim_id')->unique()->count() : 0) }} SIM(s)</span></td>
                 <td>{{ \App\Helpers\Currency::format($invoice->subtotal ?? 0, 2) }}</td>

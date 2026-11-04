@@ -98,7 +98,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -107,7 +107,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -120,7 +120,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -129,7 +129,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -138,7 +138,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -147,7 +147,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -156,7 +156,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -165,7 +165,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -207,7 +207,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -216,7 +216,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -229,7 +229,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -238,7 +238,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
@@ -325,7 +325,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = Vouchers::where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                     if ($vouchers->attach_file) {
                         $view_file = '  <a href="' . storage_url($vouchers->attach_file) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -337,7 +337,7 @@ class LedgerDataTable extends DataTable
                 $vouchers = Vouchers::where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print text-primary show-voucher-panel" data-collapse-sidebar="1">' . $voucher_ID . '</a>';
                     if ($vouchers->attach_file) {
                         $view_file = '  <a href="' . storage_url($vouchers->attach_file) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -354,7 +354,7 @@ class LedgerDataTable extends DataTable
                 $voucher_text = '<a href="javascript:void(0);" data-action="' . route('leasingCompanyBillingInvoices.show', $invoice_ID) . '" data-size="xl" class="no-print show-modal-right">RBI-' . str_pad($invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
             }
             $month = $row->billing_month
-                ? "<span style='white-space: nowrap;'>" . date('M Y', strtotime((string) $row->billing_month)) . '</span>'
+                ? "<span style='white-space: nowrap;'>" . date('M-Y', strtotime((string) $row->billing_month)) . '</span>'
                 : '';
             if ($row->reference_type == 'RTA' || $row->reference_type == 'RTA FINE' || $row->reference_type == 'RTA_FINE') {
                 // Ticket / bike / trip date are already in the stored narration.

@@ -1,14 +1,7 @@
-
-            {!! Form::model($visaExpenses, ['route' => ['VisaExpense.update'], 'method' => 'post']) !!}
-            <input type="hidden" name="id" value="{{ $visaExpenses->id }}">
-            <input type="hidden"  id="reload_page" value="1">
-                <div class="row">
-                    @include('visa_expenses.fields')
-                </div>
-
-            <div class="action-btn">
-                <button type="button" class="btn btn-default"  data-bs-dismiss="modal">Cancel</button>
-                {!! Form::submit('Save', ['class' => 'btn btn-primary']) !!}
-            </div>
-
-            {!! Form::close() !!}
+@include('visa_expenses.pay_form', [
+    'formMode' => 'edit',
+    'expense' => $expense ?? $visaExpenses,
+    'accounts' => $accounts ?? $data,
+    'rider' => $rider ?? null,
+    'visaStatuses' => $visaStatuses ?? collect(),
+])

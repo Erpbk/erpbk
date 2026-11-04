@@ -84,7 +84,7 @@
             <td>{{ \App\Helpers\Common::DateFormat($t->trans_date) }}</td>
             <td>{{ $t->account ? $t->account->account_code . ' – ' . $t->account->name : 'N/A' }}</td>
             <td>{{ $t->voucher ? ($t->voucher->reference_number ?? '—') : '—' }}</td>
-            <td>{{ $t->billing_month ? date('M Y', strtotime($t->billing_month)) : '—' }}</td>
+            <td>{{ $t->billing_month ? date('M-Y', strtotime($t->billing_month)) : '—' }}</td>
             <td class="text-end">{{ number_format($t->debit, 2) }}</td>
             <td class="text-end">{{ number_format($t->credit, 2) }}</td>
           </tr>

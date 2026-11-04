@@ -181,7 +181,7 @@
 
             'invoiceDateLabel' => date('d M Y', strtotime($invoice->inv_date)),
 
-            'billingLabel' => date('M Y', strtotime($invoice->billing_month)),
+            'billingLabel' => date('M-Y', strtotime($invoice->billing_month)),
 
             ])
 

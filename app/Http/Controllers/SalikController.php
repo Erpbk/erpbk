@@ -359,7 +359,7 @@ class SalikController extends AppBaseController
         $payableAccountId = GlobalAccounts::id('SALIK_PAYABLE_ACCOUNT');
         $transCode = Account::trans_code();
         $transDate = now();
-        $billingMonthDisplay = Carbon::parse($billingMonthNorm)->format('M Y');
+        $billingMonthDisplay = Carbon::parse($billingMonthNorm)->format('M-Y');
         $transactionService = new TransactionService();
 
         $transactionService->recordTransaction([
@@ -410,13 +410,13 @@ class SalikController extends AppBaseController
         $transCodes = $saliks->pluck('trans_code')->filter()->unique()->values();
 
         if ($salikIds->isNotEmpty()) {
-            // Invoice ledger only â€” never purge payment vouchers (reference_type = Salik Voucher)
+            // Invoice ledger only — never purge payment vouchers (reference_type = Salik Voucher)
             // Hard-delete on rebuild so obsolete soft-deleted invoice lines cannot be revived.
             Transactions::hardDeleteMatching(function ($query) use ($salikIds) {
                 $query->whereIn('reference_id', $salikIds)
                     ->whereIn('reference_type', ['salik', 'Salik']);
             });
-            // Do not delete vouchers by ref_id â€” payment SV vouchers also store salik ref_id
+            // Do not delete vouchers by ref_id — payment SV vouchers also store salik ref_id
         }
 
         if ($transCodes->isNotEmpty()) {
@@ -458,7 +458,7 @@ class SalikController extends AppBaseController
             return;
         }
 
-        // Capture accounts before purge â€” after delete, trans_code lookup finds nothing
+        // Capture accounts before purge — after delete, trans_code lookup finds nothing
         $affectedAccountIds = Transactions::whereIn('trans_code', $transCodes)
             ->whereIn('reference_type', ['salik', 'Salik'])
             ->pluck('account_id')
@@ -2013,7 +2013,7 @@ class SalikController extends AppBaseController
 
         $banks = Banks::active()->with('account')->orderBy('name')->get();
         $salikAssetLabel = trim(
-            ($salikAssetAccount->account_code ? $salikAssetAccount->account_code.' â€” ' : '')
+            ($salikAssetAccount->account_code ? $salikAssetAccount->account_code.' — ' : '')
             .($salikAssetAccount->name ?: 'Salik Asset')
         );
 

@@ -84,7 +84,7 @@ class LedgerExport implements FromArray, WithColumnWidths, WithHeadings, WithSty
             $totalDebit += $row->debit;
             $totalCredit += $row->credit;
 
-            $month = date('M Y', strtotime($row->billing_month));
+            $month = date('M-Y', strtotime($row->billing_month));
 
             $data[] = [
                 Common::DateFormat($row->trans_date),

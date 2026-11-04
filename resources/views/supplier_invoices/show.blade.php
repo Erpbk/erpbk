@@ -51,7 +51,7 @@
     ? $supplierInvoice->inv_date->format('d M Y')
     : '';
     $billingLabel = $supplierInvoice->billing_month
-    ? date('M Y', strtotime($supplierInvoice->billing_month))
+    ? date('M-Y', strtotime($supplierInvoice->billing_month))
     : '';
     @endphp
 

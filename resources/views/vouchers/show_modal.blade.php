@@ -19,8 +19,13 @@ $moduleActions = \App\Support\VoucherModuleActions::forVoucher($voucher, $__comp
 $editDeleteFlags = $editDeleteFlags ?? \App\Models\VoucherType::getEditDeleteFlagsByModule('vouchers');
 
 $riderDoc = app(\App\Services\Voucher\RiderModuleVoucherViewData::class);
+$visaDoc = app(\App\Services\Voucher\VisaExpenseVoucherViewData::class);
 $useRiderDocument = empty($visaCreditEditEmbed) && $riderDoc->supports($voucher);
-$doc = $useRiderDocument ? $riderDoc->build($voucher) : null;
+$useVisaDocument = empty($visaCreditEditEmbed) && !$useRiderDocument && $visaDoc->supports($voucher);
+$useModernDocument = $useRiderDocument || $useVisaDocument;
+$doc = $useRiderDocument
+  ? $riderDoc->build($voucher)
+  : ($useVisaDocument ? $visaDoc->build($voucher) : null);
 $voucher_number = $doc['voucherNo']
   ?? ($voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT));
 @endphp
@@ -64,8 +69,8 @@ $voucher_number = $doc['voucherNo']
   </div>
   @endif
 
-  @if($useRiderDocument)
-    @include('vouchers.partials.rider_voucher_document_body', $doc)
+  @if($useModernDocument)
+    @include($useVisaDocument ? 'vouchers.partials.visa_expense_voucher_document_body' : 'vouchers.partials.rider_voucher_document_body', $doc)
   @else
     @php
       $voucher_type_label = \App\Helpers\General::VoucherType($voucher->voucher_type);
@@ -90,7 +95,7 @@ $voucher_number = $doc['voucherNo']
           <span class="text-muted">#</span><strong class="ms-1">{{ $voucher_number }}</strong>
         </div>
         @if($vf('trans_date'))<div class="col-auto text-muted">Date: {{ \Carbon\Carbon::parse($voucher->trans_date)->format('d M Y') }}</div>@endif
-        @if($vf('billing_month') && $voucher->billing_month)<div class="col-auto text-muted">Billing Month: {{ \Carbon\Carbon::parse($voucher->billing_month)->format('M Y') }}</div>@endif
+        @if($vf('billing_month') && $voucher->billing_month)<div class="col-auto text-muted">Billing Month: {{ \Carbon\Carbon::parse($voucher->billing_month)->format('M-Y') }}</div>@endif
         @if($vf('amount'))<div class="col-auto fw-semibold">Amount: {{ \App\Helpers\Currency::format($voucher->amount, 2) }}</div>@endif
         @if($vf('reference_number') && $voucher->reference_number)
         <div class="col-12 text-muted small">Reference Number: {{ $voucher->reference_number }}</div>

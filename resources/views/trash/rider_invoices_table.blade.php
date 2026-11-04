@@ -24,7 +24,7 @@
       <tr class="text-center">
          <td>{{ $r->id }}</td>
          <td>{{ \Carbon\Carbon::parse($r->inv_date)->format('d M Y') }}</td>
-         <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
+         <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M-Y') }}</td>
          @php
          $rider = company_table('riders')->where('id', $r->rider_id)->first();
          @endphp

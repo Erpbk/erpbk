@@ -18,7 +18,7 @@
             <tr class="text-center">
                 <td><a href="javascript:void(0);" data-action="{{ route('employeeInvoices.show', $r->id) }}" data-size="xl" class="show-modal-right">{{ $r->invoice_number }}</a></td>
                 <td>{{ \Carbon\Carbon::parse($r->inv_date)->format('d M Y') }}</td>
-                <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
+                <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M-Y') }}</td>
                 <td>{{ optional($r->employee)->employee_id }} - {{ optional($r->employee)->name }}</td>
                 <td>{{ $r->descriptions }}</td>
                 <td>{{ number_format($r->subtotal, 2) }}</td>

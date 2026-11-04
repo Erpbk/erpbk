@@ -78,7 +78,11 @@
                     @if($installment->vouchers->isNotEmpty())
                     @foreach($installment->vouchers as $voucher)
                     <span class="d-inline-flex align-items-center gap-1">
-                        <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucher->formatted_id }}</a>
+                        <a href="javascript:void(0);"
+                            class="text-primary show-voucher-panel"
+                            data-action="{{ route('vouchers.show', $voucher->id) }}"
+                            data-title="{{ \App\Helpers\General::VoucherType($voucher->voucher_type) ?? $voucher->voucher_type }} #{{ $voucher->formatted_id }}"
+                            data-collapse-sidebar="1">{{ $voucher->formatted_id }}</a>
                         @include('delete_requests._pending_badge', ['model' => $voucher])
                     </span>@if(!$loop->last), @endif
                     @endforeach
@@ -88,7 +92,7 @@
                 </span>
             </td>
             <td>
-                <span id="billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
+                <span id="billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M-Y') }}</span>
                 @can('visa_expense_installments_edit')
                 @if(!$rowPendingDeletion)
                 <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }})" class="ms-2">

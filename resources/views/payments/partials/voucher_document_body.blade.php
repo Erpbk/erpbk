@@ -1,9 +1,16 @@
-@php
+﻿@php
     $isPdf = !empty($isPdf);
     $brand = $brand ?? [];
-    $blue = $brand['primary_color'] ?? '#1e4b8f';
-    $blueSoft = '#e3e4f9';
-    $blueLine = $brand['border_color'] ?? '#c5d8f0';
+    if (empty($brand['primary_color']) || empty($brand['primary_soft']) || empty($brand['border_color'])) {
+        $brand = array_merge(
+            app(\App\Services\Agreements\AgreementPdfBranding::class)
+                ->colorPalette(\App\Support\CompanyContext::id()),
+            $brand
+        );
+    }
+    $blue = (string) ($brand['primary_color'] ?? '');
+    $blueSoft = (string) ($brand['primary_soft'] ?? ($brand['primary_light'] ?? ''));
+    $blueLine = (string) ($brand['border_color'] ?? '');
     $money = $formatMoney ?? static fn ($n) => \App\Helpers\Currency::format((float) $n);
     $showNotes = !empty($settings['show_internal_notes']) && trim((string) ($internalNotes ?? '')) !== '';
     $showSignature = !empty($settings['show_signature']);
@@ -64,8 +71,6 @@
 }
 .rpv-page .rpv-doc { max-width: none; }
 .rpv-doc * { box-sizing: border-box; }
-.rpv-accent { height: 5px; background: var(--rpv-blue); }
-.rpv-doc--pdf .rpv-accent { height: 4px; }
 .rpv-sheet { padding: 26px 30px 24px; }
 .rpv-doc--pdf .rpv-sheet { padding: 14px 16px 16px; }
 .rpv-hdr {
@@ -118,7 +123,7 @@
 .rpv-meta + .rpv-meta { margin-top: 2px; }
 .rpv-badge {
     display: inline-block;
-    background: #e3e4f9;
+    background: var(--rpv-soft);
     color: #0f172a;
     font-size: 11px;
     font-weight: 800;
@@ -294,7 +299,7 @@
 }
 .rpv-doc--pdf .rpv-box-body { font-size: 11px; }
 .rpv-table-wrap {
-    border: 1px solid #d8dce8;
+    border: 1px solid var(--rpv-line);
     border-top: 3px solid var(--rpv-blue);
     border-radius: 8px;
     overflow: hidden;
@@ -312,7 +317,7 @@
 }
 .rpv-doc--pdf .rpv-table { font-size: 10px; }
 .rpv-table th {
-    background: #e3e4f9;
+    background: var(--rpv-soft);
     color: #0f172a;
     border: none;
     padding: 11px 12px;
@@ -346,7 +351,7 @@
     width: 360px;
     max-width: 100%;
     margin: 0 0 14px auto;
-    background: #e3e4f9;
+    background: var(--rpv-soft);
     color: #0f172a;
     border-radius: 8px;
     padding: 12px 16px;
@@ -393,14 +398,14 @@
     vertical-align: -0.15em;
 }
 .rpv-meta-box {
-    border: 1px solid #d5d8ec;
+    border: 1px solid var(--rpv-line);
     border-radius: 8px;
     padding: 12px 14px;
     margin-top: 0;
     margin-bottom: 12px;
     font-size: 12.5px;
     color: #334155;
-    background: #e3e4f9;
+    background: var(--rpv-soft);
 }
 .rpv-doc--pdf .rpv-meta-box {
     border-radius: 0;
@@ -508,12 +513,8 @@
         border-radius: 0;
         background: #fff !important;
     }
-    .rpv-accent {
-        background: var(--rpv-blue) !important;
-        print-color-adjust: exact !important;
-    }
     .rpv-badge {
-        background: #e3e4f9 !important;
+        background: var(--rpv-soft) !important;
         color: #0f172a !important;
         border-radius: 6px !important;
     }
@@ -538,19 +539,19 @@
         border-top: 3px solid var(--rpv-blue) !important;
     }
     .rpv-meta-box {
-        background: #e3e4f9 !important;
-        border: 1px solid #d5d8ec !important;
+        background: var(--rpv-soft) !important;
+        border: 1px solid var(--rpv-line) !important;
     }
     .rpv-meta-box.rpv-attachments {
         background: #fff !important;
         border: 1px solid var(--rpv-line) !important;
     }
     .rpv-table-wrap {
-        border: 1px solid #d8dce8 !important;
+        border: 1px solid var(--rpv-line) !important;
         border-top: 3px solid var(--rpv-blue) !important;
     }
     .rpv-table th {
-        background: #e3e4f9 !important;
+        background: var(--rpv-soft) !important;
         color: #0f172a !important;
         text-align: center !important;
     }
@@ -562,7 +563,7 @@
         text-align: right !important;
     }
     .rpv-total-paid {
-        background: #e3e4f9 !important;
+        background: var(--rpv-soft) !important;
         color: #0f172a !important;
     }
     .rpv-total-paid-label,
@@ -590,7 +591,6 @@
 
 <div class="rpv-doc {{ $docModeClass }}"
      style="--rpv-blue: {{ $blue }}; --rpv-soft: {{ $blueSoft }}; --rpv-line: {{ $blueLine }};">
-    <div class="rpv-accent"></div>
     <div class="rpv-sheet">
         <table class="rpv-hdr" cellpadding="0" cellspacing="0">
             <tr>
@@ -638,11 +638,11 @@
                                 <td colspan="2" class="rpv-kv-head-title"><strong>Paid To</strong></td>
                             </tr>
                             <tr>
-                                <td class="k">{{ $riderModuleSingular }} Name</td>
+                                <td class="k">Name</td>
                                 <td class="v v-link v-nowrap"@if($payeeFontSize) style="font-size: {{ $payeeFontSize }};"@endif title="{{ $payeeDisplay }}">{{ $payeeDisplay !== '' ? $payeeDisplay : '—' }}</td>
                             </tr>
                             <tr>
-                                <td class="k">{{ $riderModuleSingular }} ID</td>
+                                <td class="k">ID</td>
                                 <td class="v">{{ $riderCode }}</td>
                             </tr>
                             <tr>

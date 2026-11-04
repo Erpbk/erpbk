@@ -99,7 +99,7 @@
             'invoiceTitle' => $invoiceTitle,
             'invoiceNumber' => $invoiceNumber,
             'invoiceDateLabel' => \Carbon\Carbon::parse($employeeInvoice->inv_date)->format('d M Y'),
-            'billingLabel' => \Carbon\Carbon::parse($employeeInvoice->billing_month)->format('M Y'),
+            'billingLabel' => \Carbon\Carbon::parse($employeeInvoice->billing_month)->format('M-Y'),
             ])
 
             <div class="parties"@if(!empty($invPdf['parties'])) style="{{ $invPdf['parties'] }}"@endif>

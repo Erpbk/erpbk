@@ -274,7 +274,7 @@ $payeeCode = $m[1];
                                 <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox" checked>
                             </td>
                             <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
-                            <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
+                            <td>{{ $invoice->billing_month ? date('M-Y', strtotime($invoice->billing_month)) : '-' }}</td>
                             <td class="text-end">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
                             <td class="text-end {{ $existingBalance < 0 ? 'text-danger' : 'text-success' }}">{{ number_format($existingBalance, 2) }}</td>
                             <td>
@@ -310,7 +310,7 @@ $payeeCode = $m[1];
                                 <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox" {{ (string) $openedInvoiceId === (string) $invoice->id ? 'checked' : '' }}>
                             </td>
                             <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
-                            <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
+                            <td>{{ $invoice->billing_month ? date('M-Y', strtotime($invoice->billing_month)) : '-' }}</td>
                             <td class="text-end">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
                             <td class="text-end {{ ($invoice->balance ?? 0) < 0 ? 'text-danger' : 'text-success' }}">{{ number_format($invoice->balance ?? 0, 2) }}</td>
                             <td>

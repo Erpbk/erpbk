@@ -9,8 +9,13 @@ $printUrl = route('vouchers.show', array_filter([
 $isPrint = request()->boolean('print') || (bool) request()->get('print');
 @endphp
 
+@php
+    $documentBody = !empty($isVisaExpenseDocument)
+        ? 'vouchers.partials.visa_expense_voucher_document_body'
+        : 'vouchers.partials.rider_voucher_document_body';
+@endphp
 @if($isPrint)
-    @include('vouchers.partials.rider_voucher_document_body', array_merge($doc ?? [], ['isPdf' => false]))
+    @include($documentBody, array_merge($doc ?? [], ['isPdf' => false]))
     <script>window.onload = function () { window.print(); };</script>
 @else
     @if(!empty($voucher))
@@ -20,7 +25,7 @@ $isPrint = request()->boolean('print') || (bool) request()->get('print');
         </div>
     @endif
     <div class="rpv-page">
-        @include('vouchers.partials.rider_voucher_document_body', $doc ?? [])
+        @include($documentBody, $doc ?? [])
     </div>
     <div id="voucher-panel-current"
         data-number="{{ $voucherNo ?? '' }}"

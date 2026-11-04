@@ -82,7 +82,7 @@
       if (!empty($nextPending->date)) {
       $nextWhen = \Carbon\Carbon::parse($nextPending->date)->format('d M Y');
       } elseif (!empty($nextPending->billing_month)) {
-      $nextWhen = \Carbon\Carbon::parse($nextPending->billing_month)->format('M Y');
+      $nextWhen = \Carbon\Carbon::parse($nextPending->billing_month)->format('M-Y');
       }
       } catch (\Throwable $e) {
       $nextWhen = '';

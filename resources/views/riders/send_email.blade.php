@@ -67,7 +67,7 @@ Rider I,D : {$rider->rider_id}
 Employee Name : {$rider->name}
 
 I hope you're doing well.
-We need to address some important issues regarding your attendance and performance in " . date('M Y') . ". We've noticed that you have been absent several times without prior notice. Additionally, your performance as a bike rider has not met the company’s standards. Specifically, you have been late logging in, and your on-time delivery rate has been below expectations.
+We need to address some important issues regarding your attendance and performance in " . date('M-Y') . ". We've noticed that you have been absent several times without prior notice. Additionally, your performance as a bike rider has not met the company’s standards. Specifically, you have been late logging in, and your on-time delivery rate has been below expectations.
 
 As per company guidelines, we expect 26 perfect attendance days and at least 90% on-time delivery. Unfortunately, these targets were not met.
 This is a formal warning. If your attendance and performance do not improve immediately, we may need to take further action, including ending your employment According to UAE labor law.

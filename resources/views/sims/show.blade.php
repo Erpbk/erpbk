@@ -717,7 +717,7 @@
                                             {{ $invoice->inv_date ? \Carbon\Carbon::parse($invoice->inv_date)->format('d-M-Y') : '—' }}
                                         </td>
                                         <td>
-                                            {{ $invoice->billing_month ? \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') : '—' }}
+                                            {{ $invoice->billing_month ? \Carbon\Carbon::parse($invoice->billing_month)->format('M-Y') : '—' }}
                                         </td>
                                         <td>{{ $invoice->company?->name ?? '—' }}</td>
                                         <td class="text-end">{{ number_format((float) ($invoice->charges_excl ?? 0), 2) }}</td>

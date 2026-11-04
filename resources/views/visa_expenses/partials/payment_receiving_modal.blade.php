@@ -246,10 +246,14 @@ $isEditMode = $editingReceipt !== null;
             </td>
             <td class="fw-semibold">{{ $idx + 1 }}</td>
             <td>{{ \Carbon\Carbon::parse($inst->date)->format('d M Y') }}</td>
-            <td>{{ \Carbon\Carbon::parse($inst->billing_month)->format('M Y') }}</td>
+            <td>{{ \Carbon\Carbon::parse($inst->billing_month)->format('M-Y') }}</td>
             <td>
               @foreach($inst->vouchers as $v)
-              <a href="{{ route('vouchers.show', $v->id) }}" target="_blank" class="small">{{ $v->formatted_id }}</a>@if(!$loop->last), @endif
+              <a href="javascript:void(0);"
+                 class="small text-primary show-voucher-panel"
+                 data-action="{{ route('vouchers.show', $v->id) }}"
+                 data-title="{{ \App\Helpers\General::VoucherType($v->voucher_type) ?? $v->voucher_type }} #{{ $v->formatted_id }}"
+                 data-collapse-sidebar="1">{{ $v->formatted_id }}</a>@if(!$loop->last), @endif
               @endforeach
             </td>
             <td class="text-end fw-semibold">{{ number_format((float)$inst->amount, 2) }}</td>

@@ -130,7 +130,7 @@ class AttendanceController extends Controller
         }
 
         // Keep name order stable for the report table
-        usort($personSheets, fn ($a, $b) => strcasecmp((string) $a['name'], (string) $b['name']));
+        usort($personSheets, fn($a, $b) => strcasecmp((string) $a['name'], (string) $b['name']));
 
         $importPeople = $users;
         $openImport = $request->boolean('import');
@@ -367,7 +367,7 @@ class AttendanceController extends Controller
                 ->select('id', 'name', 'employee_id')
                 ->orderBy('name')
                 ->get()
-                ->map(fn ($u) => [
+                ->map(fn($u) => [
                     'id' => $u->id,
                     'name' => trim($u->name . (! empty($u->employee_id) ? ' (' . $u->employee_id . ')' : '')),
                 ]);
@@ -376,7 +376,7 @@ class AttendanceController extends Controller
                 ->select('id', 'name', 'rider_id')
                 ->orderBy('name')
                 ->get()
-                ->map(fn ($u) => [
+                ->map(fn($u) => [
                     'id' => $u->id,
                     'name' => trim($u->name . (! empty($u->rider_id) ? ' (' . $u->rider_id . ')' : '')),
                 ]);
@@ -546,7 +546,7 @@ class AttendanceController extends Controller
             $skipped = 0;
 
             while (($row = fgetcsv($handle)) !== false) {
-                if (count(array_filter($row, fn ($v) => trim((string) $v) !== '')) === 0) {
+                if (count(array_filter($row, fn($v) => trim((string) $v) !== '')) === 0) {
                     continue;
                 }
 
@@ -561,12 +561,23 @@ class AttendanceController extends Controller
                     continue;
                 }
 
-                try {
-                    $dateVal = Carbon::parse($date)->format('Y-m-d');
-                } catch (\Throwable $e) {
+                $phpDateFormat = \App\Support\CompanyGlobalPreferences::phpDateFormat();
+                $slashOrder = str_starts_with($phpDateFormat, 'm')
+                    ? \App\Support\ExcelSlashDateFormat::ORDER_MDY
+                    : \App\Support\ExcelSlashDateFormat::ORDER_DMY;
+                $parsedDate = \App\Support\ExcelDate::parse($date, $slashOrder);
+                if (! $parsedDate) {
+                    try {
+                        $parsedDate = Carbon::createFromFormat($phpDateFormat, $date);
+                    } catch (\Throwable $e) {
+                        $parsedDate = null;
+                    }
+                }
+                if (! $parsedDate) {
                     $skipped++;
                     continue;
                 }
+                $dateVal = $parsedDate->format('Y-m-d');
 
                 $person = $refType === 'employee'
                     ? Employee::query()->where(function ($q) use ($name) {
@@ -638,9 +649,10 @@ class AttendanceController extends Controller
             $refType = 'employee';
         }
         $people = $this->getUsersForSummary($refType, 'all');
-        $today = now()->format('Y-m-d');
+        $phpDateFormat = \App\Support\CompanyGlobalPreferences::phpDateFormat();
+        $today = now()->format($phpDateFormat);
         $nameHeader = $refType === 'rider' ? 'Rider Name' : 'Employee Name';
-        $filename = 'attendance-import-template-' . $refType . '-' . $today . '.csv';
+        $filename = 'attendance-import-template-' . $refType . '-' . now()->format('Y-m-d') . '.csv';
 
         return response()->streamDownload(function () use ($people, $today, $nameHeader) {
             $handle = fopen('php://output', 'w');
@@ -1008,7 +1020,7 @@ class AttendanceController extends Controller
         $branchTabs = collect();
         if ($userType === 'employee') {
             $branchTabs = $users
-                ->groupBy(fn ($u) => $u->branch_id ?: 0)
+                ->groupBy(fn($u) => $u->branch_id ?: 0)
                 ->map(function ($group, $branchId) {
                     $first = $group->first();
 
@@ -1328,7 +1340,7 @@ class AttendanceController extends Controller
         $attendances = Attendance::whereBetween('date', [$rangeStart->format('Y-m-d'), $rangeEnd->format('Y-m-d')])
             ->where('ref_type', $userType)
             ->whereIn('ref_id', $userIds)
-            ->when($statusFilter, fn ($query) => $query->where('status', $statusFilter))
+            ->when($statusFilter, fn($query) => $query->where('status', $statusFilter))
             ->get();
 
         // Build fast lookup array
@@ -1590,7 +1602,7 @@ class AttendanceController extends Controller
                 ->get(['id', 'name']),
             'fleetSupervisors' => $fromRiders
                 ->merge($fromDropdown)
-                ->map(fn ($value) => trim((string) $value))
+                ->map(fn($value) => trim((string) $value))
                 ->filter()
                 ->unique()
                 ->sort()

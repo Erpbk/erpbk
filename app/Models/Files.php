@@ -13,6 +13,7 @@ class Files extends BaseModel
 
   public $fillable = [
     'name',
+    'company_id',
     'type',
     'type_id',
     'branch_id',

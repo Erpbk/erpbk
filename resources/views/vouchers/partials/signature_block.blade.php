@@ -38,7 +38,18 @@
             $widthPct = round(100 / max(1, $row->count()), 2);
         @endphp
         <td class="{{ $cellClass }}" style="width: {{ $widthPct }}%;">
+            @if(!empty($slot['stamp_url']) || !empty($slot['signature_url']))
+            <div style="min-height:42px;margin-bottom:6px;display:flex;align-items:flex-end;justify-content:center;gap:8px;">
+                @if(!empty($slot['stamp_url']))
+                <img src="{{ $slot['stamp_url'] }}" alt="Stamp" style="max-height:48px;max-width:72px;object-fit:contain;">
+                @endif
+                @if(!empty($slot['signature_url']))
+                <img src="{{ $slot['signature_url'] }}" alt="Signature" style="max-height:42px;max-width:110px;object-fit:contain;">
+                @endif
+            </div>
+            @else
             <div class="{{ $lineClass }}"></div>
+            @endif
             @if(!empty($slot['display_name']))
             <div class="{{ $nameClass }}">{{ $slot['display_name'] }}</div>
             @endif

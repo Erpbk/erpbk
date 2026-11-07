@@ -18,6 +18,7 @@ class Branch extends BaseModel
      * @var array<int, string>
      */
     protected $fillable = [
+        'company_id',
         'name',
         'code',
         'contact',

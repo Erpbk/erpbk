@@ -2,19 +2,25 @@
 
 namespace App\Services\Voucher;
 
+use App\Models\Company;
 use App\Models\VoucherSignatureConfig;
 use App\Models\VoucherSignatureSlot;
+use App\Services\Company\UserStampSignatureService;
 use App\Support\CompanyContext;
 use Illuminate\Support\Collection;
 
 class VoucherSignatureResolver
 {
+    public function __construct(private UserStampSignatureService $stampService)
+    {
+    }
+
     /**
      * Active signature slots for a voucher type, or empty when unconfigured.
      *
-     * @return Collection<int, array{role_label: string, display_name: ?string, designation: ?string, sort_order: int}>
+     * @return Collection<int, array{role_label: string, display_name: ?string, designation: ?string, sort_order: int, stamp_url: ?string, signature_url: ?string, user_id: ?int}>
      */
-    public function slotsFor(string $voucherTypeCode, ?int $companyId = null): Collection
+    public function slotsFor(string $voucherTypeCode, ?int $companyId = null, ?string $module = null, string $docKind = 'v'): Collection
     {
         $code = strtoupper(trim($voucherTypeCode));
         if ($code === '') {
@@ -22,6 +28,7 @@ class VoucherSignatureResolver
         }
 
         $companyId = $companyId ?? CompanyContext::id();
+        $company = $companyId ? Company::query()->find($companyId) : null;
 
         $query = VoucherSignatureConfig::query()
             ->where('voucher_type_code', $code)
@@ -46,16 +53,43 @@ class VoucherSignatureResolver
                 ['id', 'asc'],
             ])
             ->values()
-            ->map(fn (VoucherSignatureSlot $slot) => $this->resolveSlot($slot));
+            ->map(fn (VoucherSignatureSlot $slot) => $this->resolveSlot($slot, $company, $module, $docKind))
+            ->filter(fn (array $slot) => empty($slot['_blocked']))
+            ->map(function (array $slot) {
+                unset($slot['_blocked']);
+
+                return $slot;
+            })
+            ->values();
     }
 
     /**
-     * @return array{role_label: string, display_name: ?string, designation: ?string, sort_order: int}
+     * Stamp/signature assets for the currently logged-in user (if permitted for module/doc kind).
      */
-    protected function resolveSlot(VoucherSignatureSlot $slot): array
+    public function authUserAssets(?string $module = null, string $docKind = 'v'): ?array
+    {
+        $stamp = $this->stampService->forAuthUser();
+        if (! $stamp) {
+            return null;
+        }
+        if ($module && ! $this->stampService->canApply($stamp, $module, $docKind)) {
+            return null;
+        }
+
+        return $stamp;
+    }
+
+    /**
+     * @return array{role_label: string, display_name: ?string, designation: ?string, sort_order: int, stamp_url: ?string, signature_url: ?string, user_id: ?int, _blocked?: bool}
+     */
+    protected function resolveSlot(VoucherSignatureSlot $slot, ?Company $company, ?string $module, string $docKind): array
     {
         $displayName = null;
         $designation = trim((string) ($slot->designation_override ?? ''));
+        $stampUrl = null;
+        $signatureUrl = null;
+        $userId = null;
+        $blocked = false;
 
         switch ($slot->assignee_type) {
             case VoucherSignatureSlot::ASSIGNEE_DEPARTMENT:
@@ -64,9 +98,26 @@ class VoucherSignatureResolver
 
             case VoucherSignatureSlot::ASSIGNEE_USER:
                 $user = $slot->user;
+                $userId = $user?->id;
                 $displayName = $user
                     ? trim((string) ($user->name ?: trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''))))
                     : '';
+                if ($company && $userId) {
+                    $stamp = $this->stampService->forUser($company, (int) $userId);
+                    if ($stamp) {
+                        if ($module && ! $this->stampService->canApply($stamp, $module, $docKind)) {
+                            $blocked = true;
+                        }
+                        $stampUrl = $stamp['stampimg'] ?? null;
+                        $signatureUrl = $stamp['signimg'] ?? null;
+                        if ($designation === '' && ! empty($stamp['sigdes'])) {
+                            $designation = (string) $stamp['sigdes'];
+                        }
+                        if ($displayName === '' && ! empty($stamp['signame'])) {
+                            $displayName = (string) $stamp['signame'];
+                        }
+                    }
+                }
                 break;
 
             case VoucherSignatureSlot::ASSIGNEE_EMPLOYEE:
@@ -87,6 +138,10 @@ class VoucherSignatureResolver
             'display_name' => $displayName !== '' ? $displayName : null,
             'designation' => $designation !== '' ? $designation : null,
             'sort_order' => (int) $slot->sort_order,
+            'stamp_url' => $stampUrl,
+            'signature_url' => $signatureUrl,
+            'user_id' => $userId ? (int) $userId : null,
+            '_blocked' => $blocked,
         ];
     }
 }

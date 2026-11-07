@@ -86,75 +86,11 @@
         </div>
       </div>
 
-      <div class="card mb-4">
-        <div class="card-header">
-          <h5 class="card-title mb-0">Currency</h5>
-        </div>
-        <div class="card-body">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label" for="company_currency_code">Currency</label>
-              <select
-                id="company_currency_code"
-                name="settings[currency_code]"
-                class="form-select select2 @error('settings.currency_code') is-invalid @enderror"
-                data-placeholder="Select currency"
-                @disabled(! $canEdit)
-              >
-                @foreach(($currencyCatalog ?? []) as $code => $meta)
-                  <option
-                    value="{{ $code }}"
-                    data-symbol="{{ $meta['symbol'] }}"
-                    @selected(($selectedCurrencyCode ?? 'AED') === $code)
-                  >
-                    {{ $code }} — {{ $meta['name'] }} ({{ $meta['symbol'] }})
-                  </option>
-                @endforeach
-              </select>
-              <input type="hidden" name="settings[currency_symbol]" id="company_currency_symbol" value="{{ $selectedCurrencySymbol ?? '' }}" />
-              @error('settings.currency_code')
-                <div class="invalid-feedback d-block">{{ $message }}</div>
-              @enderror
-              <small class="text-muted d-block mt-1">
-                Default symbol:
-                <span id="company_currency_symbol_preview">{{ $selectedCurrencySymbol ?? '' }}</span>
-              </small>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Currency icon</label>
-              <div class="d-flex flex-column gap-2">
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="currency_icon_mode" id="currency_icon_mode_default" value="default" @checked(($currencyIconMode ?? 'default') === 'default') @disabled(! $canEdit)>
-                  <label class="form-check-label" for="currency_icon_mode_default">Use default currency symbol</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="currency_icon_mode" id="currency_icon_mode_custom" value="custom" @checked(($currencyIconMode ?? 'default') === 'custom') @disabled(! $canEdit)>
-                  <label class="form-check-label" for="currency_icon_mode_custom">Upload custom currency icon</label>
-                </div>
-                <div id="currency_icon_upload_wrap" class="{{ ($currencyIconMode ?? 'default') === 'custom' ? '' : 'd-none' }}">
-                  <input type="file" name="currency_icon" id="currency_icon" class="form-control" accept=".jpg,.jpeg,.png,.webp" @disabled(! $canEdit) />
-                  @error('currency_icon')
-                  <div class="text-danger small mt-1">{{ $message }}</div>
-                  @enderror
-                  @if(!empty($currencyIconExists) && !empty($currencyIconUrl))
-                  <div class="mt-2 d-flex align-items-center gap-2">
-                    <img src="{{ $currencyIconUrl }}" alt="Currency icon" class="app-currency-icon app-currency-icon--preview">
-                    <div class="form-check mb-0">
-                      <input class="form-check-input" type="checkbox" name="remove_currency_icon" id="remove_currency_icon" value="1" @disabled(! $canEdit)>
-                      <label class="form-check-label" for="remove_currency_icon">Remove custom icon</label>
-                    </div>
-                  </div>
-                  @elseif(!empty($currencyIconPath))
-                  <div class="alert alert-warning mt-2 mb-0 py-2 small">
-                    A currency icon path is saved but the file is missing on the server. Upload the icon again.
-                  </div>
-                  @endif
-                </div>
-              </div>
-              <small class="text-muted d-block mt-1">Used for amounts across this company only (UI, PDFs, emails).</small>
-            </div>
-          </div>
-        </div>
+      <div class="alert alert-info mb-4">
+        <strong>Moved to Company Details:</strong>
+        Currency, currency icon, date format and time format are now managed under
+        <a href="{{ route((View::shared('settings_panel') ?? false) ? 'settings-panel.company' : 'settings', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) }}">Company Details</a>.
+        This page keeps theme/brand colors, font family and number formats.
       </div>
 
       <div class="card mb-4">
@@ -206,26 +142,7 @@
 
       <div class="card mb-4">
         <div class="card-header">
-          <h5 class="card-title mb-0">Date Format</h5>
-        </div>
-        <div class="card-body">
-          <label class="form-label" for="date_format">Preferred date format</label>
-          <select name="date_format" id="date_format" class="form-select @error('date_format') is-invalid @enderror" @disabled(! $canEdit)>
-            @foreach(($prefConfig['date_formats'] ?? []) as $key => $label)
-              <option value="{{ $key }}" @selected(old('date_format', $preferences['date_format'] ?? '') === $key)>
-                {{ $label }}
-              </option>
-            @endforeach
-          </select>
-          @error('date_format')
-            <div class="invalid-feedback d-block">{{ $message }}</div>
-          @enderror
-        </div>
-      </div>
-
-      <div class="card mb-4">
-        <div class="card-header">
-          <h5 class="card-title mb-0">Number &amp; Currency Formats</h5>
+          <h5 class="card-title mb-0">Number Formats</h5>
         </div>
         <div class="card-body">
           <div class="row g-3">
@@ -332,7 +249,6 @@
 <script>
 (function () {
   const fontSelect = document.getElementById('font_family');
-  const dateSelect = document.getElementById('date_format');
   const placesSelect = document.getElementById('decimal_places');
   const thousandSelect = document.getElementById('thousand_separator');
   const decimalSelect = document.getElementById('decimal_separator');
@@ -367,57 +283,6 @@
     });
   }
 
-  const currencyCodeSelect = document.getElementById('company_currency_code');
-  const currencySymbolInput = document.getElementById('company_currency_symbol');
-  const currencySymbolPreview = document.getElementById('company_currency_symbol_preview');
-  const currencyIconModeDefault = document.getElementById('currency_icon_mode_default');
-  const currencyIconModeCustom = document.getElementById('currency_icon_mode_custom');
-  const currencyIconUploadWrap = document.getElementById('currency_icon_upload_wrap');
-
-  function syncCurrencySymbolFromSelect() {
-    if (!currencyCodeSelect) return;
-    const selectedOption = currencyCodeSelect.options[currencyCodeSelect.selectedIndex];
-    const nextSymbol = selectedOption ? (selectedOption.getAttribute('data-symbol') || selectedOption.value || '') : '';
-    if (currencySymbolInput) currencySymbolInput.value = nextSymbol;
-    if (currencySymbolPreview) currencySymbolPreview.textContent = nextSymbol;
-    refreshPreview();
-  }
-
-  function toggleCurrencyIconUpload() {
-    if (!currencyIconUploadWrap) return;
-    const useCustom = !!(currencyIconModeCustom && currencyIconModeCustom.checked);
-    currencyIconUploadWrap.classList.toggle('d-none', !useCustom);
-  }
-
-  if (currencyCodeSelect) {
-    if (hasSelect2 && !currencyCodeSelect.disabled) {
-      window.jQuery(currencyCodeSelect).select2({
-        width: '100%',
-        placeholder: currencyCodeSelect.dataset.placeholder || 'Select currency',
-        allowClear: false
-      });
-      window.jQuery(currencyCodeSelect).on('change', syncCurrencySymbolFromSelect);
-    } else {
-      currencyCodeSelect.addEventListener('change', syncCurrencySymbolFromSelect);
-    }
-    syncCurrencySymbolFromSelect();
-  }
-  if (currencyIconModeDefault) currencyIconModeDefault.addEventListener('change', toggleCurrencyIconUpload);
-  if (currencyIconModeCustom) currencyIconModeCustom.addEventListener('change', toggleCurrencyIconUpload);
-  toggleCurrencyIconUpload();
-
-  function pad(n) { return String(n).padStart(2, '0'); }
-
-  function formatDate(phpFmt) {
-    const now = new Date();
-    const d = pad(now.getDate());
-    const m = pad(now.getMonth() + 1);
-    const y = String(now.getFullYear());
-    if (phpFmt === 'm-d-Y') return m + '-' + d + '-' + y;
-    if (phpFmt === 'Y-m-d') return y + '-' + m + '-' + d;
-    return d + '-' + m + '-' + y;
-  }
-
   function formatNumber(value, places, thousand, decimal) {
     const fixed = Number(value).toFixed(places);
     const parts = fixed.split('.');
@@ -431,24 +296,23 @@
   }
 
   function refreshPreview() {
-    if (!dateSelect || !previewDate) return;
-    previewDate.textContent = formatDate(dateSelect.value);
+    if (!placesSelect || !previewNumber) return;
     const places = parseInt(placesSelect.value, 10) || 0;
     const thousand = thousandSelect.value;
     const decimal = decimalSelect.value;
     const num = formatNumber(1234567.89, places, thousand, decimal);
     previewNumber.textContent = num;
-    if (currencySymbolPreview && currencySymbolPreview.textContent) {
-      symbol = currencySymbolPreview.textContent;
+    if (previewCurrency) {
+      previewCurrency.textContent = positionSelect.value === 'after'
+        ? num + ' ' + symbol
+        : symbol + ' ' + num;
     }
-    previewCurrency.textContent = positionSelect.value === 'after'
-      ? num + ' ' + symbol
-      : symbol + ' ' + num;
   }
 
-  [dateSelect, placesSelect, thousandSelect, decimalSelect, positionSelect].forEach(function (el) {
+  [placesSelect, thousandSelect, decimalSelect, positionSelect].forEach(function (el) {
     if (el) el.addEventListener('change', refreshPreview);
   });
+  refreshPreview();
 })();
 </script>
 @endpush

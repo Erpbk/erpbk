@@ -100,6 +100,23 @@ class AppServiceProvider extends ServiceProvider
       $view->with('settingsPanelLabels', Settings::getMenuLabels());
     });
 
+    // Select2 on every <select> across Settings (panel + main-app settings views).
+    View::composer(['layouts.settingsPanelLayout', 'settings.*'], function () {
+      static $settingsSelect2Pushed = false;
+      if ($settingsSelect2Pushed) {
+        return;
+      }
+      $settingsSelect2Pushed = true;
+      $cssV = @filemtime(public_path('assets/css/settings-select2.css')) ?: time();
+      $jsV = @filemtime(public_path('assets/js/settings-select2.js')) ?: time();
+      View::startPush('page-styles');
+      echo '<link rel="stylesheet" href="' . e(asset('assets/css/settings-select2.css')) . '?v=' . e((string) $cssV) . '">';
+      View::stopPush();
+      View::startPush('page-scripts');
+      echo '<script src="' . e(asset('assets/js/settings-select2.js')) . '?v=' . e((string) $jsV) . '"></script>';
+      View::stopPush();
+    });
+
     View::composer(['emails.template', 'emails.general'], function ($view) {
       if (!$view->offsetExists('emailBranding')) {
         $view->with('emailBranding', app(CompanyEmailBrandingService::class)->resolveForEmail());

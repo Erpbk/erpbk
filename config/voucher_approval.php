@@ -190,11 +190,11 @@ return [
             'reject' => 'voucher_approval_vp_reject',
             'posting' => 'default',
         ],
-        'VV' => [
+        'VTR' => [
             'label' => 'VAT Return',
             'module' => 'vat',
-            'approve' => 'voucher_approval_vv_approve',
-            'reject' => 'voucher_approval_vv_reject',
+            'approve' => 'voucher_approval_vtr_approve',
+            'reject' => 'voucher_approval_vtr_reject',
             'posting' => 'default',
         ],
         'BL' => [

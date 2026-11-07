@@ -367,6 +367,7 @@ class BikeMaintenanceController extends Controller
                     $rows[] = [
                         'bike_maintenance_id' => $maintenance->id,
                         'item_id' => $item->id,
+                        'inventory_purchase_id' => null,
                         'item_name' => $item->name ?? 'unknown',
                         'quantity' => $qty,
                         'rate' => $rate,
@@ -391,6 +392,7 @@ class BikeMaintenanceController extends Controller
                 $rows[] = [
                     'bike_maintenance_id' => $maintenance->id,
                     'item_id' => $itemId,
+                    'inventory_purchase_id' => null,
                     'item_name' => $item->name ?? 'unknown',
                     'quantity' => $request->quantity[$index] ?? 1,
                     'rate' => $request->rate[$index] ?? 0,

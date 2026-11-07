@@ -36,69 +36,192 @@ class VatController extends Controller
         }
 
         $accountIds = VatSettingsController::getVatAccountIds();
+        $purchaseAccountId = (int) ($accountIds[0] ?? 0);
+        $salesAccountId = (int) ($accountIds[1] ?? $accountIds[0] ?? 0);
         $quarters = VatSettingsController::getQuartersForDropdown();
         $years = $this->getYearsForDropdown();
         $rows = [];
+        $filterMonths = [];
+        $filterModules = [];
+        $stats = [
+            'output' => 0.0,
+            'input' => 0.0,
+            'net' => 0.0,
+            'output_count' => 0,
+            'input_count' => 0,
+            'shown_count' => 0,
+            'total_count' => 0,
+            'total_entries' => 0,
+            'filed_entries' => 0,
+            'unfiled_entries' => 0,
+            'total_debit' => 0.0,
+            'total_credit' => 0.0,
+        ];
+
+        // Default load: current calendar year. Explicit vat_year in the query (even empty = All years)
+        // must use exists(), because has() treats "" as missing and would re-apply the default.
+        $yearProvided = $request->exists('vat_year');
+        $year = $yearProvided ? (string) $request->input('vat_year', '') : (string) date('Y');
+        $quarterSlot = $request->input('vat_quarter_slot');
 
         if (!empty($accountIds)) {
-            $query = Transactions::with(['account', 'voucher'])
-                ->whereIn('account_id', $accountIds)
-                ->whereNotIn('id', VatReturnEntry::query()->select('transaction_id'));
-
-            $quarterSlot = $request->input('vat_quarter_slot');
-            $year = $request->input('vat_year');
-
-            // Filter by year when selected (quarters are always in the context of the selected year)
+            // Year (+ optional quarter) universe for entry stats and the unfiled ledger base.
+            $scopedAllQuery = Transactions::query()->whereIn('account_id', $accountIds);
             if ($year !== null && $year !== '') {
-                $query->whereYear('billing_month', $year);
-                // If a quarter is selected: include that quarter AND all previous quarters in the year,
-                // so unfiled entries from earlier quarters appear and can be filed in the next return.
+                $yearInt = (int) $year;
+                $scopedAllQuery->where('billing_month', '>=', sprintf('%04d-01-01', $yearInt))
+                    ->where('billing_month', '<', sprintf('%04d-01-01', $yearInt + 1));
+                // Same quarter window as the ledger (selected quarter + earlier quarters in the year).
                 if ($quarterSlot) {
                     $months = $this->getMonthsThroughQuarter((int) $quarterSlot);
                     if (!empty($months)) {
-                        $query->whereRaw('MONTH(billing_month) IN (' . implode(',', array_map('intval', $months)) . ')');
+                        $this->applyBillingMonthMonthsFilter($scopedAllQuery, $yearInt, $months);
                     }
                 }
             }
 
+            $stats['total_entries'] = (clone $scopedAllQuery)->count();
+            $stats['filed_entries'] = (clone $scopedAllQuery)
+                ->whereIn('id', VatReturnEntry::query()->select('transaction_id'))
+                ->count();
+            $stats['unfiled_entries'] = max(0, $stats['total_entries'] - $stats['filed_entries']);
+
+            // Constraints only (no eager load) so filter option queries stay lightweight.
+            $baseQuery = (clone $scopedAllQuery)
+                ->whereNotIn('id', VatReturnEntry::query()->select('transaction_id'));
+
+            $stats['total_count'] = (clone $baseQuery)->count();
+            $filterMonths = (clone $baseQuery)
+                ->whereNotNull('billing_month')
+                ->distinct()
+                ->orderBy('billing_month')
+                ->pluck('billing_month')
+                ->filter()
+                ->map(fn ($m) => date('Y-m', strtotime((string) $m)))
+                ->unique()
+                ->sort()
+                ->values()
+                ->all();
+            $filterModules = (clone $baseQuery)
+                ->whereNotNull('reference_type')
+                ->distinct()
+                ->pluck('reference_type')
+                ->map(fn ($type) => $this->getModuleLabel((object) ['reference_type' => $type]))
+                ->unique()
+                ->sort()
+                ->values()
+                ->all();
+
+            $query = (clone $baseQuery)->with(['account', 'voucher']);
+
+            $vatType = $request->input('vat_type');
+            if ($vatType === 's' && $salesAccountId) {
+                $query->where('account_id', $salesAccountId);
+            } elseif ($vatType === 'p' && $purchaseAccountId) {
+                $query->where('account_id', $purchaseAccountId);
+            }
+
+            if ($request->filled('date_from')) {
+                $query->whereDate('trans_date', '>=', $request->input('date_from'));
+            }
+            if ($request->filled('date_to')) {
+                $query->whereDate('trans_date', '<=', $request->input('date_to'));
+            }
+            if ($request->filled('billing_month')) {
+                $bm = (string) $request->input('billing_month');
+                if (preg_match('/^\d{4}-\d{2}$/', $bm)) {
+                    $start = $bm . '-01';
+                    $end = date('Y-m-d', strtotime($start . ' +1 month'));
+                    $query->where('billing_month', '>=', $start)->where('billing_month', '<', $end);
+                }
+            }
+            if ($request->filled('module')) {
+                $moduleTypes = $this->referenceTypesForModule((string) $request->input('module'));
+                if (!empty($moduleTypes)) {
+                    $query->whereIn('reference_type', $moduleTypes);
+                }
+            }
+            if ($request->filled('quick_search')) {
+                $q = '%' . trim((string) $request->input('quick_search')) . '%';
+                $query->where(function ($w) use ($q) {
+                    $w->where('narration', 'like', $q)
+                        ->orWhereHas('voucher', function ($vq) use ($q) {
+                            $vq->where('reference_number', 'like', $q)
+                                ->orWhereRaw("CONCAT(voucher_type, '-', LPAD(id, 4, '0')) like ?", [$q]);
+                        })
+                        ->orWhere('reference_type', 'like', $q);
+                });
+            }
+
             $query->orderBy('billing_month', 'ASC')->orderBy('trans_date', 'ASC');
             $transactions = $query->get();
+            $enrichment = $this->buildLedgerEnrichmentMaps($transactions);
             $openingBalance = $this->getOpeningBalance($accountIds, $quarterSlot ?: null, $year ?: null);
             $runningBalance = $openingBalance;
             $totalDebit = 0;
             $totalCredit = 0;
+            $output = 0.0;
+            $input = 0.0;
+            $outputCount = 0;
+            $inputCount = 0;
 
             $rows[] = [
                 'transaction_id' => null,
                 'date' => '',
+                'date_iso' => '',
                 'account_name' => '',
+                'account_code' => '',
+                'is_output' => false,
                 'reference_number' => '',
                 'billing_month' => '',
+                'billing_month_key' => '',
                 'voucher' => '',
+                'module' => '',
                 'narration' => 'Balance Forward',
                 'debit' => '',
                 'credit' => '',
+                'debit_raw' => 0,
+                'credit_raw' => 0,
                 'balance' => $this->formatBalance($openingBalance),
                 'is_total' => false,
                 'is_balance_forward' => true,
             ];
 
             foreach ($transactions as $row) {
-                $runningBalance += $row->debit - $row->credit;
-                $totalDebit += $row->debit;
-                $totalCredit += $row->credit;
+                $debit = (float) $row->debit;
+                $credit = (float) $row->credit;
+                $runningBalance += $debit - $credit;
+                $totalDebit += $debit;
+                $totalCredit += $credit;
+
+                $isOutput = (int) $row->account_id === $salesAccountId;
+                if ($isOutput) {
+                    $output += $credit - $debit;
+                    $outputCount++;
+                } else {
+                    $input += $debit - $credit;
+                    $inputCount++;
+                }
 
                 $viewFile = $this->getViewFile($row);
+                $module = $this->getModuleLabel($row);
                 $rows[] = [
                     'transaction_id' => $row->id,
                     'date' => Common::DateFormat($row->trans_date),
+                    'date_iso' => $row->trans_date ? date('Y-m-d', strtotime($row->trans_date)) : '',
                     'account_name' => $row->account ? ($row->account->account_code . '-' . $row->account->name) : 'N/A',
+                    'account_code' => $row->account->account_code ?? '',
+                    'is_output' => $isOutput,
                     'reference_number' => $row->voucher ? ($row->voucher->reference_number ?? '-') : '-',
-                    'billing_month' => $row->billing_month ? date('M-Y', strtotime($row->billing_month)) : '',
-                    'voucher' => $this->getVoucherText($row),
-                    'narration' => $this->getNarration($row, $viewFile),
-                    'debit' => number_format($row->debit, 2),
-                    'credit' => number_format($row->credit, 2),
+                    'billing_month' => $row->billing_month ? date('M Y', strtotime($row->billing_month)) : '',
+                    'billing_month_key' => $row->billing_month ? date('Y-m', strtotime($row->billing_month)) : '',
+                    'voucher' => $this->getVoucherText($row, $enrichment),
+                    'module' => $module,
+                    'narration' => $this->getNarration($row, $viewFile, $enrichment),
+                    'debit' => number_format($debit, 2),
+                    'credit' => number_format($credit, 2),
+                    'debit_raw' => $debit,
+                    'credit_raw' => $credit,
                     'balance' => $this->formatBalance($runningBalance),
                     'is_total' => false,
                     'is_balance_forward' => false,
@@ -108,52 +231,146 @@ class VatController extends Controller
             $rows[] = [
                 'transaction_id' => null,
                 'date' => '',
+                'date_iso' => '',
                 'account_name' => '',
+                'account_code' => '',
+                'is_output' => false,
                 'reference_number' => '',
                 'billing_month' => '',
+                'billing_month_key' => '',
                 'voucher' => '',
+                'module' => '',
                 'narration' => 'Total',
                 'debit' => number_format($totalDebit, 2),
                 'credit' => number_format($totalCredit, 2),
+                'debit_raw' => $totalDebit,
+                'credit_raw' => $totalCredit,
                 'balance' => $this->formatBalance($runningBalance),
                 'is_total' => true,
                 'is_balance_forward' => false,
             ];
+
+            $stats = [
+                'output' => $output,
+                'input' => $input,
+                'net' => $output - $input,
+                'output_count' => $outputCount,
+                'input_count' => $inputCount,
+                'shown_count' => $transactions->count(),
+                'total_count' => $stats['total_count'],
+                'total_entries' => $stats['total_entries'],
+                'filed_entries' => $stats['filed_entries'],
+                'unfiled_entries' => $stats['unfiled_entries'],
+                'total_debit' => $totalDebit,
+                'total_credit' => $totalCredit,
+            ];
         }
 
-        $vpVouchers = Vouchers::where('voucher_type', 'VP')
-            ->orderByDesc('id')
-            ->limit(50)
-            ->get();
+        $activeFilterCount = collect([
+            $request->input('vat_type'),
+            $request->input('date_from'),
+            $request->input('date_to'),
+            $request->input('billing_month'),
+            $request->input('module'),
+            // Count year only when the user explicitly set it (not the implicit current-year default).
+            $yearProvided ? $request->input('vat_year') : null,
+            $request->input('vat_quarter_slot'),
+        ])->filter(fn ($v) => $v !== null && $v !== '')->count();
 
-        return view('vat.index', compact('rows', 'quarters', 'years', 'vpVouchers'));
+        return view('vat.index', compact(
+            'rows',
+            'quarters',
+            'years',
+            'year',
+            'stats',
+            'filterMonths',
+            'filterModules',
+            'activeFilterCount',
+            'purchaseAccountId',
+            'salesAccountId'
+        ));
     }
 
     /**
      * Show list of VAT returns (Paid and Unpaid).
      */
-    public function returnsIndex()
+    public function returnsIndex(Request $request)
     {
         if (!user_can('gn_ledger')) {
             abort(403, 'Unauthorized action.');
         }
 
-        $paidReturns = VatReturn::withCount('entries')
-            ->where('status', 'paid')
-            ->orderByDesc('filed_at')
-            ->get();
+        $pane = in_array($request->input('pane'), ['unpaid', 'paid', 'vp'], true)
+            ? $request->input('pane')
+            : 'unpaid';
 
-        $unpaidReturns = VatReturn::withCount('entries')
-            ->where('status', 'unpaid')
-            ->orderByDesc('filed_at')
-            ->get();
+        $entryTree = ['entries.transaction.account', 'entries.transaction.voucher'];
+
+        $unpaidQuery = VatReturn::query()->where('status', 'unpaid')->orderByDesc('filed_at');
+        $paidQuery = VatReturn::query()->where('status', 'paid')->orderByDesc('filed_at');
+
+        if ($pane === 'unpaid') {
+            $unpaidReturns = (clone $unpaidQuery)->with($entryTree)->get();
+            $paidReturns = (clone $paidQuery)->withCount('entries')->get();
+        } elseif ($pane === 'paid') {
+            $paidReturns = (clone $paidQuery)->with($entryTree)->get();
+            $unpaidReturns = (clone $unpaidQuery)->withCount('entries')->get();
+        } else {
+            // VP pane: headers only; payable totals via aggregate SQL.
+            $unpaidReturns = (clone $unpaidQuery)->withCount('entries')->get();
+            $paidReturns = (clone $paidQuery)->withCount('entries')->get();
+        }
 
         $vpVouchers = Vouchers::where('voucher_type', 'VP')
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
-        return view('vat.returns', compact('paidReturns', 'unpaidReturns', 'vpVouchers'));
+        $sumPayableFromEntries = static function ($returns): float {
+            return (float) $returns->sum(function ($r) {
+                if (!$r->relationLoaded('entries')) {
+                    return 0.0;
+                }
+                $debit = 0.0;
+                $credit = 0.0;
+                foreach ($r->entries as $entry) {
+                    if (!$entry->transaction) {
+                        continue;
+                    }
+                    $debit += (float) $entry->transaction->debit;
+                    $credit += (float) $entry->transaction->credit;
+                }
+
+                return $credit - $debit;
+            });
+        };
+
+        $payableAggregate = static function (string $status): float {
+            // Eloquent base query keeps company scope; join only for aggregate.
+            return (float) VatReturn::query()
+                ->where('vat_returns.status', $status)
+                ->join('vat_return_entries', 'vat_return_entries.vat_return_id', '=', 'vat_returns.id')
+                ->join('transactions', 'transactions.id', '=', 'vat_return_entries.transaction_id')
+                ->whereNull('transactions.deleted_at')
+                ->selectRaw('COALESCE(SUM(transactions.credit - transactions.debit), 0) as payable')
+                ->value('payable');
+        };
+
+        $vpAgg = Vouchers::query()
+            ->where('voucher_type', 'VP')
+            ->selectRaw('COUNT(*) as c, COALESCE(SUM(amount), 0) as t')
+            ->first();
+
+        $returnStats = [
+            'unpaid_total' => $pane === 'unpaid' ? $sumPayableFromEntries($unpaidReturns) : $payableAggregate('unpaid'),
+            'unpaid_count' => $unpaidReturns->count(),
+            'paid_total' => $pane === 'paid' ? $sumPayableFromEntries($paidReturns) : $payableAggregate('paid'),
+            'paid_count' => $paidReturns->count(),
+            'vp_total' => (float) ($vpAgg->t ?? 0),
+            'vp_count' => (int) ($vpAgg->c ?? 0),
+        ];
+
+        return view('vat.returns', compact('paidReturns', 'unpaidReturns', 'vpVouchers', 'returnStats', 'pane'));
     }
 
     /**
@@ -232,8 +449,8 @@ class VatController extends Controller
             return redirect()->route('vat.index')->with('error', 'Select at least one VAT entry. Selected entries must be from VAT accounts (1023, 1025) and not already filed.');
         }
 
-        if (!VoucherType::isCodeAllowedForModule('VV', 'vat')) {
-            return redirect()->route('vat.index')->with('error', 'VAT Return voucher type (VV) is not assigned to the VAT module. Please assign it in Voucher Settings.');
+        if (!VoucherType::isCodeAllowedForModule('VTR', 'vat')) {
+            return redirect()->route('vat.index')->with('error', 'VAT Return voucher type (VTR) is not available for this company. Please add it in Voucher Settings.');
         }
 
         $vatPayableAccountId = self::VAT_PAYMENT_DEFAULT_DEBIT_ACCOUNT;
@@ -262,15 +479,20 @@ class VatController extends Controller
 
             return redirect()
                 ->route('vat.returns.index')
-                ->with('success', 'VAT return filed for ' . $quarterLabel . ' ' . $year . ' with ' . count($transactionIds) . ' entries. Voucher VV created.');
-        } catch (\Exception $e) {
+                ->with('success', 'VAT return filed for ' . $quarterLabel . ' ' . $year . ' with ' . count($transactionIds) . ' entries. Voucher VTR created.');
+        } catch (\Throwable $e) {
             DB::rollBack();
+            \Log::error('vat.fileReturn.exception', [
+                'class' => get_class($e),
+                'message' => $e->getMessage(),
+                'file' => $e->getFile() . ':' . $e->getLine(),
+            ]);
             return redirect()->route('vat.index')->with('error', 'Failed to file VAT return: ' . $e->getMessage());
         }
     }
 
     /**
-     * Create a VV (VAT Return) voucher when filing a return. Exactly 3 entries:
+     * Create a VTR (VAT Return) voucher when filing a return. Exactly 3 entries:
      * 1. Debit: VAT on Sales (1025)
      * 2. Credit: VAT on Purchases (1023)
      * 3. Credit (or Debit if refund): VAT Payable (1027) = VAT on Sales - VAT on Purchases
@@ -305,7 +527,7 @@ class VatController extends Controller
         $transCode = Account::trans_code();
 
         $voucher = Vouchers::create([
-            'voucher_type' => 'VV',
+            'voucher_type' => 'VTR',
             'trans_code' => $transCode,
             'trans_date' => $transDate,
             'billing_month' => $billingMonth,
@@ -555,7 +777,7 @@ class VatController extends Controller
 
     /**
      * Delete a VAT return and its entries. Transactions will show again in the VAT ledger.
-     * When the return is unpaid, the associated VV voucher (ref_id + voucher_type) is also deleted.
+     * When the return is unpaid, the associated VTR voucher (ref_id + voucher_type) is also deleted.
      */
     public function destroyReturn($company_slug, VatReturn $vat_return)
     {
@@ -564,10 +786,10 @@ class VatController extends Controller
         }
 
         if ($vat_return->status === 'unpaid') {
-            $vvVouchers = Vouchers::where('voucher_type', 'VV')
+            $returnVouchers = Vouchers::where('voucher_type', 'VTR')
                 ->where('ref_id', $vat_return->id)
                 ->get();
-            foreach ($vvVouchers as $voucher) {
+            foreach ($returnVouchers as $voucher) {
                 Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $voucher->trans_code));
                 $voucher->delete();
             }
@@ -632,6 +854,226 @@ class VatController extends Controller
         return $balance > 0 ? '+' . $formatted : $formatted;
     }
 
+    /**
+     * Human-readable module label for a VAT ledger transaction (demo redesign).
+     */
+    private function getModuleLabel($row): string
+    {
+        $type = (string) ($row->reference_type ?? '');
+
+        return match ($type) {
+            'Salik', 'Salik Voucher' => 'Salik',
+            'RTA' => 'RTA Fine',
+            'Invoice', 'RiderInvoice' => 'Customer Invoice',
+            'LeasingCompanyInvoice' => 'Leasing',
+            'Bike Maintenance' => 'Supplier / Garage',
+            'LV' => 'Visa Expense',
+            'SIM', 'SimInvoice' => 'SIM',
+            'Fuel', 'FuelInvoice' => 'Fuel',
+            'LeasingCompanyBillingInvoice', 'RentalBilling' => 'Rental Billing',
+            'Expense', 'Voucher' => 'Expense',
+            default => $type !== '' ? $type : 'Other',
+        };
+    }
+
+    /**
+     * Map filter module label back to transaction reference_type values.
+     *
+     * @return string[]
+     */
+    private function referenceTypesForModule(string $module): array
+    {
+        return match ($module) {
+            'Salik' => ['Salik', 'Salik Voucher'],
+            'RTA Fine' => ['RTA'],
+            'Customer Invoice' => ['Invoice', 'RiderInvoice'],
+            'Leasing' => ['LeasingCompanyInvoice'],
+            'Supplier / Garage' => ['Bike Maintenance'],
+            'Visa Expense' => ['LV'],
+            'SIM' => ['SIM', 'SimInvoice'],
+            'Fuel' => ['Fuel', 'FuelInvoice'],
+            'Rental Billing' => ['LeasingCompanyBillingInvoice', 'RentalBilling'],
+            'Expense' => ['Expense', 'Voucher'],
+            'Other' => [''],
+            default => [$module],
+        };
+    }
+
+    /**
+     * Restrict billing_month to specific calendar months within a year using range predicates.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  int[]  $months  1-12
+     */
+    private function applyBillingMonthMonthsFilter($query, int $year, array $months): void
+    {
+        $months = array_values(array_unique(array_map('intval', $months)));
+        if (empty($months)) {
+            return;
+        }
+
+        $query->where(function ($outer) use ($year, $months) {
+            foreach ($months as $m) {
+                if ($m < 1 || $m > 12) {
+                    continue;
+                }
+                $start = sprintf('%04d-%02d-01', $year, $m);
+                $endMonth = $m === 12 ? 1 : $m + 1;
+                $endYear = $m === 12 ? $year + 1 : $year;
+                $end = sprintf('%04d-%02d-01', $endYear, $endMonth);
+                $outer->orWhere(function ($w) use ($start, $end) {
+                    $w->where('billing_month', '>=', $start)->where('billing_month', '<', $end);
+                });
+            }
+        });
+    }
+
+    /**
+     * Batch-load related records used while rendering ledger voucher/narration cells.
+     *
+     * @param  \Illuminate\Support\Collection<int, Transactions>  $transactions
+     * @return array{maintenances: \Illuminate\Support\Collection, rta_fines: \Illuminate\Support\Collection, visa_expenses: \Illuminate\Support\Collection, visa_names: array<int, string>}
+     */
+    private function buildLedgerEnrichmentMaps($transactions): array
+    {
+        $maintenanceIds = [];
+        $rtaFineIds = [];
+        $visaExpenseIds = [];
+
+        foreach ($transactions as $row) {
+            $type = (string) ($row->reference_type ?? '');
+            if ($type === 'Bike Maintenance' && $row->reference_id) {
+                $maintenanceIds[] = (int) $row->reference_id;
+            }
+            if ($type === 'RTA') {
+                $voucher = $row->voucher;
+                if ($voucher && !empty($voucher->ref_id)) {
+                    $rtaFineIds[] = (int) $voucher->ref_id;
+                }
+            }
+            if ($type === 'LV' && $row->reference_id) {
+                $visaExpenseIds[] = (int) $row->reference_id;
+            }
+        }
+
+        $maintenances = empty($maintenanceIds)
+            ? collect()
+            : BikeMaintenance::whereIn('id', array_values(array_unique($maintenanceIds)))->get()->keyBy('id');
+
+        $rtaFines = empty($rtaFineIds)
+            ? collect()
+            : collect(\App\Support\CompanyQuery::table('rta_fines')->whereIn('id', array_values(array_unique($rtaFineIds)))->get())
+                ->keyBy('id');
+
+        $visaExpenses = empty($visaExpenseIds)
+            ? collect()
+            : collect(\App\Support\CompanyQuery::table('visa_expenses')->whereIn('id', array_values(array_unique($visaExpenseIds)))->get())
+                ->keyBy('id');
+
+        $visaNames = $this->resolveVisaExpensePersonNamesBulk($visaExpenses);
+
+        return [
+            'maintenances' => $maintenances,
+            'rta_fines' => $rtaFines,
+            'visa_expenses' => $visaExpenses,
+            'visa_names' => $visaNames,
+        ];
+    }
+
+    /**
+     * Resolve display names for many visa expenses with bulk lookups (no N+1).
+     *
+     * @param  \Illuminate\Support\Collection<int, object>  $visaExpenses
+     * @return array<int, string>
+     */
+    private function resolveVisaExpensePersonNamesBulk($visaExpenses): array
+    {
+        if ($visaExpenses->isEmpty()) {
+            return [];
+        }
+
+        $employeeIds = [];
+        $expenseAccountIds = [];
+        $riderIds = [];
+        $legacyAccountIds = [];
+
+        foreach ($visaExpenses as $expense) {
+            if (!empty($expense->employee_id)) {
+                $employeeIds[] = (int) $expense->employee_id;
+            }
+            if (!empty($expense->expense_account_id)) {
+                $expenseAccountIds[] = (int) $expense->expense_account_id;
+            }
+            if (!empty($expense->rider_id)) {
+                $riderIds[] = (int) $expense->rider_id;
+                $legacyAccountIds[] = (int) $expense->rider_id;
+            }
+        }
+
+        $expenseAccounts = empty($expenseAccountIds)
+            ? collect()
+            : collect(\App\Support\CompanyQuery::table('expense_accounts')->whereIn('id', array_values(array_unique($expenseAccountIds)))->get())
+                ->keyBy('id');
+
+        foreach ($expenseAccounts as $ea) {
+            if (!empty($ea->employee_id)) {
+                $employeeIds[] = (int) $ea->employee_id;
+            }
+            if (!empty($ea->rider_id)) {
+                $riderIds[] = (int) $ea->rider_id;
+            }
+        }
+
+        $employees = empty($employeeIds)
+            ? collect()
+            : collect(\App\Support\CompanyQuery::table('employees')->whereIn('id', array_values(array_unique($employeeIds)))->get())
+                ->keyBy('id');
+
+        $riders = empty($riderIds)
+            ? collect()
+            : collect(\App\Support\CompanyQuery::table('riders')->whereIn('id', array_values(array_unique($riderIds)))->get())
+                ->keyBy('id');
+
+        $accounts = empty($legacyAccountIds)
+            ? collect()
+            : collect(\App\Support\CompanyQuery::table('accounts')->whereIn('id', array_values(array_unique($legacyAccountIds)))->get())
+                ->keyBy('id');
+
+        $names = [];
+        foreach ($visaExpenses as $id => $expense) {
+            $name = null;
+            if (!empty($expense->employee_id) && $employees->has((int) $expense->employee_id)) {
+                $employee = $employees->get((int) $expense->employee_id);
+                $code = $employee->employee_id ?: ('EMP-' . $employee->id);
+                $name = trim($code . ' - ' . $employee->name);
+            } elseif (!empty($expense->expense_account_id) && $expenseAccounts->has((int) $expense->expense_account_id)) {
+                $ea = $expenseAccounts->get((int) $expense->expense_account_id);
+                if (!empty($ea->employee_id) && $employees->has((int) $ea->employee_id)) {
+                    $employee = $employees->get((int) $ea->employee_id);
+                    $code = $employee->employee_id ?: ('EMP-' . $employee->id);
+                    $name = trim($code . ' - ' . $employee->name);
+                } elseif (!empty($ea->rider_id) && $riders->has((int) $ea->rider_id)) {
+                    $rider = $riders->get((int) $ea->rider_id);
+                    $name = trim(($rider->rider_id ? $rider->rider_id . ' - ' : '') . $rider->name);
+                } elseif (!empty($ea->name)) {
+                    $name = (string) $ea->name;
+                }
+            } elseif (!empty($expense->rider_id)) {
+                if ($riders->has((int) $expense->rider_id)) {
+                    $rider = $riders->get((int) $expense->rider_id);
+                    $name = trim(($rider->rider_id ? $rider->rider_id . ' - ' : '') . $rider->name);
+                } elseif ($accounts->has((int) $expense->rider_id)) {
+                    $name = (string) $accounts->get((int) $expense->rider_id)->name;
+                }
+            }
+            if ($name !== null && $name !== '') {
+                $names[(int) $id] = $name;
+            }
+        }
+
+        return $names;
+    }
+
     private function getViewFile($row): string
     {
         if (!isset($row->voucher->attach_file)) {
@@ -643,11 +1085,11 @@ class VatController extends Controller
         return '  <a href="' . url('storage/vouchers/' . $row->voucher->attach_file) . '" class="no-print" target="_blank">View File</a>';
     }
 
-    private function getVoucherText($row): string
+    private function getVoucherText($row, array $enrichment = []): string
     {
         $voucherTypes = ['Voucher', 'RTA', 'LV', 'VL', 'INC', 'PN', 'PAY', 'COD', 'Salik Voucher', 'VC', 'AL', 'RiderInvoice'];
-        if (in_array($row->reference_type, $voucherTypes)) {
-            $vouchers = \App\Support\CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
+        if (in_array($row->reference_type, $voucherTypes, true)) {
+            $vouchers = $row->voucher;
             if ($vouchers) {
                 $voucherId = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
                 return '<a href="javascript:void(0);" data-title="Voucher # ' . $voucherId . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="show-modal">' . $voucherId . '</a>';
@@ -658,7 +1100,7 @@ class VatController extends Controller
             return '<a href="javascript:void(0);" data-title="Invoice # ' . $row->reference_id . '" data-size="xl" data-action="' . route('riderInvoices.show', $row->reference_id) . '" class="show-modal">RD-' . $row->reference_id . '</a>';
         }
         if ($row->reference_type === 'Bike Maintenance') {
-            $maintenance = BikeMaintenance::where('id', $row->reference_id)->first();
+            $maintenance = ($enrichment['maintenances'] ?? collect())->get((int) $row->reference_id);
             if ($maintenance) {
                 return '<a href="' . route('bike-maintenance.invoice', $maintenance) . '" target="_blank" class="no-print">MA-' . $maintenance->id . '</a>';
             }
@@ -670,12 +1112,12 @@ class VatController extends Controller
         return '';
     }
 
-    private function getNarration($row, string $viewFile): string
+    private function getNarration($row, string $viewFile, array $enrichment = []): string
     {
         if ($row->reference_type === 'RTA') {
-            $vouchers = \App\Support\CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
-            if ($vouchers) {
-                $fines = \App\Support\CompanyQuery::table('rta_fines')->where('id', $vouchers->ref_id)->first();
+            $voucher = $row->voucher;
+            if ($voucher && !empty($voucher->ref_id)) {
+                $fines = ($enrichment['rta_fines'] ?? collect())->get((int) $voucher->ref_id);
                 if ($fines) {
                     return $row->narration . ', <b>Ticket Number: </b>' . $fines->ticket_no . ', <b>Bike No: </b>' . $fines->plate_no . ', ' . \Carbon\Carbon::parse($fines->trip_date)->format('d M Y') . ', ' . $viewFile;
                 }
@@ -683,9 +1125,9 @@ class VatController extends Controller
             return $row->narration . ', ' . $viewFile;
         }
         if ($row->reference_type === 'LV') {
-            $visaex = \App\Support\CompanyQuery::table('visa_expenses')->where('id', $row->reference_id)->first();
+            $visaex = ($enrichment['visa_expenses'] ?? collect())->get((int) $row->reference_id);
             if ($visaex) {
-                $personName = $this->resolveVisaExpensePersonName($visaex);
+                $personName = ($enrichment['visa_names'] ?? [])[(int) $row->reference_id] ?? null;
                 if ($personName) {
                     return 'Paid to <b>' . $personName . ' </b>' . $visaex->visa_status . ' Charges ' . $visaex->date . $viewFile;
                 }
@@ -694,62 +1136,5 @@ class VatController extends Controller
             return $row->narration . ' (Visa expense not found) ' . $viewFile;
         }
         return $row->narration . ', ' . $viewFile;
-    }
-
-    /**
-     * Resolve rider/employee display name for visa expense VAT ledger rows.
-     * Current rows store riders.id; legacy rows may store accounts.id.
-     */
-    private function resolveVisaExpensePersonName(?object $expense): ?string
-    {
-        if (!$expense) {
-            return null;
-        }
-
-        if (!empty($expense->employee_id)) {
-            $employee = \App\Support\CompanyQuery::table('employees')->where('id', $expense->employee_id)->first();
-            if ($employee) {
-                $code = $employee->employee_id ?: ('EMP-' . $employee->id);
-
-                return trim($code . ' - ' . $employee->name);
-            }
-        }
-
-        if (!empty($expense->expense_account_id)) {
-            $ea = \App\Support\CompanyQuery::table('expense_accounts')->where('id', $expense->expense_account_id)->first();
-            if ($ea) {
-                if (!empty($ea->employee_id)) {
-                    $employee = \App\Support\CompanyQuery::table('employees')->where('id', $ea->employee_id)->first();
-                    if ($employee) {
-                        $code = $employee->employee_id ?: ('EMP-' . $employee->id);
-
-                        return trim($code . ' - ' . $employee->name);
-                    }
-                }
-                if (!empty($ea->rider_id)) {
-                    $rider = \App\Support\CompanyQuery::table('riders')->where('id', $ea->rider_id)->first();
-                    if ($rider) {
-                        return trim(($rider->rider_id ? $rider->rider_id . ' - ' : '') . $rider->name);
-                    }
-                }
-                if (!empty($ea->name)) {
-                    return (string) $ea->name;
-                }
-            }
-        }
-
-        if (!empty($expense->rider_id)) {
-            $rider = \App\Support\CompanyQuery::table('riders')->where('id', $expense->rider_id)->first();
-            if ($rider) {
-                return trim(($rider->rider_id ? $rider->rider_id . ' - ' : '') . $rider->name);
-            }
-
-            $account = \App\Support\CompanyQuery::table('accounts')->where('id', $expense->rider_id)->first();
-            if ($account) {
-                return (string) $account->name;
-            }
-        }
-
-        return null;
     }
 }

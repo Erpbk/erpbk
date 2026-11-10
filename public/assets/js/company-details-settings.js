@@ -79,6 +79,7 @@ async function api(url, opts){
 function mapEntity(e){
   return {
     id:e.id, type:e.type, code:e.code||'', label:e.label||'', place:e.place||'',
+    active:e.active!==false, branch_type:e.branch_type||'',
     vals:Object.assign({}, e.vals||{}), inh:Object.assign({}, e.inh||{}),
     banks:(e.banks && e.banks.length) ? e.banks.map(normalizeBank) : [], useHoBank:!!e.useHoBank,
     docs:Array.isArray(e.docs)?e.docs:[], branch_id:e.branch_id, parent_id:e.parent_id
@@ -388,10 +389,81 @@ function renderPanel(){
 if(s.custom==='theme'){if(!window.__thmEl){window.__thmEl=document.createElement('div');const th=window.mountTheme(window.__thmEl,()=>mark());window.__thmGet=function(){return th&&th.get?th.get():null;};}panel.appendChild(window.__thmEl);}
   if(typeof window.initSettingsSelect2==='function'){window.initSettingsSelect2(panel,true);}
 }
+function branchTypeLabel(e){
+  if(e.type==='ho')return 'Head Office';
+  if(e.branch_type==='warehouse')return 'Warehouse';
+  if(e.branch_type==='grage'||e.branch_type==='garage')return 'Garage';
+  if(e.type==='co')return 'Company';
+  return 'Branch';
+}
+function branchEmirate(e){return val('city',e)||e.place||'\u2014';}
+function filteredBranches(){
+  const f=window.__brFilter||{q:'',type:'',status:''};
+  const q=(f.q||'').trim().toLowerCase();
+  return ents.map((e,i)=>({e,i})).filter(({e})=>{
+    if(f.type==='ho'&&e.type!=='ho')return false;
+    if(f.type==='br'&&e.type==='ho')return false;
+    if(f.status==='active'&&e.active===false)return false;
+    if(f.status==='inactive'&&e.active!==false)return false;
+    if(!q)return true;
+    const hay=((e.label||'')+' '+(e.code||'')+' '+branchEmirate(e)).toLowerCase();
+    return hay.indexOf(q)>=0;
+  });
+}
+function branchPinIcon(){
+  return`<svg class="br-pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.5-6-11a6 6 0 1 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>`;
+}
+function branchGripIcon(){
+  return`<span class="br-dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>`;
+}
 function branchesHtml(){
-  const card=e=>{const v=k=>val(k,e);return`<button type="button" class="bc" data-ent="${ents.indexOf(e)}"><span class="tag ${e.type==='co'?'br':e.type}" style="align-self:flex-start">${e.type==='ho'?'Head Office':(e.code||'Branch')}</span><h4>${esc(e.label)}</h4><div class="m">City: <b>${esc(v('city')||e.place||'\u2014')}</b><br>Phone: <b>${esc(v('phone')||'\u2014')}</b><br>Email: <b>${esc(v('email')||'\u2014')}</b><br>License: <b>${esc(v('tlno')||'\u2014')}</b></div>${status(v('tlexp'))}</button>`;};
-  return`<div class="syncbar"><span class="sdot"></span><div><b>${ents.length} locations</b><br>Open a branch to edit its profile, or create a new branch. Need a new legal company? Contact your super admin.</div><button type="button" class="cd-btn" id="cdCreateBranch" style="padding:8px 14px;font-size:12.5px;white-space:nowrap">+ Create branch</button></div>
-  <div class="grid">${ents.map(card).join('')}<button type="button" class="bc add" data-create-branch>+ Create branch</button></div>`;
+  const f=window.__brFilter||(window.__brFilter={q:'',type:'',status:''});
+  const rows=filteredBranches();
+  const typeOpts=[['','All types'],['ho','Head Office'],['br','Branch']];
+  const statusOpts=[['','All statuses'],['active','Active'],['inactive','Inactive']];
+  const body=rows.map(({e,i})=>{
+    const type=branchTypeLabel(e);
+    const active=e.active!==false;
+    return`<tr data-br-row="${i}">
+      <td class="br-grip-cell"><button type="button" class="br-grip" data-br-grip="${i}" title="Drag to reorder" aria-label="Drag to reorder">${branchGripIcon()}</button></td>
+      <td><span class="br-code">${esc(e.code||'\u2014')}</span></td>
+      <td><span class="br-name">${esc(e.label||'Untitled')}</span></td>
+      <td><span class="br-type ${e.type==='ho'?'ho':'br'}">${e.type==='ho'?`<svg class="br-pin" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/></svg>`:branchPinIcon()}<span>${esc(type)}</span></span></td>
+      <td class="br-emirate">${esc(branchEmirate(e))}</td>
+      <td>${active?`<span class="br-status ok">Active</span>`:`<span class="br-status off">Inactive</span>`}</td>
+      <td class="br-actions">
+        <button type="button" class="br-full" data-br-open="${i}">Full details \u2192</button>
+        <div class="br-more-wrap">
+          <button type="button" class="br-more" data-br-more="${i}" aria-label="More actions" aria-haspopup="true"><span>\u2026</span></button>
+          <div class="br-menu" hidden data-br-menu="${i}">
+            <button type="button" data-br-open="${i}">Open profile</button>
+            ${e.type!=='ho'?`<button type="button" data-br-del="${i}">Delete</button>`:''}
+          </div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  return`<div class="br-panel">
+  <div class="br-toolbar">
+    <input class="in br-search" id="brSearch" type="search" placeholder="Search name or code..." value="${esc(f.q||'')}" autocomplete="off">
+    <select class="in br-filter no-select2" id="brType" data-no-select2="1">${typeOpts.map(([v,t])=>`<option value="${esc(v)}"${f.type===v?' selected':''}>${esc(t)}</option>`).join('')}</select>
+    <select class="in br-filter no-select2" id="brStatus" data-no-select2="1">${statusOpts.map(([v,t])=>`<option value="${esc(v)}"${f.status===v?' selected':''}>${esc(t)}</option>`).join('')}</select>
+    <button type="button" class="cd-btn br-create" id="cdCreateBranch"><span class="br-plus">+</span> Create new</button>
+  </div>
+  <div class="tblw cd-branches"><table>
+    <thead><tr>
+      <th class="br-grip-cell"></th>
+      <th>Short code</th>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Emirate</th>
+      <th>Status</th>
+      <th></th>
+    </tr></thead>
+    <tbody>${body||`<tr><td colspan="7" class="br-empty">No branches match your filters.</td></tr>`}</tbody>
+  </table></div>
+  <div class="br-foot">Showing ${rows.length} of ${ents.length} \u00B7 Drag ${branchGripIcon()} to reorder \u00B7 Address, TRN, license, bank, documents and logo are managed in Company Details</div>
+  </div>`;
 }
 let departments=Array.isArray(CFG.departments)?CFG.departments.slice():[];
 function deptsHtml(){
@@ -555,12 +627,14 @@ function setVal(fid,v){
 }
 panel.addEventListener('input',ev=>{const t=ev.target;
   if(t.id==='mxq'){window.__mq=t.value;const pos=t.selectionStart;renderPanel();const n=document.getElementById('mxq');n.focus();n.setSelectionRange(pos,pos);return;}
+  if(t.id==='brSearch'){window.__brFilter=window.__brFilter||{q:'',type:'',status:''};window.__brFilter.q=t.value;const pos=t.selectionStart;renderPanel();const n=document.getElementById('brSearch');if(n){n.focus();n.setSelectionRange(pos,pos);}return;}
   if(t.dataset.bmq!==undefined){window.__bmq=window.__bmq||{};window.__bmq[+t.dataset.bmq]=t.value;const pos=t.selectionStart;const bi=+t.dataset.bmq;renderPanel();const n=panel.querySelector(`[data-bmq="${bi}"]`);if(n){n.focus();n.setSelectionRange(pos,pos);}return;}
   if(t.dataset.f&&t.type!=='checkbox'&&t.type!=='radio'&&t.tagName!=='SELECT'){setVal(t.dataset.f,t.value);if(['name','trn','phone','email','address','web','tlno'].includes(t.dataset.f))renderHead();}
   if(t.dataset.b){const i=+t.closest('[data-bank]').dataset.bank;const b=cur.banks[i];if(t.dataset.b==='iban'){let x=t.value.toUpperCase().replace(/[^A-Z0-9]/g,'');t.value=x.replace(/(.{4})/g,'$1 ').trim();b.iban=t.value;ibanCheck(t);}else if(t.type!=='checkbox'&&t.tagName!=='SELECT')b[t.dataset.b]=t.value;mark();}
   if(t.dataset.d&&t.type!=='date'){dSet(cur.docs[+t.closest('[data-doc]').dataset.doc],t.dataset.d,t.value);mark();}
 });
 panel.addEventListener('change',ev=>{const t=ev.target;
+  if(t.id==='brType'||t.id==='brStatus'){window.__brFilter=window.__brFilter||{q:'',type:'',status:''};if(t.id==='brType')window.__brFilter.type=t.value;else window.__brFilter.status=t.value;renderPanel();return;}
   if(t.id==='stampUserPick'){stampUserId=String(t.value||'');ensureStamp(stampUserId);renderPanel();return;}
   if(t.dataset.m){const m=val('apm')||defaultMatrix();m[t.dataset.m][t.dataset.c]=t.checked;setVal('apm',m);renderPanel();return;}
   if(t.dataset.mall){const m=val('apm')||defaultMatrix();Object.values(m).forEach(x=>x[t.dataset.mall]=t.checked);setVal('apm',m);renderPanel();return;}
@@ -607,8 +681,26 @@ panel.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.dfile&&t.files[0]){const d=cur.docs[+t.dataset.dfile];const fd=new FormData();fd.append('file',t.files[0]);fd.append('name',d.n||'Document');if(d.key)fd.append('key',d.key);if(d.no)fd.append('number',d.no);if(d.exp)fd.append('expiry_date',d.exp);if(d.document_type_id)fd.append('document_type_id',d.document_type_id);let docUrl;try{docUrl=profileUrl(ROUTES.uploadDocument);}catch(e){toast(e.message||'Upload failed');return;}api(docUrl,{method:'POST',body:fd,headers:{}}).then(function(res){if(res.bootstrap&&res.bootstrap.entities){const id=cur.id;ents=res.bootstrap.entities.map(mapEntity);cur=ents.find(function(e){return String(e.id)===String(id);})||cur;}mark();renderPanel();toast((d.n||'Document')+' saved');}).catch(function(err){toast(err.message||'Upload failed');});}
 });
 panel.addEventListener('click',ev=>{const t=ev.target;
-  const be=t.closest('[data-ent]');if(be&&curSec==='branches'){curSec='gen';switchTo(ents[+be.dataset.ent]);return;}
   if(t.id==='cdCreateBranch'||t.closest('[data-create-branch]')){openCreate();return;}
+  const brOpen=t.closest('[data-br-open]');if(brOpen){document.querySelectorAll('.br-menu').forEach(m=>m.hidden=true);curSec='gen';switchTo(ents[+brOpen.dataset.brOpen]);return;}
+  const brMore=t.closest('[data-br-more]');if(brMore){
+    const menu=panel.querySelector(`[data-br-menu="${brMore.dataset.brMore}"]`);
+    const open=menu&&!menu.hidden;
+    document.querySelectorAll('.br-menu').forEach(m=>m.hidden=true);
+    if(menu&&!open)menu.hidden=false;
+    return;
+  }
+  const brDel=t.closest('[data-br-del]');if(brDel){
+    const i=+brDel.dataset.brDel;const e=ents[i];
+    if(!e||e.type==='ho'){toast('Head Office cannot be deleted');return;}
+    if(!confirm('Delete branch "'+(e.label||e.code||'')+'"?'))return;
+    const url=(ROUTES.destroyEntity||'').replace('__ID__',String(e.id));
+    if(!url||String(e.id).indexOf('-')>=0){ents.splice(i,1);if(cur===e)cur=ents[0];render();toast('Branch removed');return;}
+    api(url,{method:'DELETE'}).then(function(res){if(res.bootstrap&&res.bootstrap.entities){ents=res.bootstrap.entities.map(mapEntity);}else{ents.splice(i,1);}if(!ents.includes(cur))cur=ents[0];render();toast('Branch deleted');}).catch(function(err){toast(err.message||'Delete failed');});
+    return;
+  }
+  if(!t.closest('.br-more-wrap')){document.querySelectorAll('.br-menu').forEach(m=>m.hidden=true);}
+  const be=t.closest('[data-ent]');if(be&&curSec==='branches'){curSec='gen';switchTo(ents[+be.dataset.ent]);return;}
   if(t.closest('#cdAddDept')){openDeptModal(null,null);return;}
   const ed=t.closest('[data-edit-dept]');if(ed){ev.preventDefault();openDeptModal(departments[+ed.dataset.editDept],+ed.dataset.editDept);return;}
   const rdpt=t.closest('[data-rm-dept]');if(rdpt){
@@ -635,6 +727,52 @@ panel.addEventListener('click',ev=>{const t=ev.target;
 });
 function ibanCheck(t){const m=t.parentElement.querySelector('.ibanmsg');const x=t.value.replace(/\s/g,'');if(!x){m.textContent='';t.classList.remove('bad');return;}const ok=/^AE\d{21}$/.test(x);t.classList.toggle('bad',!ok&&x.length>=23);m.textContent=ok?'Valid UAE IBAN format':x.length<23?`${x.length} of 23 characters`:'A UAE IBAN is AE followed by 21 digits';m.style.color=ok?'var(--ok)':x.length>=23?'var(--bad)':'var(--faint)';}
 function ibanCheckAll(){panel.querySelectorAll('[data-b="iban"]').forEach(ibanCheck);}
+
+/* drag to reorder branches table */
+panel.addEventListener('pointerdown',ev=>{
+  const g=ev.target.closest('[data-br-grip]');
+  if(!g||!CAN_EDIT||curSec!=='branches')return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  const row=g.closest('tr[data-br-row]');
+  if(!row)return;
+  const from=+row.dataset.brRow;
+  row.classList.add('br-lift');
+  let lastY=ev.clientY; let over=from;
+  const tbody=row.parentElement;
+  const mv=e=>{
+    e.preventDefault();
+    lastY=e.clientY;
+    const others=[...tbody.querySelectorAll('tr[data-br-row]')].filter(x=>x!==row);
+    for(const x of others){
+      const b=x.getBoundingClientRect();
+      if(lastY>=b.top && lastY<=b.bottom){
+        over=+x.dataset.brRow;
+        if(lastY < b.top + b.height/2){if(x.previousElementSibling!==row)x.before(row);}
+        else if(x.nextElementSibling!==row)x.after(row);
+        break;
+      }
+    }
+  };
+  const up=()=>{
+    row.classList.remove('br-lift');
+    document.removeEventListener('pointermove',mv,true);
+    document.removeEventListener('pointerup',up,true);
+    document.removeEventListener('pointercancel',up,true);
+    const ids=[...tbody.querySelectorAll('tr[data-br-row]')].map(r=>+r.dataset.brRow);
+    if(!ids.length)return;
+    const next=ids.map(i=>ents[i]).filter(Boolean);
+    // Keep any filtered-out entities in place after the visible set.
+    const moved=new Set(ids);
+    ents.forEach((e,i)=>{if(!moved.has(i))next.push(e);});
+    ents=next;
+    if(cur&&!ents.includes(cur))cur=ents[0];
+    renderPanel();
+  };
+  document.addEventListener('pointermove',mv,true);
+  document.addEventListener('pointerup',up,true);
+  document.addEventListener('pointercancel',up,true);
+});
 
 /* drag to reorder field rows */
 panel.addEventListener('pointerdown',ev=>{

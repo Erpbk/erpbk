@@ -183,6 +183,53 @@
 .company-details-root .tblw.cd-depts td:nth-child(n+2){text-align:left}
 .company-details-root .tblw.cd-depts td:last-child{text-align:right}
 .company-details-root .tblw.cd-depts td small.dm{display:block;text-align:left;color:var(--muted);margin-top:2px}
+
+.company-details-root .br-panel{padding:0 0 8px}
+.company-details-root .br-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 24px 0}
+.company-details-root .br-search{flex:1;min-width:200px;height:40px;border-radius:10px;background:#fff}
+.company-details-root .br-filter{width:auto;min-width:148px;height:40px;border-radius:10px;background:#fff;appearance:auto;padding-right:28px}
+.company-details-root .br-create{margin-left:auto;padding:9px 16px;font-size:13px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.company-details-root .br-plus{font-weight:800;font-size:16px;line-height:1}
+.company-details-root .tblw.cd-branches{margin:12px 24px 0;border-radius:12px;background:#fff;overflow:hidden}
+.company-details-root .tblw.cd-branches table{min-width:0;width:100%;border-collapse:collapse}
+.company-details-root .tblw.cd-branches th,
+.company-details-root .tblw.cd-branches td{text-align:left!important;padding:14px 16px;vertical-align:middle;border-bottom:1px solid #eef0f5}
+.company-details-root .tblw.cd-branches tbody tr:last-child td{border-bottom:0}
+.company-details-root .tblw.cd-branches th{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:#8b93a7;background:#fff;font-weight:700}
+.company-details-root .tblw.cd-branches tbody tr:hover td{background:#fafbff}
+.company-details-root .tblw.cd-branches tr.br-lift td{background:#eef2ff;box-shadow:0 8px 20px rgba(18,26,51,.1)}
+.company-details-root .br-grip-cell{width:44px;padding-left:12px!important;padding-right:4px!important}
+.company-details-root .br-grip{all:unset;cursor:grab;display:inline-grid;place-items:center;width:28px;height:32px;border-radius:8px;color:#a0a8bd}
+.company-details-root .br-grip:hover{background:#f3f4f9;color:#6b7289}
+.company-details-root .br-grip:active{cursor:grabbing}
+.company-details-root .br-dots{display:grid;grid-template-columns:repeat(2,4px);gap:3px 3px;width:11px;height:17px}
+.company-details-root .br-dots i{width:3.5px;height:3.5px;border-radius:50%;background:currentColor;display:block}
+.company-details-root .br-code{display:inline-flex;align-items:center;justify-content:center;min-width:52px;padding:4px 11px;border-radius:999px;background:#eef0f5;color:#6b7289;font-size:11.5px;font-weight:700;letter-spacing:.03em}
+.company-details-root .br-name{display:inline-block;font-size:14px;font-weight:700;color:#121a33}
+.company-details-root .br-type{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:600;background:#f3e8ff;color:#7c3aed}
+.company-details-root .br-type.ho{background:#eaedff;color:#1f3bff}
+.company-details-root .br-type .br-pin,
+.company-details-root .br-type svg.br-pin{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;color:#db2777}
+.company-details-root .br-type.ho .br-pin{color:#1f3bff}
+.company-details-root .br-emirate{color:#334155;font-size:13.5px}
+.company-details-root .br-status{display:inline-flex;align-items:center;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:700}
+.company-details-root .br-status.ok{background:#dcfce7;color:#15803d}
+.company-details-root .br-status.off{background:#f1f5f9;color:#64748b}
+.company-details-root .br-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;white-space:nowrap}
+.company-details-root .br-full{all:unset;cursor:pointer;border:1.5px solid #c7d2fe;color:#1f3bff;background:#fff;border-radius:9px;padding:7px 13px;font-size:12.5px;font-weight:650}
+.company-details-root .br-full:hover{background:#eaedff}
+.company-details-root .br-more-wrap{position:relative}
+.company-details-root .br-more{all:unset;cursor:pointer;width:34px;height:34px;border-radius:50%;border:1.5px solid #e3e6f0;display:grid;place-items:center;color:#64748b;background:#fff;box-sizing:border-box}
+.company-details-root .br-more span{font-size:18px;line-height:1;transform:translateY(-1px);letter-spacing:.02em}
+.company-details-root .br-more:hover{border-color:#c7d2fe;color:#1f3bff;background:#f8f9ff}
+.company-details-root .br-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;min-width:150px;background:#fff;border:1px solid #e3e6f0;border-radius:10px;box-shadow:0 12px 28px rgba(18,26,51,.16);padding:6px;display:grid}
+.company-details-root .br-menu[hidden]{display:none!important}
+.company-details-root .br-menu button{all:unset;cursor:pointer;padding:8px 10px;border-radius:7px;font-size:12.5px;font-weight:600;color:#121a33}
+.company-details-root .br-menu button:hover{background:#f7f8fc;color:#1f3bff}
+.company-details-root .br-menu button[data-br-del]{color:#b91c1c}
+.company-details-root .br-empty{text-align:center!important;padding:28px!important;color:#8b93a7}
+.company-details-root .br-foot{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 24px 0;font-size:12.5px;color:#8b93a7}
+.company-details-root .br-foot .br-dots{color:#a0a8bd;margin:0 2px}
 .company-details-root table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px}
 .company-details-root th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;text-align:left;padding:9px 10px;background:var(--surface-2);border-bottom:1px solid var(--line)}
 .company-details-root td{padding:7px 10px;border-bottom:1px solid var(--line-2);vertical-align:middle}
@@ -353,6 +400,9 @@ body.settings-panel-company-details .cd-toast,
 .company-details-root button.inh-t,
 .company-details-root button.filebtn,
 .company-details-root button.del,
+.company-details-root button.br-full,
+.company-details-root button.br-more,
+.company-details-root button.br-grip,
 .company-details-root label.filebtn {
   pointer-events: auto !important;
   cursor: pointer;

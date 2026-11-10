@@ -42,6 +42,7 @@ class CompanyDetailsService
     {
         $this->ensureProfiles($company);
         $profiles = CompanyLocationProfile::query()
+            ->with('branch')
             ->where('company_id', $company->id)
             ->orderByRaw("FIELD(entity_type, 'ho', 'br', 'co')")
             ->orderBy('id')
@@ -465,6 +466,8 @@ class CompanyDetailsService
 
         $docs = $this->documentsForProfile($profile, $company);
 
+        $branch = $profile->branch;
+
         return [
             'id' => $profile->id,
             'branch_id' => $profile->branch_id,
@@ -473,6 +476,8 @@ class CompanyDetailsService
             'code' => $profile->code,
             'label' => $profile->label,
             'place' => $profile->place,
+            'active' => (bool) ($branch?->is_active ?? true),
+            'branch_type' => (string) ($branch?->branch_type ?? ($profile->entity_type === CompanyLocationProfile::TYPE_HEAD_OFFICE ? 'headquarters' : 'branch')),
             'vals' => $vals,
             'inh' => (array) $profile->inh,
             'banks' => $this->normalizeBanks((array) ($profile->banks ?: [$this->blankBank()])),

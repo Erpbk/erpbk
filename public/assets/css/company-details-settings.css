@@ -173,6 +173,9 @@
 .company-details-root .bank-h{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700}
 .company-details-root .bank-h .x{all:unset;cursor:pointer;margin-left:auto;font-size:12px;color:var(--muted)}.bank-h .x:hover{color:var(--bad)}
 .company-details-root .bank .g2{row-gap:10px}
+.company-details-root .bank-mods{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.company-details-root .bank-mods .mx{margin-top:6px}
+.company-details-root .bank-mods .mxw{max-height:320px}
 .company-details-root .addbtn{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:calc(100% - 48px);margin:12px 24px 18px;padding:9px;border:1px dashed var(--accent);border-radius:10px;text-align:center;color:var(--accent);font-size:12.5px;font-weight:600;background:var(--accent-soft)}
 .company-details-root .tblw{margin:14px 24px;border:1px solid var(--line);border-radius:12px;overflow-x:auto}
 .company-details-root .tblw.cd-depts table{min-width:0;width:100%}

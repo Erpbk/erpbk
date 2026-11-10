@@ -21,7 +21,7 @@ use Illuminate\Support\Str;
 
 class CompanyDetailsService
 {
-    public const ADMIN_SECTIONS = ['cur', 'time', 'fy', 'legal', 'bank', 'stamp'];
+    public const ADMIN_SECTIONS = ['cur', 'time', 'fy', 'legal', 'stamp'];
 
     public const WARN_SECTIONS = ['cur', 'time', 'fy'];
 
@@ -270,7 +270,7 @@ class CompanyDetailsService
             $vals = array_merge($existingVals, $incoming);
             unset($vals['logo_path'], $vals['stampimg_path'], $vals['signimg_path'], $vals['curimg_path'], $vals['logo_url'], $vals['stampimg_url'], $vals['signimg_url'], $vals['curimg_url']);
             $inh = (array) ($payload['inh'] ?? $profile->inh ?? []);
-            $banks = (array) ($payload['banks'] ?? $profile->banks ?? []);
+            $banks = $this->normalizeBanks((array) ($payload['banks'] ?? $profile->banks ?? []));
             $useHoBank = (bool) ($payload['use_ho_bank'] ?? $profile->use_ho_bank);
             $docsMeta = (array) ($payload['docs_meta'] ?? $profile->docs_meta ?? []);
             $fieldOrders = $payload['field_orders'] ?? null;
@@ -475,7 +475,7 @@ class CompanyDetailsService
             'place' => $profile->place,
             'vals' => $vals,
             'inh' => (array) $profile->inh,
-            'banks' => (array) ($profile->banks ?: [$this->blankBank()]),
+            'banks' => $this->normalizeBanks((array) ($profile->banks ?: [$this->blankBank()])),
             'useHoBank' => (bool) $profile->use_ho_bank,
             'docs' => $docs,
             'field_orders' => $profile->field_orders,
@@ -685,8 +685,139 @@ class CompanyDetailsService
         return $m;
     }
 
+    public const BANK_DOC_KINDS = ['invoice', 'payment', 'customer_note'];
+
+    /**
+     * Same ERP module list as Stamp & Signature apply-matrix.
+     *
+     * @return list<string>
+     */
+    public function bankErpModules(): array
+    {
+        return [
+            'Cash & Banks', 'Accounts', 'Vouchers', 'Expenses', 'VAT',
+            'Employees', 'Riders', 'Recruiters', 'Customers',
+            'Bikes', 'Vehicle on rent', 'Fuel Cards', 'Sims', 'RTA Fines', 'RTA Saliks', 'Garages', 'Leasing Companies',
+            'Agreements', 'Legal Case', 'Visa Expense', 'License Expense', 'Passport Handover', 'Documents',
+            'Supplier', 'Items', 'Assets',
+        ];
+    }
+
+    /**
+     * @param  array{invoice?:bool,payment?:bool,customer_note?:bool}|null  $seed
+     * @return array<string, array{invoice:bool,payment:bool,customer_note:bool}>
+     */
+    public function defaultBankMatrix(?array $seed = null): array
+    {
+        $on = [
+            'invoice' => ['Customers', 'Accounts', 'VAT', 'Vehicle on rent'],
+            'payment' => ['Cash & Banks', 'Accounts', 'Vouchers', 'Expenses', 'Supplier', 'Garages', 'Leasing Companies', 'Customers', 'Riders', 'Employees'],
+            'customer_note' => ['Customers'],
+        ];
+        $use = [
+            'invoice' => $seed === null ? true : (bool) ($seed['invoice'] ?? false),
+            'payment' => $seed === null ? true : (bool) ($seed['payment'] ?? false),
+            'customer_note' => $seed === null ? true : (bool) ($seed['customer_note'] ?? false),
+        ];
+        // When no seed, use default "on" lists as-is (payment/customer_note still only on their lists).
+        if ($seed === null) {
+            $use = ['invoice' => true, 'payment' => true, 'customer_note' => true];
+        }
+
+        $m = [];
+        foreach ($this->bankErpModules() as $mod) {
+            $m[$mod] = [
+                'invoice' => $use['invoice'] && in_array($mod, $on['invoice'], true),
+                'payment' => $use['payment'] && in_array($mod, $on['payment'], true),
+                'customer_note' => $use['customer_note'] && in_array($mod, $on['customer_note'], true),
+            ];
+        }
+
+        return $m;
+    }
+
+    /**
+     * @param  array<string, array{invoice?:bool,payment?:bool,customer_note?:bool}>  $matrix
+     * @return array{invoice:bool,payment:bool,customer_note:bool}
+     */
+    protected function bankModulesFromMatrix(array $matrix): array
+    {
+        $mods = ['invoice' => false, 'payment' => false, 'customer_note' => false];
+        foreach ($matrix as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            foreach (self::BANK_DOC_KINDS as $kind) {
+                if (! empty($row[$kind])) {
+                    $mods[$kind] = true;
+                }
+            }
+        }
+
+        return $mods;
+    }
+
+    /**
+     * @param  mixed  $src
+     * @return array<string, array{invoice:bool,payment:bool,customer_note:bool}>
+     */
+    public function normalizeBankMatrix(mixed $src, ?array $legacyModules = null, mixed $legacyShow = null): array
+    {
+        if (is_array($src) && $src !== []) {
+            $looksLikeMatrix = false;
+            foreach ($src as $row) {
+                if (is_array($row) && (array_key_exists('invoice', $row) || array_key_exists('payment', $row) || array_key_exists('customer_note', $row))) {
+                    $looksLikeMatrix = true;
+                    break;
+                }
+            }
+            if ($looksLikeMatrix) {
+                $base = $this->defaultBankMatrix(['invoice' => false, 'payment' => false, 'customer_note' => false]);
+                foreach ($base as $mod => $_) {
+                    $row = is_array($src[$mod] ?? null) ? $src[$mod] : [];
+                    $base[$mod] = [
+                        'invoice' => (bool) ($row['invoice'] ?? false),
+                        'payment' => (bool) ($row['payment'] ?? false),
+                        'customer_note' => (bool) ($row['customer_note'] ?? false),
+                    ];
+                }
+
+                return $base;
+            }
+        }
+
+        if (is_array($legacyModules) && (isset($legacyModules['invoice']) || isset($legacyModules['payment']) || isset($legacyModules['customer_note']))) {
+            $flat = true;
+            foreach ($legacyModules as $v) {
+                if (is_array($v)) {
+                    $flat = false;
+                    break;
+                }
+            }
+            if ($flat) {
+                return $this->defaultBankMatrix([
+                    'invoice' => (bool) ($legacyModules['invoice'] ?? false),
+                    'payment' => (bool) ($legacyModules['payment'] ?? false),
+                    'customer_note' => (bool) ($legacyModules['customer_note'] ?? false),
+                ]);
+            }
+        }
+
+        if ($legacyShow !== null) {
+            return $this->defaultBankMatrix([
+                'invoice' => (bool) $legacyShow,
+                'payment' => false,
+                'customer_note' => false,
+            ]);
+        }
+
+        return $this->defaultBankMatrix();
+    }
+
     protected function blankBank(): array
     {
+        $matrix = $this->defaultBankMatrix();
+
         return [
             'bank' => 'Emirates NBD',
             'title' => '',
@@ -694,8 +825,122 @@ class CompanyDetailsService
             'swift' => '',
             'acc' => '',
             'cur' => 'AED',
+            'matrix' => $matrix,
+            'modules' => $this->bankModulesFromMatrix($matrix),
             'show' => true,
         ];
+    }
+
+    /**
+     * @param  array<int, mixed>  $banks
+     * @return array<int, array<string, mixed>>
+     */
+    public function normalizeBanks(array $banks): array
+    {
+        if ($banks === []) {
+            return [$this->blankBank()];
+        }
+
+        return array_values(array_map(function ($row) {
+            $src = is_array($row) ? $row : [];
+            $matrix = $this->normalizeBankMatrix(
+                $src['matrix'] ?? null,
+                isset($src['modules']) && is_array($src['modules']) ? $src['modules'] : null,
+                $src['show'] ?? null
+            );
+            $modules = $this->bankModulesFromMatrix($matrix);
+
+            return [
+                'bank' => (string) ($src['bank'] ?? 'Emirates NBD'),
+                'title' => (string) ($src['title'] ?? ''),
+                'iban' => (string) ($src['iban'] ?? ''),
+                'swift' => (string) ($src['swift'] ?? ''),
+                'acc' => (string) ($src['acc'] ?? ''),
+                'cur' => (string) ($src['cur'] ?? 'AED'),
+                'matrix' => $matrix,
+                'modules' => $modules,
+                'show' => (bool) $modules['invoice'],
+            ];
+        }, $banks));
+    }
+
+    /**
+     * Banks configured for a document kind (invoice|payment|customer_note),
+     * optionally limited to one ERP module (e.g. Customers).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function banksForModule(Company $company, string $module, ?int $branchId = null, ?string $erpModule = null): array
+    {
+        $docKind = in_array($module, self::BANK_DOC_KINDS, true) ? $module : 'invoice';
+        $this->ensureProfiles($company);
+
+        $query = CompanyLocationProfile::query()->where('company_id', $company->id);
+        if ($branchId) {
+            $profile = (clone $query)->where('branch_id', $branchId)->first();
+        } else {
+            $profile = (clone $query)
+                ->where('entity_type', CompanyLocationProfile::TYPE_HEAD_OFFICE)
+                ->first();
+        }
+
+        if (! $profile) {
+            return [];
+        }
+
+        if ($profile->use_ho_bank && $profile->entity_type !== CompanyLocationProfile::TYPE_HEAD_OFFICE) {
+            $profile = CompanyLocationProfile::query()
+                ->where('company_id', $company->id)
+                ->where('entity_type', CompanyLocationProfile::TYPE_HEAD_OFFICE)
+                ->first() ?: $profile;
+        }
+
+        return array_values(array_filter(
+            $this->normalizeBanks((array) ($profile->banks ?: [])),
+            function (array $bank) use ($docKind, $erpModule) {
+                if ($bank['iban'] === '' && $bank['acc'] === '' && $bank['title'] === '') {
+                    return false;
+                }
+                $matrix = is_array($bank['matrix'] ?? null) ? $bank['matrix'] : [];
+                if ($erpModule) {
+                    return ! empty($matrix[$erpModule][$docKind]);
+                }
+                if (! empty($bank['modules'][$docKind])) {
+                    return true;
+                }
+                foreach ($matrix as $row) {
+                    if (is_array($row) && ! empty($row[$docKind])) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        ));
+    }
+
+    /**
+     * Plain-text block of bank accounts for notes / PDFs.
+     */
+    public function banksTextForModule(Company $company, string $module, ?int $branchId = null, ?string $erpModule = null): string
+    {
+        $lines = [];
+        foreach ($this->banksForModule($company, $module, $branchId, $erpModule) as $i => $bank) {
+            $parts = array_filter([
+                $bank['bank'] ?: null,
+                $bank['title'] ? 'Title: '.$bank['title'] : null,
+                $bank['iban'] ? 'IBAN: '.$bank['iban'] : null,
+                $bank['acc'] ? 'Account: '.$bank['acc'] : null,
+                $bank['swift'] ? 'SWIFT: '.$bank['swift'] : null,
+                $bank['cur'] ? 'Currency: '.$bank['cur'] : null,
+            ]);
+            if ($parts === []) {
+                continue;
+            }
+            $lines[] = 'Bank account '.($i + 1).': '.implode(' · ', $parts);
+        }
+
+        return implode("\n", $lines);
     }
 
     protected function syncBranchBasics(CompanyLocationProfile $profile, array $vals): void

@@ -10,7 +10,7 @@ const ROUTES = CFG.routes || {};
 const CSRF = CFG.csrf || '';
 const CAN_EDIT = !!CFG.can_edit;
 const IS_ADMIN = !!CFG.is_admin;
-const ADMIN_SECTIONS = CFG.admin_sections || ['cur','time','fy','legal','bank','stamp'];
+const ADMIN_SECTIONS = CFG.admin_sections || ['cur','time','fy','legal','stamp'];
 function assetUrl(pathOrUrl){
   if(!pathOrUrl) return '';
   const s=String(pathOrUrl);
@@ -80,7 +80,7 @@ function mapEntity(e){
   return {
     id:e.id, type:e.type, code:e.code||'', label:e.label||'', place:e.place||'',
     vals:Object.assign({}, e.vals||{}), inh:Object.assign({}, e.inh||{}),
-    banks:(e.banks && e.banks.length) ? e.banks : [], useHoBank:!!e.useHoBank,
+    banks:(e.banks && e.banks.length) ? e.banks.map(normalizeBank) : [], useHoBank:!!e.useHoBank,
     docs:Array.isArray(e.docs)?e.docs:[], branch_id:e.branch_id, parent_id:e.parent_id
   };
 }
@@ -179,7 +179,6 @@ const SECTIONS=[
   {id:'cttrn',label:'Corporate Tax TRN',help:'Separate from the VAT TRN',inh:1,f:[{id:'cttrn',type:'text',mono:1,max:15,ph:'15-digit Corporate Tax TRN'}]},
   {id:'pobox',label:'PO Box',help:'Shown on official letters',f:[{id:'pobox',type:'text',pre:'P.O. Box'}]},
   {id:'rem',label:'Expiry reminder',help:'Alert before any license or card expires',inh:1,grid:1,f:[{id:'remd',type:'select',mini:'When',opts:o(['30 days before','15 days before','60 days before','90 days before'])},{id:'remto',type:'select',mini:'Notify',opts:o(['Admins','Admins + Accounts','All managers'])}]}]},
- {k:'bank',icon:'bank',t:'Bank Details',s:'Accounts shown on invoices',lock:1,custom:'bank'},
  {k:'stamp',icon:'pen',t:'Stamp & Signature',s:'Per-user stamps, signatures and document permissions',lock:1,rows:[
   {id:'stampimg',label:'Stamp',help:'This user\u2019s personal stamp / official seal',noInh:1,f:[{id:'stampimg',type:'upload'}]},
   {id:'signimg',label:'Signature',help:'This user\u2019s personal signature',noInh:1,f:[{id:'signimg',type:'upload'}]},
@@ -217,10 +216,90 @@ const DOC_KEYS={tl:['tlno','tlexp'],mohre:['mono','moexp'],imm:['imno','imexp']}
 const DOCS_HO=[['Trade License','tl'],['MOHRE Establishment','mohre'],['Immigration Establishment Card','imm'],['VAT Certificate'],['Corporate Tax Certificate'],['Tenancy Contract (Ejari)'],['Chamber of Commerce'],['Company Insurance']];
 const DOCS_BR=[['Trade License','tl'],['MOHRE Establishment','mohre'],['Immigration Establishment Card','imm'],['Tenancy Contract (Ejari)']];
 const mkDocs=a=>a.map(([n,key])=>({n,key:key||'',no:'',exp:'',file:'',up:''}));
+/* Bank matrix helpers must be defined BEFORE ents/mapEntity runs (BCOLS is const — TDZ). */
+const BCOLS=[['invoice','Invoices'],['payment','Payment'],['customer_note','Customer note']];
+function blankBankCell(){return{invoice:false,payment:false,customer_note:false};}
+function defaultBankMatrix(seed){
+  const on={
+    invoice:['Customers','Accounts','VAT','Vehicle on rent'],
+    payment:['Cash & Banks','Accounts','Vouchers','Expenses','Supplier','Garages','Leasing Companies','Customers','Riders','Employees'],
+    customer_note:['Customers'],
+  };
+  if(seed&&typeof seed==='object'&&!Array.isArray(seed)){
+    // seed = {invoice:true,payment:false,...} legacy flat modules → apply defaults only for enabled kinds
+    const use={
+      invoice:seed.invoice!==false,
+      payment:!!seed.payment,
+      customer_note:!!seed.customer_note,
+    };
+    const m={};
+    MODGROUPS.forEach(([,mods])=>mods.forEach(x=>{
+      m[x]={
+        invoice:use.invoice&&on.invoice.includes(x),
+        payment:use.payment&&on.payment.includes(x),
+        customer_note:use.customer_note&&on.customer_note.includes(x),
+      };
+    }));
+    return m;
+  }
+  const m={};
+  MODGROUPS.forEach(([,mods])=>mods.forEach(x=>{
+    m[x]={invoice:on.invoice.includes(x),payment:on.payment.includes(x),customer_note:on.customer_note.includes(x)};
+  }));
+  return m;
+}
+function bankModsFromMatrix(matrix){
+  const mods={invoice:false,payment:false,customer_note:false};
+  Object.values(matrix||{}).forEach(row=>{
+    BCOLS.forEach(([c])=>{if(row&&row[c])mods[c]=true;});
+  });
+  return mods;
+}
+function normalizeBankMatrix(src){
+  if(src&&typeof src==='object'&&!Array.isArray(src)&&Object.keys(src).some(k=>src[k]&&typeof src[k]==='object'&&('invoice' in src[k]||'payment' in src[k]||'customer_note' in src[k]))){
+    const base=defaultBankMatrix({invoice:false,payment:false,customer_note:false});
+    Object.keys(base).forEach(mod=>{
+      const row=src[mod]&&typeof src[mod]==='object'?src[mod]:{};
+      base[mod]={
+        invoice:!!row.invoice,
+        payment:!!row.payment,
+        customer_note:!!row.customer_note,
+      };
+    });
+    return base;
+  }
+  if(src&&typeof src==='object'&&(src.invoice!==undefined||src.payment!==undefined||src.customer_note!==undefined||src.show!==undefined)){
+    return defaultBankMatrix({
+      invoice:src.modules?!!src.modules.invoice:(src.show!==undefined?!!src.show:true),
+      payment:src.modules?!!src.modules.payment:false,
+      customer_note:src.modules?!!src.modules.customer_note:false,
+    });
+  }
+  return defaultBankMatrix();
+}
+function normalizeBank(b){
+  const src=b&&typeof b==='object'?b:{};
+  let matrix;
+  if(src.matrix&&typeof src.matrix==='object'){
+    matrix=normalizeBankMatrix(src.matrix);
+  }else if(src.modules&&typeof src.modules==='object'&&(src.modules.invoice!==undefined||src.modules.payment!==undefined||src.modules.customer_note!==undefined)&&!Object.values(src.modules).some(v=>v&&typeof v==='object')){
+    // Flat legacy modules toggles
+    matrix=defaultBankMatrix(src.modules);
+  }else if(src.show!==undefined && !src.matrix){
+    matrix=defaultBankMatrix({invoice:!!src.show,payment:false,customer_note:false});
+  }else{
+    matrix=normalizeBankMatrix(src.matrix||src.modules);
+  }
+  const mods=bankModsFromMatrix(matrix);
+  return{
+    bank:src.bank||BANKS[0], title:src.title||'', iban:src.iban||'', swift:src.swift||'',
+    acc:src.acc||'', cur:src.cur||'AED', matrix, modules:mods, show:!!mods.invoice,
+  };
+}
+function blankBank(){return normalizeBank({bank:BANKS[0],matrix:defaultBankMatrix()});}
 let ents = (CFG.entities || []).map(mapEntity);
 if(!ents.length){ ents = [{id:0,type:'ho',code:'HO',label:(CFG.company&&CFG.company.name)||'Head Office',place:'',vals:{...HO_VALS},inh:{},banks:[blankBank()],useHoBank:false,docs:mkDocs(DOCS_HO)}]; }
 
-function blankBank(){return{bank:BANKS[0],title:'',iban:'',swift:'',acc:'',cur:'AED',show:true}}
 function newEnt(type,label,place,code,extra){
   const vals={};Object.keys(HO_VALS).forEach(k=>vals[k]=typeof HO_VALS[k]==='boolean'?false:typeof HO_VALS[k]==='object'?defaultMatrix():'');
   Object.assign(vals,{vatp:'5',cur:CUR[0],curmode:'d',datef:'DD-MM-YYYY',timef:'12',hijri:'off',tz:'Asia/Dubai',wstart:'1',woff:'5',fy:'0',vatper:'q',vatq:'0',ui:'en',dir:'auto',doc:'en',mail:'same',remd:'30 days before',remto:'Admins',ltype:'Limited Liability Company (LLC)'},extra||{});
@@ -299,7 +378,6 @@ function renderPanel(){
   let h=`<div class="ph"><div><h2>${s.t}</h2><p>${s.s}</p></div>${s.lock?'<span class="lock">Admin only</span>':''}</div>`;
   if(s.k==='stamp')h+=stampUserBar();
   if(s.rows){h+=`<div class="tip">Drag a field by its <span class="grip" aria-hidden="true"></span> handle to change the order.<button type="button" id="resetOrder">Reset order</button></div>`;h+=order[s.k].map(id=>rowHtml(ROWS[id])).join('');}
-  if(s.custom==='bank')h+=bankHtml();
   if(s.custom==='docs')h+=docsHtml();
   if(s.custom==='branches')h+=branchesHtml();
   if(s.custom==='depts')h+=deptsHtml();
@@ -347,18 +425,28 @@ function openDeptModal(dept, index){
     }).catch(function(err){toast(err.message||'Save failed');});
   };
 }
+function bankMatrixHtml(b,i){
+  const m=b.matrix||defaultBankMatrix();
+  const q=((window.__bmq||{})[i]||'').toLowerCase();
+  const all=Object.values(m);
+  const colAll=c=>all.length&&all.every(x=>x[c]);
+  const n=c=>all.filter(x=>x[c]).length;
+  return`<div class="bank-mods"><div class="mini" style="margin-bottom:8px">Show this account on (same module list as Stamp &amp; Signature)</div>
+  <div class="mx"><div class="mxbar"><input class="in mxq" data-bmq="${i}" placeholder="Search module" value="${esc((window.__bmq||{})[i]||'')}"><span class="mxsum">${BCOLS.map(([c,t])=>`<b>${n(c)}</b> ${t.toLowerCase()}`).join(' \u00B7 ')} of ${all.length} modules</span></div>
+  <div class="mxw"><table class="mxt"><thead><tr><th>Module</th>${BCOLS.map(([c,t])=>`<th><label class="mxh"><input type="checkbox" data-bmall="${c}" data-bi="${i}"${colAll(c)?' checked':''}><span>${t}</span></label></th>`).join('')}</tr></thead><tbody>${MODGROUPS.map(([g,mods])=>{const vis=mods.filter(x=>!q||x.toLowerCase().includes(q));if(!vis.length)return'';return`<tr class="mxg"><td colspan="4">${g}</td></tr>`+vis.map(x=>`<tr><td>${x}</td>${BCOLS.map(([c])=>`<td><label class="mxc${m[x]&&m[x][c]?' on':''}"><input type="checkbox" data-bm="${esc(x)}" data-bc="${c}" data-bi="${i}"${m[x]&&m[x][c]?' checked':''} aria-label="${esc(x)} ${c}"><span>\u2713</span></label></td>`).join('')}</tr>`).join('');}).join('')}</tbody></table></div></div></div>`;
+}
 function bankHtml(){
   let h='';
   if(cur.type==='br')h+=`<div class="inhbar"><button type="button" class="inh-t" data-hobank aria-pressed="${cur.useHoBank}"><i></i>Use Head Office bank accounts</button></div>`;
-  const list=cur.type==='br'&&cur.useHoBank?HO().banks:cur.banks;const ro=cur.type==='br'&&cur.useHoBank;
-  h+=`<div${ro?' style="opacity:.55;pointer-events:none"':''}>`+list.map((b,i)=>`<div class="bank" data-bank="${i}"><div class="bank-h">${ico('bank')} Bank account ${i+1} ${i===0?'<span class="tag br">Primary</span>':`<button type="button" class="x" data-rmbank="${i}">Remove</button>`}</div><div class="g2">
+  const list=cur.type==='br'&&cur.useHoBank?HO().banks.map(normalizeBank):cur.banks;const ro=cur.type==='br'&&cur.useHoBank;
+  h+=`<div${ro?' style="opacity:.55;pointer-events:none"':''}>`+list.map((b,i)=>{b=normalizeBank(b);return`<div class="bank" data-bank="${i}"><div class="bank-h">${ico('bank')} Bank account ${i+1} ${i===0?'<span class="tag br">Primary</span>':`<button type="button" class="x" data-rmbank="${i}">Remove</button>`}</div><div class="g2">
   <div><span class="mini">Bank name</span><select class="in" data-b="bank">${BANKS.map(x=>`<option${x===b.bank?' selected':''}>${x}</option>`).join('')}</select></div>
   <div><span class="mini">Account title</span><input class="in" data-b="title" value="${esc(b.title)}" placeholder="Express Fast Delivery Service L.L.C"></div>
   <div><span class="mini">IBAN</span><input class="in mono" data-b="iban" value="${esc(b.iban)}" placeholder="AE07 0331 2345 6789 0123 456" maxlength="29"><span class="ibanmsg"></span></div>
   <div><span class="mini">SWIFT / BIC</span><input class="in mono" data-b="swift" value="${esc(b.swift)}" placeholder="EBILAEAD" maxlength="11" style="text-transform:uppercase"></div>
   <div><span class="mini">Account number</span><input class="in mono" data-b="acc" value="${esc(b.acc)}"></div>
   <div><span class="mini">Currency</span><select class="in" data-b="cur">${['AED','USD','EUR'].map(x=>`<option${x===b.cur?' selected':''}>${x}</option>`).join('')}</select></div></div>
-  <div style="margin-top:10px"><label class="sw2"><input type="checkbox" data-b="show"${b.show?' checked':''}>Show on invoices</label></div></div>`).join('')+`</div>`;
+  ${bankMatrixHtml(b,i)}</div>`;}).join('')+`</div>`;
   if(!ro)h+=`<button type="button" class="addbtn" id="addBank">+ Add another bank account</button>`;else h+='<div style="height:18px"></div>';
   return h;
 }
@@ -467,6 +555,7 @@ function setVal(fid,v){
 }
 panel.addEventListener('input',ev=>{const t=ev.target;
   if(t.id==='mxq'){window.__mq=t.value;const pos=t.selectionStart;renderPanel();const n=document.getElementById('mxq');n.focus();n.setSelectionRange(pos,pos);return;}
+  if(t.dataset.bmq!==undefined){window.__bmq=window.__bmq||{};window.__bmq[+t.dataset.bmq]=t.value;const pos=t.selectionStart;const bi=+t.dataset.bmq;renderPanel();const n=panel.querySelector(`[data-bmq="${bi}"]`);if(n){n.focus();n.setSelectionRange(pos,pos);}return;}
   if(t.dataset.f&&t.type!=='checkbox'&&t.type!=='radio'&&t.tagName!=='SELECT'){setVal(t.dataset.f,t.value);if(['name','trn','phone','email','address','web','tlno'].includes(t.dataset.f))renderHead();}
   if(t.dataset.b){const i=+t.closest('[data-bank]').dataset.bank;const b=cur.banks[i];if(t.dataset.b==='iban'){let x=t.value.toUpperCase().replace(/[^A-Z0-9]/g,'');t.value=x.replace(/(.{4})/g,'$1 ').trim();b.iban=t.value;ibanCheck(t);}else if(t.type!=='checkbox'&&t.tagName!=='SELECT')b[t.dataset.b]=t.value;mark();}
   if(t.dataset.d&&t.type!=='date'){dSet(cur.docs[+t.closest('[data-doc]').dataset.doc],t.dataset.d,t.value);mark();}
@@ -476,6 +565,21 @@ panel.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.m){const m=val('apm')||defaultMatrix();m[t.dataset.m][t.dataset.c]=t.checked;setVal('apm',m);renderPanel();return;}
   if(t.dataset.mall){const m=val('apm')||defaultMatrix();Object.values(m).forEach(x=>x[t.dataset.mall]=t.checked);setVal('apm',m);renderPanel();return;}
   if(t.dataset.f){setVal(t.dataset.f,t.type==='checkbox'?t.checked:t.value);renderHead();renderPanel();ibanCheckAll();return;}
+  if(t.dataset.bm){
+    const bi=+t.dataset.bi;const bank=normalizeBank(cur.banks[bi]);
+    bank.matrix=bank.matrix||defaultBankMatrix();
+    if(!bank.matrix[t.dataset.bm])bank.matrix[t.dataset.bm]=blankBankCell();
+    bank.matrix[t.dataset.bm][t.dataset.bc]=!!t.checked;
+    bank.modules=bankModsFromMatrix(bank.matrix);bank.show=!!bank.modules.invoice;
+    cur.banks[bi]=bank;mark();renderPanel();return;
+  }
+  if(t.dataset.bmall){
+    const bi=+t.dataset.bi;const bank=normalizeBank(cur.banks[bi]);
+    bank.matrix=bank.matrix||defaultBankMatrix();
+    Object.keys(bank.matrix).forEach(mod=>{bank.matrix[mod][t.dataset.bmall]=!!t.checked;});
+    bank.modules=bankModsFromMatrix(bank.matrix);bank.show=!!bank.modules.invoice;
+    cur.banks[bi]=bank;mark();renderPanel();return;
+  }
   if(t.dataset.b&&(t.type==='checkbox'||t.tagName==='SELECT')){cur.banks[+t.closest('[data-bank]').dataset.bank][t.dataset.b]=t.type==='checkbox'?t.checked:t.value;mark();}
   if(t.dataset.d==='exp'){dSet(cur.docs[+t.closest('[data-doc]').dataset.doc],'exp',t.value);mark();renderPanel();}
   if(t.dataset.up&&t.files[0]){
@@ -587,7 +691,7 @@ document.getElementById('save').onclick=async function(){
   const adminLocked=[...dirty].filter(k=>ADMIN_SECTIONS.includes(k));
   if(adminLocked.length && !IS_ADMIN){toast('Administrator access required for: '+adminLocked.map(k=>(SECS.find(s=>s.k===k)||{}).t).filter(Boolean).join(', '));return;}
   const payload={
-    vals:cur.vals, inh:cur.inh, banks:cur.banks, use_ho_bank:!!cur.useHoBank,
+    vals:cur.vals, inh:cur.inh, banks:cur.banks.map(normalizeBank), use_ho_bank:!!cur.useHoBank,
     docs_meta:(cur.docs||[]).filter(d=>!d.key).map(d=>({n:d.n,no:d.no,exp:d.exp,file:d.file,key:d.key||''})),
     field_orders:order, dirty_sections:[...dirty], label:cur.label, place:cur.place, code:cur.code,
     theme:(window.__thmGet?window.__thmGet():(CFG.theme||null)),

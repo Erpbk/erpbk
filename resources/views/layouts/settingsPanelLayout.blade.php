@@ -37,16 +37,10 @@ $containerNav = 'container-fluid';
         </li>
 
         @can('settings_company_setting_view')
-        <li class="menu-item {{ Request::is('settings-panel/company') ? 'active' : '' }}">
+        <li class="menu-item {{ Request::is('*settings-panel/company*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.company', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-building-community"></i>
             <div>Company Details</div>
-          </a>
-        </li>
-        <li class="menu-item {{ Request::is('settings-panel/global') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.global', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-world"></i>
-            <div>Global Settings</div>
           </a>
         </li>
         @endcan
@@ -58,23 +52,7 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan --}}
-        @can('settings_departments_view')
-        <li class="menu-item {{ Request::is('settings-panel/departments*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.departments.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-sitemap"></i>
-            <div>Departments</div>
-          </a>
-        </li>
-        @endcan
-        @can('settings_branches_view')
-        <li class="menu-item {{ Request::is('settings-panel/branches*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.branches.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-building"></i>
-            <div>Branches</div>
-          </a>
-        </li>
-        @endcan
-
+        {{-- Departments & Branches live inside Company Details --}}
 
         {{-- User Management, Activity Logs, Recycle Bin --}}
         <li class="menu-header small text-uppercase mt-3">

@@ -85,15 +85,14 @@ class GlobalSettingsController extends Controller
         }
 
         $fontKeys = array_keys(config('global_preferences.font_families', []));
-        $dateKeys = array_keys(config('global_preferences.date_formats', []));
         $thousandKeys = array_keys(config('global_preferences.thousand_separators', []));
         $decimalSepKeys = array_keys(config('global_preferences.decimal_separators', []));
         $positionKeys = array_keys(config('global_preferences.currency_positions', []));
         $decimalPlaces = config('global_preferences.decimal_places_options', [0, 1, 2, 3, 4]);
 
+        // Currency, currency icon, date format and time format live in Company Details settings.
         $validated = $request->validate([
             'font_family' => ['required', 'string', Rule::in($fontKeys)],
-            'date_format' => ['required', 'string', Rule::in($dateKeys)],
             'decimal_places' => ['required', 'integer', Rule::in($decimalPlaces)],
             'thousand_separator' => ['required', 'string', Rule::in($thousandKeys)],
             'decimal_separator' => ['required', 'string', Rule::in($decimalSepKeys)],
@@ -101,10 +100,6 @@ class GlobalSettingsController extends Controller
             'company_primary_color' => ['nullable', 'string', 'max:20'],
             'company_secondary_color' => ['nullable', 'string', 'max:20'],
             'company_accent_color' => ['nullable', 'string', 'max:20'],
-            'settings.currency_code' => ['required', 'string', 'max:10', Rule::in(Currency::catalogCodes())],
-            'currency_icon' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-            'currency_icon_mode' => ['nullable', 'in:default,custom'],
-            'remove_currency_icon' => ['nullable', 'boolean'],
         ]);
 
         if ($validated['thousand_separator'] !== 'none'
@@ -116,7 +111,6 @@ class GlobalSettingsController extends Controller
 
         CompanyGlobalPreferences::put([
             'font_family' => $validated['font_family'],
-            'date_format' => $validated['date_format'],
             'decimal_places' => $validated['decimal_places'],
             'thousand_separator' => $validated['thousand_separator'],
             'decimal_separator' => $validated['decimal_separator'],
@@ -133,8 +127,6 @@ class GlobalSettingsController extends Controller
             $company->accent_color = $request->input('company_accent_color');
         }
         $company->save();
-
-        Currency::persistForCompany($request, $company);
 
         $route = $request->route() && str_starts_with((string) $request->route()->getName(), 'settings-panel.')
             ? 'settings-panel.global'

@@ -229,6 +229,14 @@
 
                             </div>
 
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Address</span>
+
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $invoice->customer->address ?? '—' }}</span>
+
+                            </div>
+
                         </div>
 
                     </div>

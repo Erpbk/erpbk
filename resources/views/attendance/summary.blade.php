@@ -63,7 +63,7 @@
 
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261103s2">
+<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261104proj">
 @endpush
 
 @section('content')
@@ -156,7 +156,7 @@
         </label>
         <button type="button" class="btn blue fbtn" id="attFilterBtn">
           Filter Attendance
-          @php $fc = collect([$statusFilter, $selectedBranchId, $usersId !== 'all' ? $usersId : null, $fromDate, $toDate])->filter()->count(); @endphp
+          @php $fc = collect([$statusFilter, $selectedBranchId, $usersId !== 'all' ? $usersId : null, $fromDate, $toDate, $projectId ?? null, $fleetSupervisor ?? null])->filter()->count(); @endphp
           <span class="cnt" @if($fc < 1) hidden @endif>{{ $fc }}</span>
         </button>
       </div>
@@ -335,6 +335,24 @@
           @endforeach
         </select>
       </div>
+      <div class="fld" id="fProjectWrap" @if($userType !== 'rider') hidden @endif>
+        <label for="fProject">Project</label>
+        <select id="fProject" name="project_id" class="att-filter-select" data-placeholder="All Projects" @if($userType !== 'rider') disabled @endif>
+          <option value="">All Projects</option>
+          @foreach(($projects ?? collect()) as $project)
+            <option value="{{ $project->id }}" {{ (string) ($projectId ?? '') === (string) $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
+          @endforeach
+        </select>
+      </div>
+      <div class="fld" id="fFleetWrap" @if($userType !== 'rider') hidden @endif>
+        <label for="fFleet">Fleet Supervisor</label>
+        <select id="fFleet" name="fleet_supervisor" class="att-filter-select" data-placeholder="All Supervisors" @if($userType !== 'rider') disabled @endif>
+          <option value="">All Supervisors</option>
+          @foreach(($fleetSupervisors ?? collect()) as $supervisor)
+            <option value="{{ $supervisor }}" {{ (string) ($fleetSupervisor ?? '') === (string) $supervisor ? 'selected' : '' }}>{{ $supervisor }}</option>
+          @endforeach
+        </select>
+      </div>
       <div class="fld">
         <label for="fStatus">Mark status</label>
         <select id="fStatus" name="status" class="att-filter-select" data-placeholder="All statuses">
@@ -346,7 +364,7 @@
       </div>
       <div class="fld" id="fBranchWrap" @if($userType !== 'employee' || $branchTabs->isEmpty()) hidden @endif>
         <label for="fBranch">Branch</label>
-        <select id="fBranch" name="branch_id" class="att-filter-select" data-placeholder="All Branches">
+        <select id="fBranch" name="branch_id" class="att-filter-select" data-placeholder="All Branches" @if($userType !== 'employee') disabled @endif>
           <option value="">All Branches</option>
           @foreach($branchTabs as $tab)
             <option value="{{ $tab['id'] }}" {{ (int) $selectedBranchId === (int) $tab['id'] ? 'selected' : '' }}>{{ $tab['name'] }}</option>
@@ -473,8 +491,15 @@
   const fUser = document.getElementById('fUser');
   const fUserLabel = document.getElementById('fUserLabel');
   const fBranchWrap = document.getElementById('fBranchWrap');
+  const fProjectWrap = document.getElementById('fProjectWrap');
+  const fFleetWrap = document.getElementById('fFleetWrap');
+  const fProject = document.getElementById('fProject');
+  const fFleet = document.getElementById('fFleet');
+  const fBranch = document.getElementById('fBranch');
+  const fStatus = document.getElementById('fStatus');
   const $ = window.jQuery;
   const hasSelect2 = !!( $ && $.fn && $.fn.select2 );
+  const allFilterSelects = () => [fPersonType, fUser, fStatus, fBranch, fProject, fFleet];
 
   const destroySelect2 = (el) => {
     if (!hasSelect2 || !el) return;
@@ -488,7 +513,7 @@
   const initFilterSelect2 = (els) => {
     if (!hasSelect2) return;
     (els || []).forEach((el) => {
-      if (!el) return;
+      if (!el || el.disabled || el.closest('[hidden]')) return;
       destroySelect2(el);
       const $el = $(el);
       $el.select2({
@@ -502,11 +527,30 @@
     });
   };
 
+  const setRiderEmployeeFields = (type) => {
+    const isRider = type === 'rider';
+    const isEmployee = type === 'employee';
+    if (fBranchWrap) fBranchWrap.hidden = !isEmployee;
+    if (fProjectWrap) fProjectWrap.hidden = !isRider;
+    if (fFleetWrap) fFleetWrap.hidden = !isRider;
+    if (fBranch) {
+      fBranch.disabled = !isEmployee;
+      if (!isEmployee) fBranch.value = '';
+    }
+    if (fProject) {
+      fProject.disabled = !isRider;
+      if (!isRider) fProject.value = '';
+    }
+    if (fFleet) {
+      fFleet.disabled = !isRider;
+      if (!isRider) fFleet.value = '';
+    }
+  };
+
   const openFilter = () => {
     ov.classList.add('show');
     drawer.classList.add('show');
-    // Re-position Select2 after drawer is visible
-    setTimeout(() => initFilterSelect2([fPersonType, fUser, document.getElementById('fStatus'), document.getElementById('fBranch')]), 30);
+    setTimeout(() => initFilterSelect2(allFilterSelects()), 30);
   };
   const closeFilter = () => { ov.classList.remove('show'); drawer.classList.remove('show'); };
   document.getElementById('attFilterBtn')?.addEventListener('click', openFilter);
@@ -517,9 +561,12 @@
     if (!fUser || !usersUrlTpl) return;
     const label = type === 'rider' ? 'Rider' : 'Employee';
     if (fUserLabel) fUserLabel.textContent = label;
-    if (fBranchWrap) fBranchWrap.hidden = type !== 'employee';
+    setRiderEmployeeFields(type);
     const selected = keepSelected ? (hasSelect2 ? $(fUser).val() : fUser.value) : 'all';
     destroySelect2(fUser);
+    destroySelect2(fProject);
+    destroySelect2(fFleet);
+    destroySelect2(fBranch);
     fUser.innerHTML = '<option value="all">All ' + label.toLowerCase() + 's</option>';
     fUser.setAttribute('data-placeholder', 'All ' + label.toLowerCase() + 's');
     try {
@@ -538,8 +585,7 @@
     } catch (e) {
       toast('Could not load ' + label.toLowerCase() + 's');
     }
-    initFilterSelect2([fUser]);
-    initFilterSelect2([document.getElementById('fBranch')]);
+    initFilterSelect2(allFilterSelects());
   };
 
   if (hasSelect2) {
@@ -549,7 +595,8 @@
   } else {
     fPersonType?.addEventListener('change', () => loadFilterPeople(fPersonType.value, false));
   }
-  initFilterSelect2([fPersonType, fUser, document.getElementById('fStatus'), document.getElementById('fBranch')]);
+  setRiderEmployeeFields(userType);
+  initFilterSelect2(allFilterSelects());
 
   // Mark modal
   const markOv = document.getElementById('markOv');

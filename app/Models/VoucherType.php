@@ -95,7 +95,6 @@ class VoucherType extends BaseModel
             'TRF' => ['cash_banks', 'vouchers'],
             'EXP' => ['expenses', 'vouchers'],
             'VP' => ['vat', 'vouchers'],
-            'VTR' => ['vat', 'vouchers'],
             'FAV' => ['assets', 'vouchers'],
             'FDV' => ['assets', 'vouchers'],
             'VR' => ['bikes', 'bike_list', 'vouchers'],
@@ -162,7 +161,8 @@ class VoucherType extends BaseModel
      */
     public static function vouchersModuleLockedCodes(): array
     {
-        return [];
+        // Obsolete: VAT returns post clearing ledger rows (no VTR voucher).
+        return ['VTR'];
     }
 
     public static function isLockedInVouchersModule(string $code): bool

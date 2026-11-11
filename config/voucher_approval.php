@@ -190,13 +190,6 @@ return [
             'reject' => 'voucher_approval_vp_reject',
             'posting' => 'default',
         ],
-        'VTR' => [
-            'label' => 'VAT Return',
-            'module' => 'vat',
-            'approve' => 'voucher_approval_vtr_approve',
-            'reject' => 'voucher_approval_vtr_reject',
-            'posting' => 'default',
-        ],
         'BL' => [
             'label' => 'Bank Loan',
             'module' => 'loans',

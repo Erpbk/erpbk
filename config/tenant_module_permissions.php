@@ -345,8 +345,6 @@ return [
                 'voucher_approval_ri_reject',
                 'voucher_approval_vp_approve',
                 'voucher_approval_vp_reject',
-                'voucher_approval_vtr_approve',
-                'voucher_approval_vtr_reject',
                 'voucher_approval_bl_approve',
                 'voucher_approval_bl_reject',
                 'voucher_approval_fav_approve',

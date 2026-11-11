@@ -83,9 +83,9 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 12v6"/></svg>
               <span><strong>File Return</strong><em>File selected ledger entries for a quarter</em></span>
             </a>
-            <a role="menuitem" class="show-modal" href="javascript:void(0);" data-size="xl" data-title="New VAT Payment Voucher (VP)" data-action="{{ route('vat.voucher.create') }}">
+            <a role="menuitem" class="show-modal" href="javascript:void(0);" data-size="xl" data-title="New VAT Payment" data-action="{{ route('payments.create', ['invoice_type' => 'vat_return', 'vat_payment' => 1]) }}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
-              <span><strong>New VAT Payment Voucher</strong><em>Create a VP payment</em></span>
+              <span><strong>New VAT Payment</strong><em>Allocate payment to unpaid returns</em></span>
             </a>
             @endcanany
             <a role="menuitem" href="{{ route('vat.returns.index') }}">
@@ -399,7 +399,7 @@
   if (copyBtn) {
     copyBtn.addEventListener('click', async function () {
       const rows = Array.from(document.querySelectorAll('#vatLedgerTable tbody tr.vat-row'));
-      const header = 'Date\tAccount\tReference\tMonth\tVoucher\tModule\tNarration\tDebit\tCredit';
+      const header = 'Date\tAccount\tReference\tMonth\tVoucher\tAttachment\tModule\tNarration\tDebit\tCredit';
       const lines = rows.map((tr) => {
         const tds = tr.querySelectorAll('td');
         return [
@@ -409,9 +409,10 @@
           (tds[4] || {}).innerText || '',
           (tds[5] || {}).innerText || '',
           (tds[6] || {}).innerText || '',
-          ((tds[7] || {}).innerText || '').replace(/\s+/g, ' ').trim(),
-          (tds[8] || {}).innerText || '',
+          (tds[7] || {}).innerText || '',
+          ((tds[8] || {}).innerText || '').replace(/\s+/g, ' ').trim(),
           (tds[9] || {}).innerText || '',
+          (tds[10] || {}).innerText || '',
         ].join('\t');
       });
       const text = [header, ...lines].join('\n');

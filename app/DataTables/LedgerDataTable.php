@@ -12,6 +12,7 @@ use App\Models\RtaFines;
 use App\Models\salik;
 use App\Models\SupplierInvoices;
 use App\Models\Transactions;
+use App\Models\VatReturn;
 use App\Models\Vouchers;
 use App\Services\DeleteRequestService;
 use App\Support\CompanyQuery;
@@ -306,6 +307,16 @@ class LedgerDataTable extends DataTable
                 } else {
                     $voucher_ID = 'EMP_INV' . (str_pad($row->reference_id, 4, '0', STR_PAD_LEFT) ?? '?');
                     $voucher_text = '<span class="text-danger">Employee invoice not found</span>';
+                }
+            }
+            if ($row->reference_type === VatReturn::LEDGER_REFERENCE_TYPE) {
+                $vatReturn = VatReturn::find($row->reference_id);
+                if ($vatReturn) {
+                    $voucher_ID = $vatReturn->invoice_number;
+                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('vat.returns.show', $vatReturn) . '" data-size="xl" data-title="VAT Return ' . e($voucher_ID) . '" class="no-print show-modal-right">' . e($voucher_ID) . '</a>';
+                } else {
+                    $voucher_ID = 'VTR-'.str_pad((string) ($row->reference_id ?? 0), 4, '0', STR_PAD_LEFT);
+                    $voucher_text = '<span class="text-danger">VAT return not found</span>';
                 }
             }
             if ($row->reference_type == 'fuel') {

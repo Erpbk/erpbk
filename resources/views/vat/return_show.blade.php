@@ -5,12 +5,17 @@
   $money = fn ($n) => strip_tags(\App\Helpers\Currency::format((float) $n));
   $returnNo = 'VTR-' . str_pad($vat_return->id, 4, '0', STR_PAD_LEFT);
   $period = ($vat_return->quarter_label ?? ('Q' . $vat_return->quarter_slot)) . ' ' . $vat_return->year;
+  $statusKey = $vat_return->statusBadgeKey();
+  $statusLabel = strtoupper(str_replace('_', ' ', $vat_return->statusLabel()));
+  $hasPayments = $vat_return->hasLivePayments();
+  $isUnpaid = (int) $vat_return->status === \App\Models\VatReturn::STATUS_UNPAID && ! $hasPayments;
+  $linkedPayments = $linkedPayments ?? collect();
 @endphp
 <div class="riders-list-demo vat-demo vat-return-modal p-3">
   <div class="vat-head" style="margin-bottom:12px">
     <i class="ti ti-receipt-tax" style="font-size:18px;color:#3b3fd8"></i>
     <h5 style="margin:0">{{ $returnNo }} · {{ $period }}</h5>
-    <span class="vat-rb {{ $vat_return->status === 'paid' ? 'paid' : 'unpaid' }}">{{ strtoupper($vat_return->status) }}</span>
+    <span class="vat-rb {{ $statusKey === 'paid' ? 'paid' : ($statusKey === 'partial' ? 'unpaid' : 'unpaid') }}">{{ $statusLabel }}</span>
   </div>
 
   <div class="totals-cards" aria-label="VAT return detail" style="margin-bottom:14px">
@@ -37,9 +42,16 @@
         {{ $money($payableAmount ?? 0) }}
       </div>
       <div class="meta">
-        @if($vat_return->status === 'unpaid')
+        Paid {{ $money($vat_return->paid_amount) }} · Balance {{ $money($vat_return->balance) }}
+      </div>
+      <div class="meta">
+        @if($isUnpaid)
           @canany(['vat_create', 'vat_edit'])
-            <a href="javascript:void(0);" class="show-modal" data-size="xl" data-title="New VAT Payment Voucher (VP)" data-action="{{ route('vat.voucher.create', ['vat_return_id' => $vat_return->id]) }}">Pay</a>
+            <a href="javascript:void(0);" class="show-modal" data-size="xl" data-title="New VAT Payment" data-action="{{ route('payments.create', ['invoice_type' => 'vat_return', 'vat_payment' => 1, 'invoice_id' => $vat_return->id]) }}">Pay</a>
+          @endcanany
+        @elseif($statusKey === 'partial')
+          @canany(['vat_create', 'vat_edit'])
+            <a href="javascript:void(0);" class="show-modal" data-size="xl" data-title="New VAT Payment" data-action="{{ route('payments.create', ['invoice_type' => 'vat_return', 'vat_payment' => 1, 'invoice_id' => $vat_return->id]) }}">Pay remaining</a>
           @endcanany
         @else
           Paid
@@ -48,16 +60,66 @@
     </div>
   </div>
 
+  @if($linkedPayments->isNotEmpty())
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <h6 class="mb-0" style="font-weight:700;color:#1e293b">Linked payments</h6>
+    </div>
+    <div class="rl-tbox mb-3">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Payment #</th>
+            <th>Date</th>
+            <th>Reference</th>
+            <th class="r">Amount</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach($linkedPayments as $payment)
+            @php
+              $alloc = (float) (($vat_return->partial_paid_amount[$payment->id] ?? $vat_return->partial_paid_amount[(string) $payment->id] ?? $payment->amount) ?? 0);
+            @endphp
+            <tr>
+              <td>PAY-{{ str_pad($payment->id, 4, '0', STR_PAD_LEFT) }}</td>
+              <td>{{ $payment->date_of_payment ? \App\Helpers\Common::DateFormat($payment->date_of_payment) : '—' }}</td>
+              <td>{{ $payment->reference ?: '—' }}</td>
+              <td class="r">{{ number_format($alloc, 2) }}</td>
+              <td>
+                <div class="vat-actions">
+                  @canany(['payments_edit', 'vat_edit'])
+                    <a href="javascript:void(0);" class="vat-sb pay show-modal" data-size="xl" data-title="Edit VAT Payment" data-action="{{ route('payments.edit', $payment->id) }}">Edit</a>
+                  @endcanany
+                  @canany(['payments_delete', 'vat_delete'])
+                    <form action="{{ route('payments.destroy', $payment->id) }}" method="post" class="d-inline" onsubmit="return confirm('Delete this payment? The return status will be recalculated.');">
+                      @csrf
+                      @method('DELETE')
+                      <button type="submit" class="vat-sb rd">Delete</button>
+                    </form>
+                  @endcanany
+                </div>
+              </td>
+            </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+  @endif
+
   <div class="d-flex align-items-center justify-content-between mb-2">
     <h6 class="mb-0" style="font-weight:700;color:#1e293b">Entries in this return</h6>
-    <form id="vat-delete-entries-form" action="{{ route('vat.returns.delete-entries', $vat_return) }}" method="post" class="d-none">
-      @csrf
-      @can('vat_delete')
-      <button type="submit" class="vat-sb rd" onclick="return confirm('Remove selected entries from this return? They will appear again in the VAT ledger.');">
-        Delete Entries
-      </button>
-      @endcan
-    </form>
+    @if($isUnpaid)
+      <form id="vat-delete-entries-form" action="{{ route('vat.returns.delete-entries', $vat_return) }}" method="post" class="d-none">
+        @csrf
+        @can('vat_delete')
+        <button type="submit" class="vat-sb rd" onclick="return confirm('Remove selected entries from this return? They will appear again in the VAT ledger.');">
+          Delete Entries
+        </button>
+        @endcan
+      </form>
+    @else
+      <span style="font-size:12px;color:#6b7280">Entry removal blocked while payments exist. Edit or delete linked payments first.</span>
+    @endif
   </div>
 
   <div class="rl-tbox">
@@ -65,7 +127,9 @@
       <thead>
         <tr>
           <th style="width:40px">
-            <input type="checkbox" class="form-check-input" id="vatReturnSelectAll" title="Select all">
+            @if($isUnpaid)
+              <input type="checkbox" class="form-check-input" id="vatReturnSelectAll" title="Select all">
+            @endif
           </th>
           <th>Date</th>
           <th>Account</th>
@@ -81,7 +145,9 @@
             @php $t = $entry->transaction; @endphp
             <tr>
               <td>
-                <input type="checkbox" class="form-check-input vat-return-entry-cb" name="entry_ids[]" value="{{ $entry->id }}" form="vat-delete-entries-form">
+                @if($isUnpaid)
+                  <input type="checkbox" class="form-check-input vat-return-entry-cb" name="entry_ids[]" value="{{ $entry->id }}" form="vat-delete-entries-form">
+                @endif
               </td>
               <td>{{ \App\Helpers\Common::DateFormat($t->trans_date) }}</td>
               <td>{{ $t->account ? $t->account->account_code . ' – ' . $t->account->name : 'N/A' }}</td>

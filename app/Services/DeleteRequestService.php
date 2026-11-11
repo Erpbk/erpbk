@@ -1043,6 +1043,27 @@ class DeleteRequestService
         if ($deleteRequest->module_key === 'suppliers' && $model instanceof \App\Models\Supplier) {
             static::finalizeApprovedSupplierDeletion($deleteRequest, $model, $admin);
         }
+
+        if ($deleteRequest->module_key === 'vat_returns' && $model instanceof \App\Models\VatReturn) {
+            static::finalizeApprovedVatReturnDeletion($deleteRequest, $model, $admin);
+        }
+    }
+
+    /**
+     * Soft-delete clearing ledger for an approved VAT return delete.
+     */
+    protected static function finalizeApprovedVatReturnDeletion(
+        DeleteRequest $deleteRequest,
+        \App\Models\VatReturn $vatReturn,
+        ?User $admin
+    ): void {
+        if ($vatReturn->hasLivePayments()) {
+            throw new \RuntimeException(
+                'Cannot approve delete for a VAT return that still has linked payments. Delete the payments first.'
+            );
+        }
+
+        $vatReturn->softDeleteLinkedClearing($admin?->id);
     }
 
     /**

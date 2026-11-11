@@ -339,6 +339,12 @@
       return amount;
     }
 
+    function extraChargesTotal() {
+      var bankCharges = parseFloat($ctx.find('#bank_charges').val()) || 0;
+      var govtCharges = parseFloat($ctx.find('#govt_charges').val()) || 0;
+      return bankCharges + govtCharges;
+    }
+
     function applyPrimaryAmountDisplay(amount) {
       var value = parseFloat(amount);
       if (isNaN(value)) {
@@ -346,8 +352,7 @@
       }
       $ctx.find('#payment_amount').val(value.toFixed(2));
       $ctx.find('#display_amount').text(value.toFixed(2));
-      var bankCharges = parseFloat($ctx.find('#bank_charges').val()) || 0;
-      $ctx.find('#total_debit').text((value + bankCharges).toFixed(2));
+      $ctx.find('#total_debit').text((value + extraChargesTotal()).toFixed(2));
     }
 
     function restoreSavedPrimaryAmount() {
@@ -830,8 +835,7 @@
     }
 
     function calculateTotals() {
-      var bankCharges = parseFloat($ctx.find('#bank_charges').val()) || 0;
-      $ctx.find('#display_charges').text(bankCharges.toFixed(2));
+      $ctx.find('#display_charges').text(extraChargesTotal().toFixed(2));
     }
 
     $ctx.off('.paymentFields');
@@ -1015,7 +1019,6 @@
 
     $ctx.on('keyup.paymentFields change.paymentFields', '#payment_amount', function () {
       var amount = parseFloat($(this).val()) || 0;
-      var bankCharges = parseFloat($ctx.find('#bank_charges').val()) || 0;
 
       if (preservePrimaryAmount) {
         savedPrimaryAmount = amount;
@@ -1040,7 +1043,7 @@
       }
 
       $ctx.find('#display_amount').text(amount.toFixed(2));
-      $ctx.find('#total_debit').text((amount + bankCharges).toFixed(2));
+      $ctx.find('#total_debit').text((amount + extraChargesTotal()).toFixed(2));
 
       if (isRiderPayment && !isAdvanceLoanType()) {
         var $activeAmounts = $ctx.find('.payment-amount:not(:disabled)');
@@ -1073,14 +1076,14 @@
       }
     });
 
-    $ctx.on('keyup.paymentFields change.paymentFields', '#bank_charges', function () {
-      var bankCharges = parseFloat($(this).val()) || 0;
+    $ctx.on('keyup.paymentFields change.paymentFields', '#bank_charges, #govt_charges', function () {
       var paymentAmount = parseFloat($ctx.find('#payment_amount').val()) || 0;
+      var charges = extraChargesTotal();
 
-      $ctx.find('#display_charges').text(bankCharges.toFixed(2));
-      $ctx.find('#total_debit').text((paymentAmount + bankCharges).toFixed(2));
+      $ctx.find('#display_charges').text(charges.toFixed(2));
+      $ctx.find('#total_debit').text((paymentAmount + charges).toFixed(2));
 
-      // Bank charges are ledger-only — never change invoice allocation lines.
+      // Extra charges are ledger-only — never change invoice allocation lines.
       calculateTotals();
       validatePaymentDistribution();
     });

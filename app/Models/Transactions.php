@@ -195,6 +195,11 @@ class Transactions extends BaseModel
             } else {
                 $voucher_text = 'SIM-'.str_pad($this->reference_id, 4, '0', STR_PAD_LEFT);
             }
+        } elseif ($this->reference_type === VatReturn::LEDGER_REFERENCE_TYPE) {
+            $vatReturn = VatReturn::find($this->reference_id);
+            $voucher_text = $vatReturn
+                ? $vatReturn->invoice_number
+                : 'VTR-'.str_pad((string) $this->reference_id, 4, '0', STR_PAD_LEFT);
         } elseif ($this->reference_type == 'SUP') {
             $invoice = SupplierInvoices::find($this->reference_id);
             if ($invoice) {

@@ -20,7 +20,9 @@ use App\Models\SimInvoice;
 use App\Models\Supplier;
 use App\Models\SupplierInvoices;
 use App\Models\Transactions;
+use App\Models\VatReturn;
 use App\Models\Vouchers;
+use App\Models\VoucherType;
 use App\Repositories\PaymentsRepository;
 use App\Services\Employee\EmployeeAdvanceLoanService;
 use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
@@ -105,6 +107,7 @@ class PaymentController extends Controller
         $employeePayment = request()->input('employee_payment') || request()->input('invoice_type') == 'employee';
         $riderPayment = request()->input('rider_payment') || request()->input('invoice_type') == 'rider';
         $simPayment = request()->input('sim_payment') || request()->input('invoice_type') == 'sim';
+        $vatPayment = request()->input('vat_payment') || request()->input('invoice_type') == 'vat_return';
         $riderId = request()->input('rider_id') ?? null;
         if ($riderPayment) {
             RiderVoucherPermissions::authorize('PAY', 'create');
@@ -252,6 +255,32 @@ class PaymentController extends Controller
             } elseif ($payeeOptions->count() === 1) {
                 $lockedPayee = $payeeOptions->first();
             }
+        } elseif ($vatPayment) {
+            $invoiceType = 'vat_return';
+            $vatPayableAccountId = GlobalAccounts::idOrNull('VAT_PAYABLE');
+            if (! $vatPayableAccountId) {
+                Flash::error('VAT Payable global account is not mapped. Configure VAT_PAYABLE in Admin → Global Accounts.');
+
+                return redirect()->route('vat.returns.index');
+            }
+            $selectedReturn = null;
+            if (request()->input('invoice_id')) {
+                $selectedReturn = VatReturn::find(request()->input('invoice_id'));
+            }
+            $invoices = VatReturn::query()
+                ->whereIn('status', [VatReturn::STATUS_UNPAID, VatReturn::STATUS_PARTIAL])
+                ->orderByDesc('filed_at')
+                ->get();
+            $lockedPayee = $this->makePayeeOptionFromAccountId($vatPayableAccountId);
+            $payeeOptions = collect($lockedPayee ? [$lockedPayee] : []);
+            $accountIds = [$vatPayableAccountId];
+            if ($selectedReturn && ! $invoices->contains('id', $selectedReturn->id)) {
+                $invoices = $invoices->prepend($selectedReturn);
+            }
+            // Ensure opened invoice checkbox works in the shared payment form.
+            if ($selectedReturn) {
+                request()->merge(['invoice_id' => $selectedReturn->id]);
+            }
         }
 
         $banks = Banks::with('account')->active()->get();
@@ -317,8 +346,10 @@ class PaymentController extends Controller
             ));
         }
 
-        if ($employeePayment || $riderPayment || $simPayment) {
-            $this->applySequentialSalaryInvoiceBalances($invoices, $existingInvoices, $invoiceType);
+        if ($employeePayment || $riderPayment || $simPayment || $vatPayment) {
+            if (! $vatPayment) {
+                $this->applySequentialSalaryInvoiceBalances($invoices, $existingInvoices, $invoiceType);
+            }
 
             // Payable invoices must stay listed even when sequential ledger net is <= 0
             // (deductions/carry). Normalize allocatable balance for payment allocation UI.
@@ -382,6 +413,7 @@ class PaymentController extends Controller
             && in_array($request->input('create_payment_type', 'salary_payment'), ['payment', 'salary_payment', 'c3', ''], true);
         $isEmployeePaymentCreate = $request->input('invoice_type') === 'employee'
             && in_array($request->input('create_payment_type', 'salary_payment'), ['payment', 'salary_payment', 'c3', ''], true);
+        $isVatReturnPaymentCreate = $request->input('invoice_type') === 'vat_return';
 
         if ($request->input('invoice_type') === 'rider') {
             RiderVoucherPermissions::authorize('PAY', 'create');
@@ -391,6 +423,16 @@ class PaymentController extends Controller
         if ($request->input('invoice_type') === 'employee') {
             EmployeeVoucherPermissions::authorize('PAY', 'create');
             $this->stripEmployeeAttachmentWithoutUploadPermission($request, 'PAY');
+        }
+
+        if ($isVatReturnPaymentCreate) {
+            $vatPayableAccountId = GlobalAccounts::idOrNull('VAT_PAYABLE');
+            if (! $vatPayableAccountId) {
+                throw ValidationException::withMessages([
+                    'payee_account_id' => 'VAT Payable global account is not mapped. Configure VAT_PAYABLE in Admin → Global Accounts.',
+                ]);
+            }
+            $request->merge(['payee_account_id' => $vatPayableAccountId]);
         }
 
         $rules = [
@@ -403,9 +445,12 @@ class PaymentController extends Controller
             'billing_month' => ($isRiderPaymentCreate || $isEmployeePaymentCreate) ? 'nullable|date_format:Y-m' : 'required|date_format:Y-m',
             'amount' => 'required|numeric|min:0.01',
             'bank_charges' => 'nullable|numeric|min:0',
+            'govt_charges' => $isVatReturnPaymentCreate ? 'nullable|numeric|min:0' : 'nullable|numeric|min:0',
             'description' => 'required|string|max:500',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
-            'invoice_ids' => ($isRiderPaymentCreate || $isEmployeePaymentCreate) ? 'required|array|size:1' : 'nullable|array',
+            'invoice_ids' => ($isRiderPaymentCreate || $isEmployeePaymentCreate)
+                ? 'required|array|size:1'
+                : ($isVatReturnPaymentCreate ? 'required|array|min:1' : 'nullable|array'),
             'invoice_ids.*' => 'numeric|required',
             'payment_amounts' => 'nullable|array',
             'payment_amounts.*' => 'nullable|numeric',
@@ -464,10 +509,11 @@ class PaymentController extends Controller
             }
         }
 
-        // Calculate total debit (payment amount + bank charges)
+        // Calculate total debit (payment amount + bank charges + govt charges)
         $paymentAmount = floatval($request->input('amount', 0));
         $bankCharges = floatval($request->input('bank_charges', 0));
-        $totalAmount = $paymentAmount + $bankCharges;
+        $govtCharges = $isVatReturnPaymentCreate ? floatval($request->input('govt_charges', 0)) : 0.0;
+        $totalAmount = $paymentAmount + $bankCharges + $govtCharges;
 
         // Get the paying account (bank account)
         $bank = Banks::find($request->input('bank_id'));
@@ -497,6 +543,7 @@ class PaymentController extends Controller
         }
         $input['branch_id'] = Accounts::where('id', $input['payee_account_id'])->value('branch_id');
         $input['amount'] = $totalAmount;
+        $input['govt_charges'] = $govtCharges > 0 ? $govtCharges : null;
 
         try {
             DB::beginTransaction();
@@ -506,6 +553,12 @@ class PaymentController extends Controller
                 $bankChargesAccountId = GlobalAccounts::account('BANK_CHARGES')->id;
             }
             $input['bank_charges_account'] = $bankChargesAccountId;
+
+            $govtChargesAccountId = null;
+            if ($govtCharges > 0) {
+                $govtChargesAccountId = GlobalAccounts::account('GOVT_CHARGES')->id;
+            }
+            $input['govt_charges_account'] = $govtChargesAccountId;
 
             // Validate invoice payments if invoices are selected
             $salaryBalancesBefore = [];
@@ -664,6 +717,21 @@ class PaymentController extends Controller
                             $invoice->save();
                         }
                     }
+                } elseif ($invoiceType == 'vat_return') {
+                    $returns = VatReturn::whereIn('id', $invoiceIds)->get();
+                    foreach ($returns as $vatReturn) {
+                        $invoicePaymentAmount = floatval($paymentAmounts[$vatReturn->id] ?? 0);
+                        if (
+                            ! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)
+                            && count($invoiceIds) === 1
+                        ) {
+                            $invoicePaymentAmount = $paymentAmount;
+                        }
+                        if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
+                            continue;
+                        }
+                        $vatReturn->allocatePayment((int) $payment->id, $invoicePaymentAmount);
+                    }
                 } else {
                     $invoices = SupplierInvoices::whereIn('id', $invoiceIds)->get();
 
@@ -717,7 +785,9 @@ class PaymentController extends Controller
                 $bankChargesAccountId,
                 $billingMonth,
                 $payment->branch_id ? (int) $payment->branch_id : null,
-                (string) $desc
+                (string) $desc,
+                $govtCharges,
+                $govtChargesAccountId
             );
 
             // Create voucher — rider salary payments use "Salary Payment" on the PV form.
@@ -729,6 +799,12 @@ class PaymentController extends Controller
                 default => 'Payment Voucher',
             };
 
+            $voucherType = 'PV';
+            if ($request->input('invoice_type') === 'vat_return') {
+                $voucherType = VoucherType::isCodeAllowedForModule('VP', 'vat') ? 'VP' : 'PV';
+                $voucherRemarks = 'VAT Payment';
+            }
+
             $voucherData = [
                 'trans_date' => $date,
                 'trans_code' => $transCode,
@@ -736,7 +812,7 @@ class PaymentController extends Controller
                 'billing_month' => $billingMonth,
                 'payment_from' => $payingAccountId,
                 'amount' => $totalAmount,
-                'voucher_type' => 'PV',
+                'voucher_type' => $voucherType,
                 'remarks' => $voucherRemarks,
                 'ref_id' => $payment->id,
                 'Created_By' => auth()->id(),
@@ -996,10 +1072,13 @@ class PaymentController extends Controller
             }
         }
 
-        // Calculate total debit (payment amount + bank charges)
+        // Calculate total debit (payment amount + bank charges + govt charges)
         $paymentAmount = floatval($request->input('amount', 0));
         $bankCharges = floatval($request->input('bank_charges', 0));
-        $totalAmount = $paymentAmount + $bankCharges;
+        $isVatReturnPaymentUpdate = ($request->input('invoice_type') === 'vat_return')
+            || (ResourceLinks::invoiceType(is_array($payment->resource_links) ? $payment->resource_links : null) === 'vat_return');
+        $govtCharges = $isVatReturnPaymentUpdate ? floatval($request->input('govt_charges', 0)) : 0.0;
+        $totalAmount = $paymentAmount + $bankCharges + $govtCharges;
 
         // Get the paying account (bank account)
         $bank = Banks::find($request->input('bank_id'));
@@ -1021,6 +1100,11 @@ class PaymentController extends Controller
                 $bankChargesAccountId = GlobalAccounts::account('BANK_CHARGES')->id;
             }
 
+            $govtChargesAccountId = null;
+            if ($govtCharges > 0) {
+                $govtChargesAccountId = GlobalAccounts::account('GOVT_CHARGES')->id;
+            }
+
             // Prepare data for payment update (keep existing attachment unless a new file is uploaded)
             // resource_links is rebuilt on allocation sync — never take from the form.
             $input = $request->except(['attachment', 'resource_links']);
@@ -1028,6 +1112,8 @@ class PaymentController extends Controller
             $input['amount'] = $totalAmount;
             $input['updated_by'] = auth()->id();
             $input['bank_charges_account'] = $bankChargesAccountId;
+            $input['govt_charges'] = $govtCharges > 0 ? $govtCharges : null;
+            $input['govt_charges_account'] = $govtChargesAccountId;
             $pending = null;
             $partial = null;
             $paid = null;
@@ -1059,7 +1145,7 @@ class PaymentController extends Controller
                 );
             $amountFieldsDirty = array_intersect(
                 $meaningfulDirty,
-                ['amount', 'bank_charges', 'bank_charges_account']
+                ['amount', 'bank_charges', 'bank_charges_account', 'govt_charges', 'govt_charges_account']
             ) !== [];
             // Skip revert/reapply when only the attachment (or non-amount fields) changed.
             $shouldSyncInvoiceStatuses = $hasInvoiceSelection
@@ -1119,6 +1205,10 @@ class PaymentController extends Controller
                     $existingInvoices = RiderInvoices::whereIn('id', $invoiceIds)->get();
                     $partial = 3;
                     $pending = 0;
+                } elseif ($revertType == 'vat_return') {
+                    $existingInvoices = VatReturn::whereIn('id', $invoiceIds)->get();
+                    $partial = VatReturn::STATUS_PARTIAL;
+                    $pending = VatReturn::STATUS_UNPAID;
                 } else {
                     $existingInvoices = SupplierInvoices::whereIn('id', $invoiceIds)->get();
                     $partial = 'partially_paid';
@@ -1126,6 +1216,10 @@ class PaymentController extends Controller
                 }
 
                 foreach ($existingInvoices as $invoice) {
+                    if ($invoice instanceof VatReturn) {
+                        $invoice->unallocatePayment((int) $payment->id);
+                        continue;
+                    }
                     $partialAmount = $invoice->partial_paid_amount ?? [];
                     unset($partialAmount[$payment->id], $partialAmount[(string) $payment->id]);
                     $invoice->partial_paid_amount = $partialAmount;
@@ -1165,6 +1259,10 @@ class PaymentController extends Controller
                     $invoices = RiderInvoices::with(['rider.account', 'items'])->whereIn('id', $invoiceIds)->get();
                     $partial = 3;
                     $paid = 1;
+                } elseif ($input['invoice_type'] == 'vat_return') {
+                    $invoices = VatReturn::whereIn('id', $invoiceIds)->get();
+                    $partial = VatReturn::STATUS_PARTIAL;
+                    $paid = VatReturn::STATUS_PAID;
                 } else {
                     $invoices = SupplierInvoices::whereIn('id', $invoiceIds)->get();
                     $partial = 'partially_paid';
@@ -1182,6 +1280,11 @@ class PaymentController extends Controller
                     }
 
                     if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
+                        continue;
+                    }
+
+                    if ($invoice instanceof VatReturn) {
+                        $invoice->allocatePayment((int) $payment->id, $invoicePaymentAmount);
                         continue;
                     }
 
@@ -1261,7 +1364,9 @@ class PaymentController extends Controller
                     $bankChargesAccountId,
                     $billingMonth,
                     $payment->branch_id ? (int) $payment->branch_id : null,
-                    (string) $desc
+                    (string) $desc,
+                    $govtCharges,
+                    $govtChargesAccountId
                 );
 
                 // Update voucher
@@ -1542,6 +1647,7 @@ class PaymentController extends Controller
             'employee' => EmployeeInvoices::whereIn('id', $submittedIds)->get(),
             'sim' => SimInvoice::whereIn('id', $submittedIds)->get(),
             'rider' => RiderInvoices::whereIn('id', $submittedIds)->get(),
+            'vat_return' => VatReturn::whereIn('id', $submittedIds)->get(),
             default => SupplierInvoices::whereIn('id', $submittedIds)->get(),
         };
 
@@ -1627,6 +1733,7 @@ class PaymentController extends Controller
             'sim' => SimInvoice::whereIn('id', $ids)->get(),
             'rider' => RiderInvoices::whereIn('id', $ids)->get(),
             'supplier' => SupplierInvoices::whereIn('id', $ids)->get(),
+            'vat_return' => VatReturn::whereIn('id', $ids)->get(),
             default => $invoiceType
                 ? SupplierInvoices::whereIn('id', $ids)->get()
                 : collect(),
@@ -1951,15 +2058,25 @@ class PaymentController extends Controller
         ?int $bankChargesAccountId,
         string $billingMonth,
         ?int $branchId,
-        string $desc
+        string $desc,
+        float $govtCharges = 0.0,
+        ?int $govtChargesAccountId = null
     ): void {
         $paymentAmount = round($paymentAmount, 2);
         $bankCharges = round(max(0, $bankCharges), 2);
-        $bankCredit = round($paymentAmount + $bankCharges, 2);
+        $govtCharges = round(max(0, $govtCharges), 2);
+        $bankCredit = round($paymentAmount + $bankCharges + $govtCharges, 2);
 
         $bankNarration = $desc;
+        $extras = [];
         if ($bankCharges > 0.009) {
-            $bankNarration = trim($desc . ' | Bank charges ' . number_format($bankCharges, 2));
+            $extras[] = 'Bank charges ' . number_format($bankCharges, 2);
+        }
+        if ($govtCharges > 0.009) {
+            $extras[] = 'Govt. charges ' . number_format($govtCharges, 2);
+        }
+        if ($extras !== []) {
+            $bankNarration = trim($desc . ' | ' . implode(' | ', $extras));
         }
 
         // 1. Debit payee — payment amount only
@@ -1976,7 +2093,7 @@ class PaymentController extends Controller
             'narration' => $desc,
         ]);
 
-        // 2. Credit bank for payment + bank charges
+        // 2. Credit bank for payment + bank charges + govt charges
         Transactions::create([
             'trans_code' => $transCode,
             'trans_date' => $date,
@@ -2003,6 +2120,22 @@ class PaymentController extends Controller
                 'billing_month' => $billingMonth,
                 'branch_id' => $branchId,
                 'narration' => 'Bank charges for ( ' . $desc . ' )',
+            ]);
+        }
+
+        // 4. Debit govt charges account (VAT payments)
+        if ($govtCharges > 0.009 && $govtChargesAccountId) {
+            Transactions::create([
+                'trans_code' => $transCode,
+                'trans_date' => $date,
+                'reference_id' => $paymentId,
+                'reference_type' => 'PV',
+                'account_id' => $govtChargesAccountId,
+                'credit' => 0,
+                'debit' => $govtCharges,
+                'billing_month' => $billingMonth,
+                'branch_id' => $branchId,
+                'narration' => 'Govt. charges for ( ' . $desc . ' )',
             ]);
         }
     }
@@ -2523,6 +2656,33 @@ class PaymentController extends Controller
             $preferredPayeeAccountId = $payment->payee_account_id;
         }
 
+        $linkType = ResourceLinks::invoiceType(
+            is_array($payment->resource_links) ? $payment->resource_links : null
+        );
+        if ($linkType === 'vat_return' || str_contains((string) $payment->reference, 'VTR-')) {
+            $invoiceIds = ResourceLinks::invoiceIds(
+                is_array($payment->resource_links) ? $payment->resource_links : null
+            );
+            if ($invoiceIds === []) {
+                foreach (explode(' ', (string) $payment->reference) as $token) {
+                    if (preg_match('/VTR-?0*(\d+)/i', $token, $matches)) {
+                        $invoiceIds[] = (int) $matches[1];
+                    }
+                }
+            }
+            $existingInvoices = VatReturn::whereIn('id', $invoiceIds)->get();
+            $invoices = VatReturn::query()
+                ->whereIn('status', [VatReturn::STATUS_UNPAID, VatReturn::STATUS_PARTIAL])
+                ->whereNotIn('id', $invoiceIds)
+                ->orderByDesc('filed_at')
+                ->get();
+            $invoiceType = 'vat_return';
+            $vatPayableAccountId = GlobalAccounts::idOrNull('VAT_PAYABLE') ?: (int) $payment->payee_account_id;
+            $lockedPayee = $this->makePayeeOptionFromAccountId($vatPayableAccountId);
+            $payeeOptions = collect($lockedPayee ? [$lockedPayee] : []);
+            $accountIds = $vatPayableAccountId ? [$vatPayableAccountId] : [];
+        }
+
         // For module-linked payments without a selectable list, surface the saved payee as locked.
         if ($invoiceType && ! $lockedPayee && $payment->payee_account_id && $payeeOptions->isEmpty()) {
             $lockedPayee = $this->makePayeeOptionFromAccountId($payment->payee_account_id);
@@ -2532,7 +2692,9 @@ class PaymentController extends Controller
             $lockedPayee['ledger_balance'] = $this->ledgerBalanceForAccount((int) ($lockedPayee['account_id'] ?? 0));
         }
 
-        $this->applySequentialSalaryInvoiceBalances($invoices, $existingInvoices, $invoiceType);
+        if (! in_array($invoiceType, ['vat_return'], true)) {
+            $this->applySequentialSalaryInvoiceBalances($invoices, $existingInvoices, $invoiceType);
+        }
 
         if ($invoiceType === 'rider') {
             $this->normalizeRiderPaymentFormBalances($invoices);

@@ -55,9 +55,9 @@
           </button>
           <div class="rl-menu" id="actMenu" hidden role="menu">
             @canany(['vat_create', 'vat_edit'])
-            <a role="menuitem" class="show-modal" href="javascript:void(0);" data-size="xl" data-title="New VAT Payment Voucher (VP)" data-action="{{ route('vat.voucher.create') }}">
+            <a role="menuitem" class="show-modal" href="javascript:void(0);" data-size="xl" data-title="New VAT Payment" data-action="{{ route('payments.create', ['invoice_type' => 'vat_return', 'vat_payment' => 1]) }}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
-              <span><strong>New VAT Payment Voucher</strong><em>Allocate payment to unpaid returns</em></span>
+              <span><strong>New VAT Payment</strong><em>Allocate payment to unpaid returns</em></span>
             </a>
             @endcanany
             <a role="menuitem" href="{{ route('vat.index') }}">
@@ -116,6 +116,9 @@
                   $period = ($r->quarter_label ?? ('Q' . $r->quarter_slot)) . ' ' . $r->year;
                   $searchBlob = strtolower($returnNo . ' ' . $period . ' ' . ($r->quarter_label ?? ''));
                   $showTitle = 'VAT Return ' . $returnNo . ' · ' . $period;
+                  $statusKey = $r->statusBadgeKey();
+                  $statusLabel = strtoupper(str_replace('_', ' ', $r->statusLabel()));
+                  $canDeleteReturn = ! $r->hasLivePayments() && (int) $r->status === \App\Models\VatReturn::STATUS_UNPAID;
                 @endphp
                 <tr class="vat-ret-row" data-search="{{ e($searchBlob) }}">
                   <td>
@@ -134,16 +137,17 @@
                   <td class="r" style="color:#15803d">{{ $hasEntries ? number_format($output, 2) : '—' }}</td>
                   <td class="r" style="color:#c2410c">{{ $hasEntries ? number_format($input, 2) : '—' }}</td>
                   <td class="r" style="font-weight:700;color:{{ $hasEntries ? ($net >= 0 ? '#dc2626' : '#059669') : '#64748b' }}">{{ $hasEntries ? $money($net) : '—' }}</td>
-                  <td><span class="vat-rb unpaid">UNPAID</span></td>
+                  <td><span class="vat-rb unpaid">{{ $statusLabel }}</span></td>
                   <td>
                     <div class="vat-actions">
                       @canany(['vat_create', 'vat_edit'])
                       <a href="javascript:void(0);"
                          class="vat-sb pay show-modal"
                          data-size="xl"
-                         data-title="New VAT Payment Voucher (VP)"
-                         data-action="{{ route('vat.voucher.create', ['vat_return_id' => $r->id]) }}">Pay</a>
+                         data-title="New VAT Payment"
+                         data-action="{{ route('payments.create', ['invoice_type' => 'vat_return', 'vat_payment' => 1, 'invoice_id' => $r->id]) }}">Pay</a>
                       @endcanany
+                      @if($canDeleteReturn)
                       <form action="{{ route('vat.returns.destroy', $r) }}" method="post" class="d-inline" onsubmit="return confirm('Delete this return? Its entries will show again in the VAT ledger.');">
                         @csrf
                         @method('DELETE')
@@ -151,6 +155,14 @@
                           <i class="ti ti-trash"></i>
                         </button>
                       </form>
+                      @else
+                      <a href="javascript:void(0);"
+                         class="vat-sb ol show-modal-right"
+                         data-size="xl"
+                         data-title="{{ $showTitle }}"
+                         data-action="{{ route('vat.returns.show', $r) }}"
+                         title="Manage linked payments">Payments</a>
+                      @endif
                     </div>
                   </td>
                 </tr>

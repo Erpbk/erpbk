@@ -30,6 +30,7 @@
         line-height: 1.25;
     }
 </style>
+<div class="vsa-sig-wrap">
 @foreach($slots->chunk($perRow) as $row)
 <table class="{{ $tableClass }}" width="100%" cellpadding="0" cellspacing="0">
     <tr>
@@ -62,4 +63,5 @@
     </tr>
 </table>
 @endforeach
+</div>
 @endif

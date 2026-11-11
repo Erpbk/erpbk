@@ -16,6 +16,47 @@ class VoucherSignatureResolver
     }
 
     /**
+     * Print layout (header + signature position) for a voucher type.
+     *
+     * @return array{header: array<string, mixed>, signature_position: string}|null
+     */
+    public function layoutFor(string $voucherTypeCode, ?int $companyId = null): ?array
+    {
+        $config = $this->configFor($voucherTypeCode, $companyId);
+        if (!$config) {
+            return null;
+        }
+
+        return [
+            // Only emit header overrides when explicitly saved (avoid restyling legacy configs).
+            'header' => $config->header_settings !== null
+                ? $config->resolvedHeaderSettings()
+                : null,
+            'signature_position' => $config->resolvedSignaturePosition(),
+        ];
+    }
+
+    /**
+     * Unpack layout for Blade document bodies.
+     *
+     * @return array{0: ?array, 1: ?array, 2: string}
+     */
+    public function layoutPartsFor(string $voucherTypeCode, ?int $companyId = null): array
+    {
+        $layout = $this->layoutFor($voucherTypeCode, $companyId);
+
+        return [
+            $layout,
+            is_array($layout['header'] ?? null)
+                ? VoucherSignatureConfig::normalizeHeaderSettings($layout['header'])
+                : null,
+            ($layout['signature_position'] ?? VoucherSignatureConfig::POSITION_AFTER) === VoucherSignatureConfig::POSITION_BOTTOM
+                ? VoucherSignatureConfig::POSITION_BOTTOM
+                : VoucherSignatureConfig::POSITION_AFTER,
+        ];
+    }
+
+    /**
      * Active signature slots for a voucher type, or empty when unconfigured.
      *
      * @return Collection<int, array{role_label: string, display_name: ?string, designation: ?string, sort_order: int, stamp_url: ?string, signature_url: ?string, user_id: ?int}>
@@ -30,19 +71,7 @@ class VoucherSignatureResolver
         $companyId = $companyId ?? CompanyContext::id();
         $company = $companyId ? Company::query()->find($companyId) : null;
 
-        $query = VoucherSignatureConfig::query()
-            ->where('voucher_type_code', $code)
-            ->with([
-                'activeSlots.department',
-                'activeSlots.user',
-                'activeSlots.employee',
-            ]);
-
-        if ($companyId) {
-            $query->where('company_id', $companyId);
-        }
-
-        $config = $query->first();
+        $config = $this->configFor($code, $companyId);
         if (!$config || $config->activeSlots->isEmpty()) {
             return collect();
         }
@@ -61,6 +90,30 @@ class VoucherSignatureResolver
                 return $slot;
             })
             ->values();
+    }
+
+    protected function configFor(string $voucherTypeCode, ?int $companyId = null): ?VoucherSignatureConfig
+    {
+        $code = strtoupper(trim($voucherTypeCode));
+        if ($code === '') {
+            return null;
+        }
+
+        $companyId = $companyId ?? CompanyContext::id();
+
+        $query = VoucherSignatureConfig::query()
+            ->where('voucher_type_code', $code)
+            ->with([
+                'activeSlots.department',
+                'activeSlots.user',
+                'activeSlots.employee',
+            ]);
+
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+
+        return $query->first();
     }
 
     /**

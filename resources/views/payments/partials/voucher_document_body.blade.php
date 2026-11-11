@@ -588,6 +588,14 @@
     }
 }
 </style>
+@php
+    [$printLayout, $plHeader, $plPos] = app(\App\Services\Voucher\VoucherSignatureResolver::class)
+        ->layoutPartsFor((string) ($payment->voucher->voucher_type ?? ($voucherTypeCode ?? 'PV')));
+@endphp
+@include('vouchers.partials.print_layout_styles', [
+    'printLayout' => $printLayout,
+    'isPdf' => $isPdf,
+])
 
 <div class="rpv-doc {{ $docModeClass }}"
      style="--rpv-blue: {{ $blue }}; --rpv-soft: {{ $blueSoft }}; --rpv-line: {{ $blueLine }};">
@@ -601,15 +609,22 @@
                 </td>
                 <td class="rpv-hdr-brand">
                     <div class="rpv-company">{{ $companyName }}</div>
-                    @if($companyTrn !== '' || $companyPhone !== '' || $companyEmail !== '')
+                    @php
+                        $plOn = $plHeader['on'] ?? null;
+                        $showTel = $plOn === null || !empty($plOn['tel']);
+                        $showEmail = $plOn === null || !empty($plOn['email']);
+                        $showAddr = $plOn === null || !empty($plOn['addr']);
+                        $showTrn = $plOn === null || !empty($plOn['trn']);
+                    @endphp
+                    @if(($showTrn && $companyTrn !== '') || ($showTel && $companyPhone !== '') || ($showEmail && $companyEmail !== ''))
                     <div class="rpv-meta">
-                        @if($companyTrn !== '')TRN: {{ $companyTrn }}@endif
-                        @if($companyTrn !== '' && $companyPhone !== '') · @endif
-                        @if($companyPhone !== '')Tel: {{ $companyPhone }}@endif
-                        @if($companyEmail !== ''){{ ($companyTrn !== '' || $companyPhone !== '') ? ' ' : '' }}{{ $companyEmail }}@endif
+                        @if($showTrn && $companyTrn !== '')TRN: {{ $companyTrn }}@endif
+                        @if($showTrn && $companyTrn !== '' && $showTel && $companyPhone !== '') · @endif
+                        @if($showTel && $companyPhone !== '')Tel: {{ $companyPhone }}@endif
+                        @if($showEmail && $companyEmail !== ''){{ (($showTrn && $companyTrn !== '') || ($showTel && $companyPhone !== '')) ? ' ' : '' }}{{ $companyEmail }}@endif
                     </div>
                     @endif
-                    @if($companyAddress !== '')
+                    @if($showAddr && $companyAddress !== '')
                     <div class="rpv-meta">{{ $companyAddress }}</div>
                     @endif
                 </td>

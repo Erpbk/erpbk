@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
 <link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
-<link rel="stylesheet" href="{{ asset('css/vat-demo.css') }}?v=20261107d">
+<link rel="stylesheet" href="{{ asset('css/vat-demo.css') }}?v=20261113d">
 @endpush
 
 @section('content')
@@ -158,7 +158,7 @@
       <div class="row">
         <div class="form-group col-md-12">
           <label for="vat_type">Filter by Input / Output</label>
-          <select class="form-control" id="vat_type" name="vat_type">
+          <select class="form-control select2" id="vat_type" name="vat_type" data-placeholder="All">
             <option value="">All</option>
             <option value="s" {{ request('vat_type') === 's' ? 'selected' : '' }}>Output (Sales)</option>
             <option value="p" {{ request('vat_type') === 'p' ? 'selected' : '' }}>Input (Purchase)</option>
@@ -166,15 +166,16 @@
         </div>
         <div class="form-group col-md-12">
           <label for="vat_year">Year</label>
-          <select class="form-control" id="vat_year" name="vat_year">
-            @foreach($years ?? [] as $val => $label)
-              <option value="{{ $val }}" {{ (string) $year === (string) $val ? 'selected' : '' }}>{{ $label }}</option>
-            @endforeach
-          </select>
+          @include('vat.partials.year_picker_input', [
+            'id' => 'vat_year',
+            'name' => 'vat_year',
+            'value' => $year,
+            'placeholder' => 'Select year',
+          ])
         </div>
         <div class="form-group col-md-12">
           <label for="vat_quarter_slot">Filter by Quarter</label>
-          <select class="form-control" id="vat_quarter_slot" name="vat_quarter_slot">
+          <select class="form-control select2" id="vat_quarter_slot" name="vat_quarter_slot" data-placeholder="All Quarters">
             <option value="">All Quarters</option>
             @foreach($quarters ?? [] as $slot => $label)
               <option value="{{ $slot }}" {{ (string) request('vat_quarter_slot') === (string) $slot ? 'selected' : '' }}>{{ $label }}</option>
@@ -191,18 +192,17 @@
         </div>
         <div class="form-group col-md-12">
           <label for="billing_month">Filter by Billing Month</label>
-          <select class="form-control" id="billing_month" name="billing_month">
-            <option value="">All Months</option>
-            @foreach($filterMonths ?? [] as $m)
-              <option value="{{ $m }}" {{ request('billing_month') === $m ? 'selected' : '' }}>
-                {{ date('M Y', strtotime($m . '-01')) }}
-              </option>
-            @endforeach
-          </select>
+          @php
+            $billingMonthValue = (string) request('billing_month', '');
+            if (preg_match('/^(\d{4}-\d{2})/', $billingMonthValue, $bmMatch)) {
+              $billingMonthValue = $bmMatch[1];
+            }
+          @endphp
+          <input type="month" class="form-control" id="billing_month" name="billing_month" value="{{ $billingMonthValue }}" placeholder="Select month">
         </div>
         <div class="form-group col-md-12">
           <label for="module">Filter by Module</label>
-          <select class="form-control" id="module" name="module">
+          <select class="form-control select2" id="module" name="module" data-placeholder="All Modules">
             <option value="">All Modules</option>
             @foreach($filterModules ?? [] as $mod)
               <option value="{{ $mod }}" {{ request('module') === $mod ? 'selected' : '' }}>{{ $mod }}</option>
@@ -264,6 +264,7 @@
 @endsection
 
 @push('third_party_scripts')
+@include('vat.partials.filter_widgets_script')
 <script>
 (function () {
   const fmt = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

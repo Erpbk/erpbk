@@ -172,6 +172,32 @@
   font-size: 10.5px;
 }
 .vat-demo .vat-ent td { text-align: left; white-space: normal; background: #fff !important; }
+.vat-demo .vat-ent-scroll {
+  max-height: 340px;
+  overflow: auto;
+  border: 1px solid #e0ecff;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+.vat-demo .vat-ent-scroll > table {
+  margin-top: 0;
+  border: 0;
+}
+.vat-demo .vat-ent-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.vat-demo .vat-vp-links {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+.vat-demo .vat-returns-tbox > table > tbody > tr.vat-ret-row > td {
+  height: 64px;
+  vertical-align: middle;
+}
 .vat-demo .vat-rempty {
   text-align: center;
   padding: 50px 10px;
@@ -184,6 +210,103 @@
   text-decoration: none;
 }
 .vat-demo .vat-rid:hover { text-decoration: underline; }
+.vat-demo .vat-ent-voucher a {
+  color: #0000ff;
+  font-weight: 600;
+  text-decoration: none;
+}
+.vat-demo .vat-ent-voucher a:hover { text-decoration: underline; }
+
+/* Year calendar picker (filter sidebars) */
+.vat-year-wrap {
+  position: relative;
+}
+.vat-year-wrap .vat-year-picker {
+  cursor: pointer;
+  background: #fff;
+}
+.vat-year-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 200050;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  padding: 10px;
+}
+.vat-year-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.vat-year-range {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+.vat-year-nav-btn {
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  line-height: 1;
+  font-size: 18px;
+  color: #334155;
+}
+.vat-year-nav-btn:hover { background: #eef2ff; }
+.vat-year-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.vat-year-cell {
+  border: 0;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 10px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+.vat-year-cell:hover { background: #e0e7ff; color: #1e3a8a; }
+.vat-year-cell.is-current { box-shadow: inset 0 0 0 1px #93c5fd; }
+.vat-year-cell.is-selected {
+  background: #3b3fd8;
+  color: #fff;
+}
+.vat-year-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.vat-year-clear {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 6px;
+}
+.vat-year-clear:hover { color: #dc2626; }
+
+/* Select2 above filter sidebar (avoid clipped/under-panel menus) */
+.vat-demo .filter-sidebar .select2-container,
+body.filter-open .select2-container--open {
+  z-index: 200040 !important;
+}
+body.filter-open .select2-container--open .select2-dropdown {
+  z-index: 200041 !important;
+}
+.vat-demo .filter-sidebar .select2-container .select2-selection--single {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+}
 .vat-demo .vat-rb {
   display: inline-block;
   border-radius: 4px;

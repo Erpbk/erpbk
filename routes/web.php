@@ -982,6 +982,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::get('/reports/profit-loss', [AccountsReportController::class, 'profitLoss'])->name('accounts.reports.profit_loss');
         Route::get('/vat', [VatController::class, 'index'])->name('vat.index');
         Route::get('/vat/returns', [VatController::class, 'returnsIndex'])->name('vat.returns.index');
+        Route::get('/vat/returns/{vat_return}/entries', [VatController::class, 'returnsEntries'])->name('vat.returns.entries');
         Route::get('/vat/returns/{vat_return}', [VatController::class, 'returnsShow'])->name('vat.returns.show');
         Route::post('/vat/return-file', [VatController::class, 'fileReturn'])->name('vat.return.file');
         Route::patch('/vat/returns/{vat_return}/status', [VatController::class, 'updateReturnStatus'])->name('vat.returns.update-status');

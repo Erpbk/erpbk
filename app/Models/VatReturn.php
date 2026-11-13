@@ -174,11 +174,18 @@ class VatReturn extends BaseModel
 
     public function statusBadgeKey(): string
     {
-        return match ((int) ($this->status ?? 0)) {
-            self::STATUS_PAID => 'paid',
-            self::STATUS_PARTIAL => 'partial',
-            default => 'unpaid',
-        };
+        $status = (int) ($this->status ?? 0);
+        $paid = $this->paid_amount;
+        $balance = $this->balance;
+
+        if ($status === self::STATUS_PAID || ($paid >= 0.01 && $balance <= 0.01)) {
+            return 'paid';
+        }
+        if ($status === self::STATUS_PARTIAL || $paid >= 0.01) {
+            return 'partial';
+        }
+
+        return 'unpaid';
     }
 
     /**

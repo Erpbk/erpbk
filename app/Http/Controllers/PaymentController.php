@@ -28,6 +28,7 @@ use App\Services\Employee\EmployeeAdvanceLoanService;
 use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
 use App\Services\Payment\EmployeePaymentVoucherViewData;
 use App\Services\Payment\RiderPaymentVoucherViewData;
+use App\Services\Payment\VatPaymentVoucherViewData;
 use App\Services\Rider\RiderAdvanceLoanService;
 use App\Services\RiderInvoice\RiderInvoiceViewDataBuilder;
 use App\Support\ChequeClearEditGuard;
@@ -911,6 +912,7 @@ class PaymentController extends Controller
 
         $riderViewData = app(RiderPaymentVoucherViewData::class);
         $employeeViewData = app(EmployeePaymentVoucherViewData::class);
+        $vatViewData = app(VatPaymentVoucherViewData::class);
 
         if ($riderViewData->isRiderPayment($payment)) {
             RiderVoucherPermissions::authorize('PAY', 'view');
@@ -918,6 +920,11 @@ class PaymentController extends Controller
         } elseif ($employeeViewData->isEmployeePayment($payment)) {
             EmployeeVoucherPermissions::authorize('PAY', 'view');
             $data = $employeeViewData->build($payment);
+        } elseif ($vatViewData->isVatPayment($payment)) {
+            if (! user_can('gn_ledger') && ! user_can('vat_view') && ! user_can('payments_view')) {
+                abort(403, 'Unauthorized action.');
+            }
+            $data = $vatViewData->build($payment);
         } else {
             // Non salary payments keep the generic voucher modal when a voucher exists.
             if ($payment->voucher_id) {
@@ -949,11 +956,14 @@ class PaymentController extends Controller
 
         $riderViewData = app(RiderPaymentVoucherViewData::class);
         $employeeViewData = app(EmployeePaymentVoucherViewData::class);
+        $vatViewData = app(VatPaymentVoucherViewData::class);
 
         if ($riderViewData->isRiderPayment($payment)) {
             $data = $riderViewData->build($payment);
         } elseif ($employeeViewData->isEmployeePayment($payment)) {
             $data = $employeeViewData->build($payment);
+        } elseif ($vatViewData->isVatPayment($payment)) {
+            $data = $vatViewData->build($payment);
         } else {
             abort(404);
         }

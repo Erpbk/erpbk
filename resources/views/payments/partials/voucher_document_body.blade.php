@@ -684,6 +684,12 @@
                                 <td class="v">{{ $money($bankCharges) }}</td>
                             </tr>
                             @endif
+                            @if((float) ($govtCharges ?? 0) > 0)
+                            <tr>
+                                <td class="k">Govt. Charges</td>
+                                <td class="v">{{ $money($govtCharges) }}</td>
+                            </tr>
+                            @endif
                         </table>
                     </div>
                 </td>

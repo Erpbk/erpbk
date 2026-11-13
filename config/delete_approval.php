@@ -247,5 +247,11 @@ return [
             'display_columns' => ['id', 'billing_month', 'amount', 'status', 'reference_number'],
             'show_route' => null,
         ],
+        'vat_returns' => [
+            'model' => \App\Models\VatReturn::class,
+            'name' => 'VAT Returns',
+            'display_columns' => ['id', 'quarter_label', 'year', 'status'],
+            'show_route' => 'vat.returns.show',
+        ],
     ],
 ];

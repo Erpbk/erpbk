@@ -10,6 +10,7 @@ use App\Models\RiderInvoices;
 use App\Models\SimInvoice;
 use App\Models\SupplierInvoices;
 use App\Models\Transactions;
+use App\Models\VatReturn;
 use App\Models\Vouchers;
 use App\Models\DeleteRequest;
 use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
@@ -164,8 +165,46 @@ class PaymentDeletionService
             'employee' => static::revertEmployeeInvoices($payment, $invoiceIds),
             'rider' => static::revertRiderInvoices($payment, $invoiceIds),
             'sim' => static::revertSimInvoices($payment, $invoiceIds),
+            'vat_return' => static::revertVatReturns($payment, $invoiceIds),
             default => static::cleanupFromLegacyReference($payment, $reference),
         };
+    }
+
+    /**
+     * Re-apply VAT return allocations after a payment is restored from trash.
+     */
+    public static function reapplyRelatedAllocations(Payment $payment): void
+    {
+        $links = is_array($payment->resource_links) ? $payment->resource_links : null;
+        $invoiceType = ResourceLinks::invoiceType($links);
+        $invoiceIds = ResourceLinks::invoiceIds($links);
+        if ($invoiceType !== 'vat_return' || $invoiceIds === []) {
+            return;
+        }
+
+        $amounts = ResourceLinks::amountsByInvoiceId($links);
+        $returns = VatReturn::query()->whereIn('id', $invoiceIds)->get();
+        foreach ($returns as $vatReturn) {
+            if ($vatReturn->trashed()) {
+                continue;
+            }
+            $amount = (float) ($amounts[(int) $vatReturn->id] ?? $payment->amount ?? 0);
+            if (abs($amount) < 0.01) {
+                continue;
+            }
+            $vatReturn->allocatePayment((int) $payment->id, $amount);
+        }
+    }
+
+    /**
+     * @param  list<int>  $invoiceIds
+     */
+    private static function revertVatReturns(Payment $payment, array $invoiceIds): void
+    {
+        $returns = VatReturn::query()->whereIn('id', $invoiceIds)->get();
+        foreach ($returns as $vatReturn) {
+            $vatReturn->unallocatePayment((int) $payment->id);
+        }
     }
 
     /**
@@ -336,6 +375,16 @@ class PaymentDeletionService
                 }
             }
             static::revertSimInvoices($payment, $invoiceIds);
+        }
+
+        if (str_contains($reference, 'VTR-')) {
+            $invoiceIds = [];
+            foreach (explode(' ', $reference) as $token) {
+                if (preg_match('/VTR-?0*(\d+)/i', $token, $matches)) {
+                    $invoiceIds[] = (int) $matches[1];
+                }
+            }
+            static::revertVatReturns($payment, $invoiceIds);
         }
     }
 }

@@ -161,7 +161,8 @@ class VoucherType extends BaseModel
      */
     public static function vouchersModuleLockedCodes(): array
     {
-        return [];
+        // Obsolete: VAT returns post clearing ledger rows (no VTR voucher).
+        return ['VTR'];
     }
 
     public static function isLockedInVouchersModule(string $code): bool

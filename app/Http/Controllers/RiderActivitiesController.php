@@ -13,6 +13,7 @@ use App\Models\liveactivities;
 use App\Models\Riders;
 use Illuminate\Pagination\LengthAwarePaginator;
 use App\Services\RiderActivities\RiderActivityImportMappingService;
+use App\Services\RiderActivities\RiderActivityInsightCardsService;
 use App\Repositories\RiderActivitiesRepository;
 use App\Traits\GlobalPagination;
 use Carbon\Carbon;
@@ -56,7 +57,7 @@ class RiderActivitiesController extends AppBaseController
 
         $query = RiderActivities::query()
             ->with(['rider' => function ($q) {
-                $q->withTrashed();
+                $q->withTrashed()->with('customer');
             }])
             ->orderByDesc('date')
             ->orderByDesc('id');
@@ -181,7 +182,22 @@ class RiderActivitiesController extends AppBaseController
             });
         }
 
+        if ($request->filled('quick_search')) {
+            $term = '%' . trim((string) $request->quick_search) . '%';
+            $query->whereHas('rider', function ($rq) use ($term) {
+                $rq->withTrashed()->where(function ($inner) use ($term) {
+                    $inner->where('name', 'like', $term)
+                        ->orWhere('rider_id', 'like', $term)
+                        ->orWhere('fleet_supervisor', 'like', $term);
+                });
+            });
+        }
+
         $this->applyModuleTopBarFilters($query, $request, 'activities');
+        $this->applyRiderSettingsTopBarFilter($query, $request);
+
+        $insightService = app(RiderActivityInsightCardsService::class);
+        $insightService->applyInsightFilter($query, $request);
 
         // Get all data for totals calculation (before pagination)
         $allData = (clone $query)->get();
@@ -214,7 +230,7 @@ class RiderActivitiesController extends AppBaseController
         );
 
         $riders = Riders::withTrashed()
-            ->select('id', 'name', 'rider_id', 'status')
+            ->select('id', 'name', 'rider_id', 'status', 'fleet_supervisor', 'image_name')
             ->orderBy('name')
             ->get();
 
@@ -245,6 +261,15 @@ class RiderActivitiesController extends AppBaseController
 
         $isAllTab = false;
         $isConsolidated = false;
+        $demoMode = 'activities';
+        $insightCards = collect($insightService->cards($request))
+            ->reject(fn ($card) => ! empty($card['hidden_in_demo']))
+            ->values()
+            ->all();
+        $projectTicker = $insightService->projectTicker($request, 'activities');
+        $alertsCount = $insightService->alertsCount($request, 'activities');
+        $topBarData = $this->ridersTopBarViewData($request);
+        $filterChips = $this->buildActivityFilterChips($request, $projects, $riders, $insightCards, $topBarData);
 
         if ($request->ajax()) {
             $tableData = view('rider_activities.table', [
@@ -261,10 +286,12 @@ class RiderActivitiesController extends AppBaseController
                 'tableData' => $tableData,
                 'paginationLinks' => $paginationLinks,
                 'totals' => $totals,
+                'insightCards' => $insightCards,
+                'alertsCount' => $alertsCount,
             ]);
         }
 
-        return view('rider_activities.index', compact(
+        return view('rider_activities.index', array_merge(compact(
             'data',
             'riders',
             'fleetSupervisors',
@@ -272,8 +299,13 @@ class RiderActivitiesController extends AppBaseController
             'totals',
             'projects',
             'isAllTab',
-            'isConsolidated'
-        ));
+            'isConsolidated',
+            'demoMode',
+            'insightCards',
+            'projectTicker',
+            'alertsCount',
+            'filterChips'
+        ), $topBarData));
     }
 
     /**
@@ -355,7 +387,22 @@ class RiderActivitiesController extends AppBaseController
             });
         }
 
+        if ($request->filled('quick_search')) {
+            $term = '%' . trim((string) $request->quick_search) . '%';
+            $query->whereHas('rider', function ($rq) use ($term) {
+                $rq->withTrashed()->where(function ($inner) use ($term) {
+                    $inner->where('name', 'like', $term)
+                        ->orWhere('rider_id', 'like', $term)
+                        ->orWhere('fleet_supervisor', 'like', $term);
+                });
+            });
+        }
+
         $this->applyModuleTopBarFilters($query, $request, 'activities');
+        $this->applyRiderSettingsTopBarFilter($query, $request);
+
+        $insightService = app(RiderActivityInsightCardsService::class);
+        $insightService->applyInsightFilter($query, $request);
 
         $allData = (clone $query)->get();
 
@@ -385,7 +432,7 @@ class RiderActivitiesController extends AppBaseController
         );
 
         $riders = Riders::withTrashed()
-            ->select('id', 'name', 'rider_id', 'status')
+            ->select('id', 'name', 'rider_id', 'status', 'fleet_supervisor', 'image_name')
             ->orderBy('name')
             ->get();
 
@@ -409,13 +456,41 @@ class RiderActivitiesController extends AppBaseController
 
         $payoutTypes = collect();
         $isAllTab = true;
+        $demoMode = 'summary';
+        $summaryCardKeys = [
+            RiderActivityInsightCardsService::KEY_OFF_2,
+            RiderActivityInsightCardsService::KEY_OFF_4,
+            RiderActivityInsightCardsService::KEY_OFF_6,
+            RiderActivityInsightCardsService::KEY_LOW_HOURS,
+            RiderActivityInsightCardsService::KEY_LOW_ORDERS,
+        ];
+        $insightCards = collect($insightService->cards($request))
+            ->filter(fn ($card) => in_array($card['key'] ?? '', $summaryCardKeys, true))
+            ->map(function ($card) {
+                $key = $card['key'] ?? '';
+                if (in_array($key, [
+                    RiderActivityInsightCardsService::KEY_LOW_HOURS,
+                    RiderActivityInsightCardsService::KEY_LOW_ORDERS,
+                ], true)) {
+                    $scope = trim((string) preg_replace('/^.*Project:\s*/i', '', (string) ($card['meta'] ?? 'All projects')));
+                    $card['meta'] = 'Avg per working day · ' . ($scope !== '' ? $scope : 'All projects');
+                }
+
+                return $card;
+            })
+            ->values()
+            ->all();
+        $projectTicker = $insightService->projectTicker($request, 'summary');
+        $alertsCount = $insightService->alertsCount($request, 'summary');
+        $topBarData = $this->ridersTopBarViewData($request);
+        $filterChips = $this->buildActivityFilterChips($request, $projects, $riders, $insightCards, $topBarData);
 
         if ($request->ajax()) {
             $tableData = view('rider_activities.table', [
                 'data' => $data,
                 'totals' => $totals,
                 'isConsolidated' => $isConsolidated,
-                'isAllTab' => false,
+                'isAllTab' => true,
                 'hideDay' => true,
             ])->render();
             $paginationLinks = method_exists($data, 'links')
@@ -427,10 +502,12 @@ class RiderActivitiesController extends AppBaseController
                 'paginationLinks' => $paginationLinks,
                 'totals' => $totals,
                 'isConsolidated' => $isConsolidated,
+                'insightCards' => $insightCards,
+                'alertsCount' => $alertsCount,
             ]);
         }
 
-        return view('rider_activities.index', compact(
+        return view('rider_activities.index', array_merge(compact(
             'data',
             'riders',
             'fleetSupervisors',
@@ -438,8 +515,13 @@ class RiderActivitiesController extends AppBaseController
             'totals',
             'projects',
             'isAllTab',
-            'isConsolidated'
-        ));
+            'isConsolidated',
+            'demoMode',
+            'insightCards',
+            'projectTicker',
+            'alertsCount',
+            'filterChips'
+        ), $topBarData));
     }
 
     /**
@@ -564,6 +646,149 @@ class RiderActivitiesController extends AppBaseController
         }
 
         return 'Invalid';
+    }
+
+    /**
+     * Top-bar listing payload from Rider Settings → Top Bar options.
+     *
+     * @return array<string, mixed>
+     */
+    protected function ridersTopBarViewData(Request $request): array
+    {
+        $listing = $this->moduleTopBarListingData($request, 'riders');
+        $listing['topBarStatDefinitions'] = app(\App\Services\Module\TopBarListingService::class)
+            ->statDefinitions('riders');
+
+        return $listing;
+    }
+
+    /**
+     * Filter activity / live rows by Rider Settings top-bar option (rider_top_option_id).
+     */
+    protected function applyRiderSettingsTopBarFilter($query, Request $request): void
+    {
+        if (! $request->filled('rider_top_option_id')) {
+            return;
+        }
+
+        $ridersQuery = Riders::query();
+        $this->applyModuleTopBarFilters($ridersQuery, $request, 'riders');
+        $riderIds = $ridersQuery->pluck('id');
+
+        if ($riderIds->isEmpty()) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->whereIn('rider_id', $riderIds);
+    }
+
+    /**
+     * Active filter chips for the demo toolbar.
+     *
+     * @param  \Illuminate\Support\Collection|array  $projects
+     * @param  \Illuminate\Support\Collection|array  $riders
+     * @param  list<array<string, mixed>>  $insightCards
+     * @param  array<string, mixed>  $topBarData
+     * @return list<array{key:string,label:string,value:string}>
+     */
+    protected function buildActivityFilterChips(Request $request, $projects, $riders, array $insightCards = [], array $topBarData = []): array
+    {
+        $chips = [];
+        $projects = collect($projects);
+        $riders = collect($riders);
+
+        if ($request->filled('rider_top_option_id')) {
+            $optionId = (int) $request->input('rider_top_option_id');
+            $optionTitle = (string) $optionId;
+            foreach (($topBarData['topBarSliderCategories'] ?? collect()) as $category) {
+                foreach (($category->options ?? []) as $option) {
+                    if ((int) $option->id === $optionId) {
+                        $optionTitle = (string) $option->name;
+                        break 2;
+                    }
+                }
+            }
+            $chips[] = ['key' => 'rider_top_option_id', 'label' => 'Status', 'value' => $optionTitle];
+        }
+
+        if ($request->filled('insight_card')) {
+            $key = (string) $request->input('insight_card');
+            $title = collect($insightCards)->firstWhere('key', $key)['title'] ?? $key;
+            $chips[] = ['key' => 'insight_card', 'label' => 'Insight', 'value' => (string) $title];
+        }
+
+        if ($request->filled('customer_id')) {
+            $project = $projects->firstWhere('id', (int) $request->customer_id)
+                ?: $projects->firstWhere('id', (string) $request->customer_id);
+            $chips[] = [
+                'key' => 'customer_id',
+                'label' => 'Project',
+                'value' => (string) ($project->name ?? $request->customer_id),
+            ];
+        }
+
+        if ($request->filled('rider_id')) {
+            $rider = $riders->firstWhere('id', (int) $request->rider_id)
+                ?: $riders->firstWhere('id', (string) $request->rider_id);
+            $chips[] = [
+                'key' => 'rider_id',
+                'label' => 'Rider',
+                'value' => (string) ($rider->name ?? $request->rider_id),
+            ];
+        }
+
+        if ($request->filled('id')) {
+            $chips[] = ['key' => 'id', 'label' => 'Rider ID', 'value' => (string) $request->id];
+        }
+
+        if ($request->filled('from_date_range')) {
+            $chips[] = ['key' => 'from_date_range', 'label' => 'Date', 'value' => (string) $request->from_date_range];
+        }
+
+        if ($request->filled('from_date')) {
+            $chips[] = ['key' => 'from_date', 'label' => 'From', 'value' => (string) $request->from_date];
+        }
+
+        if ($request->filled('to_date')) {
+            $chips[] = ['key' => 'to_date', 'label' => 'To', 'value' => (string) $request->to_date];
+        }
+
+        if ($request->filled('billing_month')) {
+            $chips[] = ['key' => 'billing_month', 'label' => 'Month', 'value' => (string) $request->billing_month];
+        }
+
+        if ($request->filled('valid_day')) {
+            $map = ['Yes' => 'Valid', 'No' => 'Invalid', 'Off' => 'Off'];
+            $chips[] = [
+                'key' => 'valid_day',
+                'label' => 'Valid Day',
+                'value' => $map[(string) $request->valid_day] ?? (string) $request->valid_day,
+            ];
+        }
+
+        if ($request->filled('fleet_supervisor')) {
+            $chips[] = ['key' => 'fleet_supervisor', 'label' => 'Supervisor', 'value' => (string) $request->fleet_supervisor];
+        }
+
+        if ($request->filled('bike_assignment_status')) {
+            $chips[] = ['key' => 'bike_assignment_status', 'label' => 'Status', 'value' => (string) $request->bike_assignment_status];
+        }
+
+        if ($request->filled('rider_status')) {
+            $chips[] = ['key' => 'rider_status', 'label' => 'Rider Status', 'value' => ucfirst((string) $request->rider_status)];
+        }
+
+        if ($request->filled('payout_type')) {
+            $chips[] = ['key' => 'payout_type', 'label' => 'Payout', 'value' => (string) $request->payout_type];
+        }
+
+        if ($request->filled('quick_search')) {
+            $chips[] = ['key' => 'quick_search', 'label' => 'Search', 'value' => (string) $request->quick_search];
+        }
+
+        return $chips;
     }
 
     /**
@@ -858,7 +1083,9 @@ class RiderActivitiesController extends AppBaseController
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
         $query = liveactivities::query()
-            ->with('rider')
+            ->with(['rider' => function ($q) {
+                $q->with('customer');
+            }])
             ->orderByDesc('date')
             ->orderByDesc('id');
         $query->whereHas('rider');
@@ -954,6 +1181,12 @@ class RiderActivitiesController extends AppBaseController
             });
         }
 
+        if ($request->filled('customer_id')) {
+            $query->whereHas('rider', function ($q) use ($request) {
+                $q->where('customer_id', $request->customer_id);
+            });
+        }
+
         if ($request->filled('payout_type')) {
             $query->where('payout_type', $request->payout_type);
         }
@@ -972,6 +1205,23 @@ class RiderActivitiesController extends AppBaseController
             });
         }
 
+        if ($request->filled('quick_search')) {
+            $term = '%' . trim((string) $request->quick_search) . '%';
+            $query->whereHas('rider', function ($rq) use ($term) {
+                $rq->where(function ($inner) use ($term) {
+                    $inner->where('name', 'like', $term)
+                        ->orWhere('rider_id', 'like', $term)
+                        ->orWhere('fleet_supervisor', 'like', $term);
+                });
+            });
+        }
+
+        $this->applyModuleTopBarFilters($query, $request, 'activities');
+        $this->applyRiderSettingsTopBarFilter($query, $request);
+
+        $insightService = app(RiderActivityInsightCardsService::class);
+        $insightService->applyInsightFilter($query, $request);
+
         // Get all data for totals calculation (before pagination)
         $allData = (clone $query)->get();
 
@@ -989,7 +1239,11 @@ class RiderActivitiesController extends AppBaseController
             $data->appends($request->query());
         }
 
-        $riders = Riders::select('id', 'name', 'rider_id')
+        Riders::hydrateEmploymentStatusDays(
+            collect(method_exists($data, 'items') ? $data->items() : $data)->map->rider
+        );
+
+        $riders = Riders::select('id', 'name', 'rider_id', 'fleet_supervisor', 'image_name')
             ->orderBy('name')
             ->get();
 
@@ -1007,6 +1261,27 @@ class RiderActivitiesController extends AppBaseController
             ->orderBy('payout_type')
             ->pluck('payout_type');
 
+        $customerIds = Riders::query()
+            ->whereNotNull('customer_id')
+            ->where('customer_id', '!=', '')
+            ->distinct()
+            ->pluck('customer_id');
+
+        $projects = Customers::query()
+            ->whereIn('id', $customerIds)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $demoMode = 'live';
+        $insightCards = collect($insightService->liveCards($request))
+            ->reject(fn ($card) => ! empty($card['hidden_in_demo']))
+            ->values()
+            ->all();
+        $projectTicker = $insightService->projectTicker($request, 'live');
+        $alertsCount = $insightService->alertsCount($request, 'live');
+        $topBarData = $this->ridersTopBarViewData($request);
+        $filterChips = $this->buildActivityFilterChips($request, $projects, $riders, $insightCards, $topBarData);
+
         if ($request->ajax()) {
             $tableData = view('rider_live_activities.table', ['data' => $data, 'totals' => $totals])->render();
             $paginationLinks = method_exists($data, 'links')
@@ -1017,12 +1292,27 @@ class RiderActivitiesController extends AppBaseController
                 'tableData' => $tableData,
                 'paginationLinks' => $paginationLinks,
                 'totals' => $totals,
+                'insightCards' => $insightCards,
+                'alertsCount' => $alertsCount,
             ]);
         }
 
         $importSummary = session('activities_import_summary');
 
-        return view('rider_live_activities.index', compact('data', 'riders', 'fleetSupervisors', 'payoutTypes', 'totals', 'importSummary'));
+        return view('rider_live_activities.index', array_merge(compact(
+            'data',
+            'riders',
+            'fleetSupervisors',
+            'payoutTypes',
+            'totals',
+            'importSummary',
+            'projects',
+            'demoMode',
+            'insightCards',
+            'projectTicker',
+            'alertsCount',
+            'filterChips'
+        ), $topBarData));
     }
     public function liveimportactivities(Request $request, RiderActivityImportMappingService $importMappingService)
     {

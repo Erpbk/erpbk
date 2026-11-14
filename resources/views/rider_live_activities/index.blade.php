@@ -3,25 +3,46 @@
 @section('title','Rider Live Activities')
 
 @php
+$hideModuleTopBarSlider = true;
 $importSummary = $importSummary ?? null;
 $importSuccessMessage = session('success');
 $importErrorMessage = session('error');
+$demoMode = $demoMode ?? 'live';
+$insightCards = $insightCards ?? [];
+$projectTicker = $projectTicker ?? [];
+$alertsCount = $alertsCount ?? 0;
+$filterChips = $filterChips ?? [];
+$projects = $projects ?? collect();
+$topBarSliderCategories = $topBarSliderCategories ?? collect();
+$topBarOptionStats = $topBarOptionStats ?? [];
+$topBarConfig = $topBarConfig ?? \App\Support\ErpModuleRegistry::topBarConfig('riders');
+$topBarStatDefinitions = $topBarStatDefinitions ?? app(\App\Services\Module\TopBarListingService::class)->statDefinitions('riders');
 @endphp
 
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
+@include('rider_activities.partials.demo_shell_styles')
 @endpush
 
 @section('content')
 @can('riders_live_activities_view')
-<div class="row mb-2">
-  <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+<div style="display: none;" class="loading-overlay" id="loading-overlay">
+  <div class="spinner-border text-primary" role="status"></div>
+</div>
+
+<div id="filterSidebar" class="filter-sidebar ra-filter-drawer" style="z-index: 1111;">
     <div class="filter-header">
       <h5>Filter Live Activities</h5>
       <button type="button" class="btn-close" id="closeSidebar"></button>
     </div>
     <div class="filter-body" id="searchTopbody">
       <form id="filterForm" action="{{ route('rider.liveactivities') }}" method="GET">
+        @if(request()->filled('rider_top_option_id'))
+          <input type="hidden" name="rider_top_option_id" value="{{ request('rider_top_option_id') }}">
+        @endif
+        @if(request()->filled('insight_card'))
+          <input type="hidden" name="insight_card" value="{{ request('insight_card') }}">
+        @endif
         <div class="row">
           <div class="form-group col-md-12">
             <label for="id">Filter by Rider ID</label>
@@ -77,6 +98,18 @@ $importErrorMessage = session('error');
           </div>
 
           <div class="form-group col-md-12">
+            <label for="customer_id">Filter by Project</label>
+            <select class="form-control" id="customer_id" name="customer_id">
+              <option value="" selected>Select</option>
+              @foreach($projects as $project)
+              <option value="{{ $project->id }}" {{ (string) request('customer_id') === (string) $project->id ? 'selected' : '' }}>
+                {{ $project->name }}
+              </option>
+              @endforeach
+            </select>
+          </div>
+
+          <div class="form-group col-md-12">
             <label for="valid_day">Filter by Valid Day</label>
             <select class="form-control" id="valid_day" name="valid_day">
               <option value="" selected>All</option>
@@ -117,74 +150,57 @@ $importErrorMessage = session('error');
             </select>
           </div>
 
-          <div class="col-md-12 form-group text-center">
-            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+          <div class="col-md-12 form-group ra-filter-ft">
+            <button type="submit" class="ra-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg> Filter Data</button>
+            <a href="{{ route('rider.liveactivities') }}" class="ra-btn ghost">Reset</a>
           </div>
         </div>
       </form>
     </div>
-  </div>
-  <!-- Filter Overlay -->
-  <div id="filterOverlay" class="filter-overlay"></div>
 </div>
+<div id="filterOverlay" class="filter-overlay"></div>
 
-@include('rider_activities.partials.tabs_and_operations', ['activeActivitiesTab' => 'live'])
+<div class="ra-demo" id="riderLiveActivitiesDemo">
+  <div class="ra-wrap">
+    @include('flash::message')
 
-<section class="content">
-  @php
-  $activity = new App\Models\liveactivities();
-  $result = $activity->select('*');
-  if(request('month')){
-  $result->where(\DB::raw('DATE_FORMAT(date, "%Y-%m")'), '=', request('month') ?? date('Y-m'));
-  }
-  if(request('rider_id')){
-  $result->where('rider_id',request('rider_id'));
-  }
+    {{-- 1) Status + project cards (one line) --}}
+    @include('rider_activities.partials.project_ticker', [
+      'projectTicker' => $projectTicker,
+      'demoMode' => 'live',
+      'topBarSliderCategories' => $topBarSliderCategories,
+      'topBarOptionStats' => $topBarOptionStats,
+      'topBarConfig' => $topBarConfig,
+    ])
 
-  //$activity->get();
-  @endphp
+    {{-- 3) Tabs --}}
+    @include('rider_activities.partials.demo_tabs', ['activeActivitiesTab' => 'live'])
 
-  <div class="card h-100" style="border-radius: 0px !important;">
-    <div class="card-header d-flex justify-content-between">
-      <h5 class="card-title mb-0"><b>Rider Live Activities</b> (Statistics)</h5>
-    </div>
-    <div class="card-body">
-      <div id="totalsBar" class="mb-2">
-        <div class="totals-cards">
+    {{-- 4) Toolbar --}}
+    @include('rider_activities.partials.demo_toolbar', [
+      'demoMode' => 'live',
+      'alertsCount' => $alertsCount,
+      'filterChips' => $filterChips,
+    ])
 
-          <div class="total-card total-valid-days">
-            <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
-            <div class="value" id="total_orders">{{ number_format($totals['total_orders'] ?? 0) }}</div>
-          </div>
-          <div class="total-card total-ontime">
-            <div class="label"><i class="fa fa-calendar-check"></i>OnTime%</div>
-            <div class="value" id="avg_ontime">{{ number_format($totals['avg_ontime'] ?? 0, 2) }}%</div>
-          </div>
-          <div class="total-card total-rejected">
-            <div class="label"><i class="fa fa-calendar-check"></i>Rejection</div>
-            <div class="value" id="total_rejected">{{ number_format($totals['total_rejected'] ?? 0) }}</div>
-          </div>
-          <div class="total-card total-hours">
-            <div class="label"><i class="fa fa-calendar-check"></i>Total Hours</div>
-            <div class="value" id="total_hours">{{ number_format($totals['total_hours'] ?? 0, 2) }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
+    {{-- 5) Insight metric cards (static grid) --}}
+    @include('rider_activities.partials.insight_cards', [
+      'insightCards' => $insightCards,
+      'demoMode' => 'live',
+    ])
 
-<div class="content">
-  @include('flash::message')
-  <div class="clearfix"></div>
-
-  <div class="card" style="border-radius: 0px !important;">
-    <div class="card-body table-responsive px-2 py-0" id="table-data">
-      @include('rider_live_activities.table', ['data' => $data])
+    <div class="ra-tbox" id="table-data">
+      @include('rider_live_activities.table', ['data' => $data, 'totals' => $totals ?? []])
     </div>
   </div>
 </div>
 
+@include('rider_activities.partials.whatsapp_alerts_drawer', [
+  'demoMode' => 'live',
+  'insightCards' => $insightCards,
+  'projects' => $projects,
+  'riders' => $riders ?? collect(),
+])
 @else
 <div class="card">
   <div class="card-body">
@@ -194,6 +210,7 @@ $importErrorMessage = session('error');
 @endcan
 @endsection
 @section('page-script')
+@include('rider_activities.partials.demo_scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script type="text/javascript">
   function confirmDelete(url) {
@@ -246,6 +263,11 @@ $importErrorMessage = session('error');
       dropdownParent: $('#searchTopbody'),
       placeholder: "Filter By Bike Assignment",
       allowClear: true, // ✅ cross icon enable
+    });
+    $('#customer_id').select2({
+      dropdownParent: $('#searchTopbody'),
+      placeholder: "Filter By Project",
+      allowClear: true,
     });
     $('#from_date_range').on('change', function() {
       const selectedValue = $(this).val();

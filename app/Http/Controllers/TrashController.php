@@ -37,6 +37,8 @@ use App\Models\Vouchers;
 use App\Models\Payment;
 use App\Models\Receipt;
 use App\Models\Transactions;
+use App\Models\VatReturn;
+use App\Services\PaymentDeletionService;
 use App\Services\ActivityLogger;
 use App\Services\DeleteRequestService;
 use App\Services\FuelMonthlyLedgerService;
@@ -314,6 +316,12 @@ class TrashController extends Controller
             'name' => 'Payments',
             'icon' => 'fa-money-bill',
             'display_columns' => ['id', 'reference', 'date_of_payment', 'billing_month', 'amount', 'status'],
+        ],
+        'vat_returns' => [
+            'model' => VatReturn::class,
+            'name' => 'VAT Returns',
+            'icon' => 'fa-receipt',
+            'display_columns' => ['id', 'quarter_label', 'year', 'status'],
         ],
         'receipts' => [
             'model' => Receipt::class,
@@ -626,6 +634,24 @@ class TrashController extends Controller
                 $restoredItems[] = $relinked . ' salik record(s) re-linked';
             }
 
+            if ($module === 'vouchers' && $record instanceof Vouchers) {
+                $relatedPayment = Payment::withTrashed()->where('voucher_id', $record->id)->first();
+                if ($relatedPayment && ! $relatedPayment->trashed()) {
+                    PaymentDeletionService::reapplyRelatedAllocations($relatedPayment);
+                    $restoredItems[] = 'VAT return payment allocation reapplied';
+                }
+            }
+
+            if ($module === 'payments' && $record instanceof Payment) {
+                PaymentDeletionService::reapplyRelatedAllocations($record);
+                $restoredItems[] = 'linked invoice/return allocations reapplied';
+            }
+
+            if ($module === 'vat_returns' && $record instanceof VatReturn) {
+                $record->restoreLinkedClearing();
+                $restoredItems[] = 'linked clearing ledger restored';
+            }
+
             if ($module === 'fuel_data' && $record instanceof FuelData) {
                 $this->syncFuelMonthlyLedger($record);
                 $restoredItems[] = 'monthly fuel ledger synced';
@@ -765,7 +791,7 @@ class TrashController extends Controller
             // Check for business constraints before permanent deletion
             // Check constraint tables directly from database
             // Fuel/voucher/invoice children are not keyed by the parent id as account_id/customer_id.
-            if (! in_array($module, ['fuel_cards', 'fuel_data', 'vouchers', 'sim_invoices', 'supplier_invoices', 'bike_maintenance', 'visa_expenses', 'license_expenses', 'visa_installment_plans', 'license_installment_plans'], true)) {
+            if (! in_array($module, ['fuel_cards', 'fuel_data', 'vouchers', 'sim_invoices', 'supplier_invoices', 'bike_maintenance', 'visa_expenses', 'license_expenses', 'visa_installment_plans', 'license_installment_plans', 'vat_returns', 'payments'], true)) {
                 $constraintTables = [
                     'transactions' => ['account_id', 'customer_id', 'vendor_id', 'supplier_id'],
                     'invoices' => ['customer_id', 'vendor_id'],
@@ -877,6 +903,14 @@ class TrashController extends Controller
             }
 
             $this->forgetDeletionCascades($config['model'], $id);
+
+            if ($module === 'vat_returns' && $record instanceof VatReturn) {
+                Transactions::withTrashed()
+                    ->where('reference_type', VatReturn::LEDGER_REFERENCE_TYPE)
+                    ->where('reference_id', $record->id)
+                    ->forceDelete();
+                $deletedItems[] = 'clearing ledger';
+            }
 
             // Permanently delete the primary record using Eloquent
             DeleteRequestService::markPermanentlyDeletedFromBin($record, auth()->user());

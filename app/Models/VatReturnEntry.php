@@ -21,4 +21,14 @@ class VatReturnEntry extends BaseModel
     {
         return $this->belongsTo(Transactions::class);
     }
+
+    /**
+     * Transaction IDs that belong to a non-trashed VAT return (still "filed").
+     */
+    public static function filedTransactionIdsQuery()
+    {
+        return static::query()
+            ->whereHas('vatReturn')
+            ->select('transaction_id');
+    }
 }

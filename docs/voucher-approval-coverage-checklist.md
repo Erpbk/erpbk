@@ -25,7 +25,6 @@ Ledger hold is centralized in `TransactionService::recordTransaction` and `Trans
 | GV | garage_items | Yes | show_modal | |
 | RI | riders invoices | Yes | show_modal | |
 | VP | vat | Yes | show_modal | |
-| VV | vat | Yes (type seeded in migration) | show_modal | |
 | BL | loans | Yes | show_modal | |
 | FAV | assets | Yes | show_modal | |
 | FDV | assets | Yes | show_modal | |

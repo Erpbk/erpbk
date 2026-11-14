@@ -11,7 +11,7 @@ class VoucherApprovalRegistryTest extends TestCase
     {
         $required = [
             'JV', 'TRF', 'PV', 'RV', 'AL', 'COD', 'PN', 'INC', 'PAY', 'VC',
-            'EXP', 'LV', 'VL', 'LE', 'VR', 'RFV', 'SV', 'GV', 'RI', 'VP', 'VV',
+            'EXP', 'LV', 'VL', 'LE', 'VR', 'RFV', 'SV', 'GV', 'RI', 'VP',
             'BL', 'FAV', 'FDV', 'IL',
         ];
 

@@ -3,19 +3,33 @@
 @section('title','Rider Activities')
 
 @php
+$hideModuleTopBarSlider = true;
 $isAllTab = $isAllTab ?? false;
 $isConsolidated = $isConsolidated ?? false;
 $projects = $projects ?? collect();
+$demoMode = $demoMode ?? ($isAllTab ? 'summary' : 'activities');
+$insightCards = $insightCards ?? [];
+$projectTicker = $projectTicker ?? [];
+$alertsCount = $alertsCount ?? 0;
+$filterChips = $filterChips ?? [];
+$topBarSliderCategories = $topBarSliderCategories ?? collect();
+$topBarOptionStats = $topBarOptionStats ?? [];
+$topBarConfig = $topBarConfig ?? \App\Support\ErpModuleRegistry::topBarConfig('riders');
+$topBarStatDefinitions = $topBarStatDefinitions ?? app(\App\Services\Module\TopBarListingService::class)->statDefinitions('riders');
 @endphp
 
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
+@include('rider_activities.partials.demo_shell_styles')
 @endpush
 
 @section('content')
 @can('riders_activities_view')
-<div class="row mb-2">
-  <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+<div style="display: none;" class="loading-overlay" id="loading-overlay">
+  <div class="spinner-border text-primary" role="status"></div>
+</div>
+
+<div id="filterSidebar" class="filter-sidebar ra-filter-drawer" style="z-index: 1111;">
     <div class="filter-header">
       <h5>{{ $isAllTab ? 'Filter Rider Summary' : 'Filter Rider Activities' }}</h5>
       <button type="button" class="btn-close" id="closeSidebar"></button>
@@ -24,8 +38,11 @@ $projects = $projects ?? collect();
       @if($isAllTab)
       <form id="allFilterForm" action="{{ route('riderActivities.index') }}" method="GET">
         <input type="hidden" name="tab" value="all">
-        @if(request()->filled('top_option_id'))
-          <input type="hidden" name="top_option_id" value="{{ request('top_option_id') }}">
+        @if(request()->filled('rider_top_option_id'))
+          <input type="hidden" name="rider_top_option_id" value="{{ request('rider_top_option_id') }}">
+        @endif
+        @if(request()->filled('insight_card'))
+          <input type="hidden" name="insight_card" value="{{ request('insight_card') }}">
         @endif
         <div class="row">
           <div class="form-group col-md-12">
@@ -87,16 +104,19 @@ $projects = $projects ?? collect();
               @endforeach
             </select>
           </div>
-          <div class="col-md-12 form-group text-center">
-            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-            <a href="{{ route('riderActivities.index', ['tab' => 'all']) }}" class="btn btn-outline-secondary pull-right mt-3 mx-2">Reset</a>
+          <div class="col-md-12 form-group ra-filter-ft">
+            <button type="submit" class="ra-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg> Filter Data</button>
+            <a href="{{ route('riderActivities.index', ['tab' => 'all']) }}" class="ra-btn ghost">Reset</a>
           </div>
         </div>
       </form>
       @else
       <form id="filterForm" action="{{ route('riderActivities.index') }}" method="GET">
-        @if(request()->filled('top_option_id'))
-          <input type="hidden" name="top_option_id" value="{{ request('top_option_id') }}">
+        @if(request()->filled('rider_top_option_id'))
+          <input type="hidden" name="rider_top_option_id" value="{{ request('rider_top_option_id') }}">
+        @endif
+        @if(request()->filled('insight_card'))
+          <input type="hidden" name="insight_card" value="{{ request('insight_card') }}">
         @endif
         <div class="row">
           <div class="form-group col-md-12">
@@ -193,132 +213,85 @@ $projects = $projects ?? collect();
               <option value="Inactive" {{ request('bike_assignment_status') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
             </select>
           </div>
-          <div class="col-md-12 form-group text-center">
-            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+          <div class="col-md-12 form-group ra-filter-ft">
+            <button type="submit" class="ra-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg> Filter Data</button>
+            <a href="{{ route('riderActivities.index') }}" class="ra-btn ghost">Reset</a>
           </div>
         </div>
       </form>
       @endif
     </div>
-  </div>
-  <div id="filterOverlay" class="filter-overlay"></div>
 </div>
+<div id="filterOverlay" class="filter-overlay"></div>
 
-@include('rider_activities.partials.tabs_and_operations', [
-'activeActivitiesTab' => $isAllTab ? 'summary' : 'activities'
-])
+<div class="ra-demo" id="riderActivitiesDemo">
+  <div class="ra-wrap">
+    @include('flash::message')
 
-@if($isAllTab)
-<section class="content">
-  <div class="card h-100" style="border-radius: 0px !important;">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h5 class="card-title mb-0"><b>Rider Summary</b></h5>
-    </div>
-    <div class="card-body">
-      @if($isConsolidated)
-      <div class="alert alert-info mb-3 py-2">
-        Showing one consolidated row per rider
-        @if(request('rider_id'))
-        for the selected rider
-        @endif
-        @if(request('from_date') && request('to_date'))
-        between
-        <strong>{{ \Carbon\Carbon::parse(request('from_date'))->format('d M Y') }}</strong>
-        and
-        <strong>{{ \Carbon\Carbon::parse(request('to_date'))->format('d M Y') }}</strong>
-        @elseif(request('from_date'))
+    {{-- 1) Status + project cards (one line) --}}
+    @include('rider_activities.partials.project_ticker', [
+      'projectTicker' => $projectTicker,
+      'demoMode' => $demoMode,
+      'topBarSliderCategories' => $topBarSliderCategories,
+      'topBarOptionStats' => $topBarOptionStats,
+      'topBarConfig' => $topBarConfig,
+    ])
+
+    {{-- 3) Tabs --}}
+    @include('rider_activities.partials.demo_tabs', [
+      'activeActivitiesTab' => $isAllTab ? 'summary' : 'activities',
+    ])
+
+    {{-- 4) Toolbar --}}
+    @include('rider_activities.partials.demo_toolbar', [
+      'demoMode' => $demoMode,
+      'alertsCount' => $alertsCount,
+      'filterChips' => $filterChips,
+    ])
+
+    {{-- 5) Insight metric cards (static grid) --}}
+    @include('rider_activities.partials.insight_cards', [
+      'insightCards' => $insightCards,
+      'demoMode' => $demoMode,
+    ])
+
+    @if($isAllTab && $isConsolidated)
+    <div class="alert alert-info mb-3 py-2">
+      Showing one consolidated row per rider
+      @if(request('rider_id')) for the selected rider @endif
+      @if(request('from_date') && request('to_date'))
+        between <strong>{{ \Carbon\Carbon::parse(request('from_date'))->format('d M Y') }}</strong>
+        and <strong>{{ \Carbon\Carbon::parse(request('to_date'))->format('d M Y') }}</strong>
+      @elseif(request('from_date'))
         from <strong>{{ \Carbon\Carbon::parse(request('from_date'))->format('d M Y') }}</strong>
-        @elseif(request('to_date'))
+      @elseif(request('to_date'))
         up to <strong>{{ \Carbon\Carbon::parse(request('to_date'))->format('d M Y') }}</strong>
-        @elseif(request('billing_month'))
-        for billing month
-        <strong>{{ \Carbon\Carbon::parse(request('billing_month') . '-01')->format('M-Y') }}</strong>
-        @else
+      @elseif(request('billing_month'))
+        for billing month <strong>{{ \Carbon\Carbon::parse(request('billing_month') . '-01')->format('M-Y') }}</strong>
+      @else
         across all activity records
-        @endif.
-      </div>
-      @endif
-
-      <div id="totalsBar" class="mb-2">
-        <div class="totals-cards">
-          <div class="total-card total-delivered">
-            <div class="label"><i class="fa fa-calendar"></i>Total Days</div>
-            <div class="value" id="working_days">{{ number_format($totals['valid_days'] ?? 0) }}</div>
-          </div>
-          <div class="total-card total-valid-days">
-            <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
-            <div class="value" id="total_orders">{{ number_format($totals['total_orders'] ?? 0) }}</div>
-          </div>
-          <div class="total-card total-ontime">
-            <div class="label"><i class="fa fa-calendar-check"></i>OnTime%</div>
-            <div class="value" id="avg_ontime">{{ number_format($totals['avg_ontime'] ?? 0, 2) }}%</div>
-          </div>
-          <div class="total-card total-rejected">
-            <div class="label"><i class="fa fa-calendar-check"></i>Rejection</div>
-            <div class="value" id="total_rejected">{{ number_format($totals['total_rejected'] ?? 0) }}</div>
-          </div>
-          <div class="total-card total-hours">
-            <div class="label"><i class="fa fa-calendar-check"></i>Total Hours</div>
-            <div class="value" id="total_hours">{{ number_format($totals['total_hours'] ?? 0, 2) }}</div>
-          </div>
-        </div>
-      </div>
+      @endif.
     </div>
-  </div>
-</section>
+    @endif
 
-<div class="content">
-  @include('flash::message')
-  <div class="clearfix"></div>
-
-  <div class="card" style="border-radius: 0px !important;">
-    <div class="card-body table-responsive px-2 py-0" id="table-data">
-      @include('rider_activities.table', ['data' => $data, 'totals' => $totals ?? [], 'isConsolidated' => $isConsolidated, 'isAllTab' => false, 'hideDay' => true])
+    <div class="ra-tbox" id="table-data">
+      @include('rider_activities.table', [
+        'data' => $data,
+        'totals' => $totals ?? [],
+        'isConsolidated' => $isConsolidated,
+        'isAllTab' => $isAllTab,
+        'hideDay' => $isAllTab,
+      ])
     </div>
   </div>
 </div>
-@else
-<section class="content">
-  <div class="card h-100" style="border-radius: 0px !important;">
-    <div class="card-header d-flex justify-content-between">
-      <h5 class="card-title mb-0"><b>Rider Activities</b> (Statistics)</h5>
-    </div>
-    <div class="card-body">
-      <div id="totalsBar" class="mb-2">
-        <div class="totals-cards">
-          <div class="total-card total-valid-days">
-            <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
-            <div class="value" id="total_orders">{{ number_format($totals['total_orders'] ?? 0) }}</div>
-          </div>
-          <div class="total-card total-ontime">
-            <div class="label"><i class="fa fa-calendar-check"></i>OnTime%</div>
-            <div class="value" id="avg_ontime">{{ number_format($totals['avg_ontime'] ?? 0, 2) }}%</div>
-          </div>
-          <div class="total-card total-rejected">
-            <div class="label"><i class="fa fa-calendar-check"></i>Rejection</div>
-            <div class="value" id="total_rejected">{{ number_format($totals['total_rejected'] ?? 0) }}</div>
-          </div>
-          <div class="total-card total-hours">
-            <div class="label"><i class="fa fa-calendar-check"></i>Total Hours</div>
-            <div class="value" id="total_hours">{{ number_format($totals['total_hours'] ?? 0, 2) }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
 
-<div class="content">
-  @include('flash::message')
-  <div class="clearfix"></div>
-
-  <div class="card" style="border-radius: 0px !important;">
-    <div class="card-body table-responsive px-2 py-0" id="table-data">
-      @include('rider_activities.table', ['data' => $data, 'totals' => $totals ?? [], 'isConsolidated' => false, 'isAllTab' => false])
-    </div>
-  </div>
-</div>
-@endif
+@include('rider_activities.partials.whatsapp_alerts_drawer', [
+  'demoMode' => $demoMode,
+  'insightCards' => $insightCards,
+  'projects' => $projects,
+  'riders' => $riders ?? collect(),
+])
 @else
 <div class="card">
   <div class="card-body">
@@ -328,6 +301,7 @@ $projects = $projects ?? collect();
 @endcan
 @endsection
 @section('page-script')
+@include('rider_activities.partials.demo_scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script type="text/javascript">
   function confirmDelete(url) {

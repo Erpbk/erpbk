@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * 1) Ensure VV (VAT Return) exists in voucher_types.
+ * 1) Ensure VTR (VAT Return) exists in voucher_types.
  * 2) Legacy backfill: mark ALL existing vouchers approved with a history entry.
  *
  * Do NOT run against production without explicit confirmation.
@@ -17,9 +17,9 @@ return new class extends Migration
     {
         if (Schema::hasTable('voucher_types')) {
             $now = now();
-            if (! DB::table('voucher_types')->where('code', 'VV')->exists()) {
+            if (! DB::table('voucher_types')->where('code', 'VTR')->exists()) {
                 $row = [
-                    'code' => 'VV',
+                    'code' => 'VTR',
                     'label' => 'VAT Return',
                     'display_order' => 99,
                     'is_active' => 1,
@@ -116,7 +116,7 @@ return new class extends Migration
         }
 
         if (Schema::hasTable('voucher_types')) {
-            DB::table('voucher_types')->where('code', 'VV')->delete();
+            DB::table('voucher_types')->where('code', 'VTR')->delete();
         }
     }
 };

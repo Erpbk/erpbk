@@ -81,6 +81,16 @@ if (! function_exists('ga_name')) {
     }
 }
 
+if (! function_exists('ga_account')) {
+    /**
+     * Resolve a global Accounts model by code, or null when not configured.
+     */
+    function ga_account(string $code): ?\App\Models\Accounts
+    {
+        return \App\Support\GlobalAccounts::accountOrNull($code);
+    }
+}
+
 /*
 |--------------------------------------------------------------------------
 | Field-level permission helpers (single source of truth)

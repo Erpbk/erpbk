@@ -1,0 +1,285 @@
+/* VAT Ledger / Return File – riders-list-demo companion styles */
+
+.vat-demo .totals-cards {
+  margin: 0 0 12px 0;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+}
+.vat-demo .totals-cards .total-card {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  box-sizing: border-box;
+  cursor: default;
+}
+.vat-demo .totals-cards .total-card.vat-pane-tile {
+  cursor: pointer;
+}
+.vat-demo .totals-cards .total-card.vat-pane-tile.is-on {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+  box-shadow: 0 2px 10px rgba(59, 63, 216, 0.18);
+}
+
+.vat-demo .vat-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.vat-demo .vat-head h5 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1e293b;
+}
+.vat-demo .vat-head .hint {
+  font-size: 11.5px;
+  color: #6b7280;
+}
+
+.vat-demo .rl-tbox {
+  max-height: calc(100vh - 290px);
+  overflow: auto;
+}
+.vat-demo .rl-tbox table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #f8f9fa;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-align: center;
+  box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.08);
+}
+.vat-demo .rl-tbox table tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: #f8f9fa;
+  font-weight: 700;
+  border-top: 2px solid #c7d2fe;
+}
+.vat-demo .rl-tbox tbody tr:nth-child(even) td { background: #f8fbff; }
+.vat-demo .rl-tbox tbody tr:hover td { background: #eef2ff; }
+.vat-demo .rl-tbox tbody tr.vat-chk td { background: #e0e7ff !important; }
+.vat-demo .rl-tbox tbody tr.vat-bf td { color: #6b7280; font-weight: 600; }
+
+.vat-demo .vat-pill {
+  display: inline-block;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.vat-demo .vat-pill.out { background: #dcfce7; color: #15803d; }
+.vat-demo .vat-pill.in { background: #ffedd5; color: #c2410c; }
+.vat-demo .vat-pill.mo { background: #ede9fe; color: #6d28d9; }
+.vat-demo .vat-pill .code { opacity: 0.65; font-weight: 500; }
+
+.vat-demo .vat-src {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  background: #f1f5f9;
+  color: #475569;
+}
+.vat-demo .vat-src.salik { background: #e0e7ff; color: #3730a3; }
+.vat-demo .vat-src.rta { background: #fee2e2; color: #b91c1c; }
+.vat-demo .vat-src.fuel { background: #fef3c7; color: #92400e; }
+.vat-demo .vat-src.customer { background: #dcfce7; color: #15803d; }
+.vat-demo .vat-src.rental { background: #e0f2fe; color: #0369a1; }
+.vat-demo .vat-src.leasing { background: #ede9fe; color: #6d28d9; }
+.vat-demo .vat-src.sim { background: #cffafe; color: #0e7490; }
+.vat-demo .vat-src.supplier { background: #f1f5f9; color: #475569; }
+.vat-demo .vat-src.expense,
+.vat-demo .vat-src.visa { background: #ffe4e6; color: #be123c; }
+
+.vat-demo .vat-nar {
+  text-align: left;
+  min-width: 200px;
+  max-width: 280px;
+}
+.vat-demo .vat-nar .tx {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+}
+.vat-demo .vat-dr { color: #c2410c; font-weight: 600; }
+.vat-demo .vat-cr { color: #15803d; font-weight: 600; }
+.vat-demo .vat-z { color: #cbd5e1; }
+.vat-demo .vat-bal { font-weight: 700; color: #111827; }
+.vat-demo .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vat-demo .vat-date b { color: #1e293b; }
+.vat-demo .vat-date span { color: #94a3b8; }
+
+.vat-float {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translate(-50%, 160%);
+  transition: transform 0.25s ease;
+  z-index: 80;
+  background: #fff;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  padding: 8px 10px 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 12px 30px rgba(0, 0, 255, 0.15);
+}
+.vat-float.show { transform: translate(-50%, 0); }
+.vat-float .k {
+  display: block;
+  font-size: 10px;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+.vat-float .n {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.vat-demo .vat-pane { display: none; }
+.vat-demo .vat-pane.is-active { display: block; }
+
+.vat-demo .vat-ent > td {
+  background: #fbfcff !important;
+  padding: 0 16px 12px 16px;
+  white-space: normal;
+}
+.vat-demo .vat-ent table {
+  border: 1px solid #e0ecff;
+  width: 100%;
+  margin-top: 8px;
+}
+.vat-demo .vat-ent th {
+  background: #eef2ff;
+  position: static !important;
+  box-shadow: none !important;
+  text-transform: uppercase;
+  font-size: 10.5px;
+}
+.vat-demo .vat-ent td { text-align: left; white-space: normal; background: #fff !important; }
+.vat-demo .vat-rempty {
+  text-align: center;
+  padding: 50px 10px;
+  color: #94a3b8;
+}
+.vat-demo .vat-rid {
+  color: #0000ff;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+.vat-demo .vat-rid:hover { text-decoration: underline; }
+.vat-demo .vat-rb {
+  display: inline-block;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.vat-demo .vat-rb.unpaid { background: #fff7ed; color: #c2410c; }
+.vat-demo .vat-rb.paid { background: none; color: #0000ff; font-size: 13px; padding: 0; }
+.vat-demo .vat-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.vat-demo .vat-sb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  min-width: 56px;
+  border-radius: 8px;
+  background: #3b3fd8;
+  border: 1px solid #3b3fd8;
+  box-shadow: none;
+  padding: 0 12px;
+  margin: 0;
+  font: 600 12px Inter, system-ui, sans-serif;
+  color: #fff;
+  cursor: pointer;
+  text-decoration: none;
+  line-height: 1;
+}
+.vat-demo .vat-sb:hover { background: #2f33b8; border-color: #2f33b8; color: #fff; }
+.vat-demo .vat-sb.pay {
+  background: #fff;
+  color: #3b3fd8;
+  border-color: #c7d2fe;
+}
+.vat-demo .vat-sb.pay:hover { background: #eef2ff; color: #3b3fd8; }
+.vat-demo .vat-sb.ol {
+  background: #fff;
+  color: #3b3fd8;
+  border-color: #c7d2fe;
+}
+.vat-demo .vat-sb.ol:hover { background: #eef2ff; color: #3b3fd8; }
+.vat-demo .vat-sb.rd {
+  background: #fff;
+  color: #dc2626;
+  border-color: #fecaca;
+  min-width: 30px;
+  padding: 0 8px;
+}
+.vat-demo .vat-sb.rd:hover { background: #fef2f2; }
+
+.vat-demo .rl-btn .cnt {
+  background: #fff;
+  color: #3b3fd8;
+  border-radius: 999px;
+  padding: 0 7px;
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+/* Filter sidebar actions sit outside .riders-list-demo, so use Bootstrap buttons. */
+.vat-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #eef0f4;
+}
+.vat-filter-actions .btn {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 992px) {
+  .vat-demo .totals-cards { flex-wrap: wrap; }
+  .vat-demo .totals-cards .total-card {
+    flex: 1 1 calc(50% - 6px);
+    min-width: calc(50% - 6px);
+  }
+}
+@media (max-width: 576px) {
+  .vat-demo .totals-cards .total-card {
+    flex: 1 1 100%;
+    min-width: 100%;
+  }
+  .vat-float {
+    flex-wrap: wrap;
+    gap: 10px;
+    width: calc(100% - 24px);
+  }
+}

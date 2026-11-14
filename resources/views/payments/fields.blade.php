@@ -25,8 +25,14 @@ $defaultBillingMonth = date('Y-m');
 }
 $savedPrimaryAmount = null;
 if (isset($payment) && $payment) {
-$savedPrimaryAmount = round((float) $payment->amount - (float) ($payment->bank_charges ?? 0), 2);
+$savedPrimaryAmount = round(
+    (float) $payment->amount
+    - (float) ($payment->bank_charges ?? 0)
+    - (float) ($payment->govt_charges ?? 0),
+    2
+);
 }
+$isVatReturnPayment = ($invoiceType ?? null) === 'vat_return';
 $defaultCreatePaymentType = old('create_payment_type', 'salary_payment');
 $currencyMark = \App\Helpers\Currency::mark();
 $currencySymbol = \App\Helpers\Currency::symbol();
@@ -164,7 +170,7 @@ default => 'Receiving Account',
                     ]) !!}
                     <div class="rpf-payee-box">
                         <div class="rpf-payee-name">{{ $lockedPayee['name'] ?? ($lockedPayee['label'] ?? '-') }}</div>
-                        @if(!empty($lockedPayee['account_code']))
+                        @if(($invoiceType ?? null) !== 'vat_return' && !empty($lockedPayee['account_code']))
                         <div class="rpf-payee-id">{{ $lockedPayee['account_code'] }}</div>
                         @endif
                     </div>
@@ -300,6 +306,8 @@ default => 'Receiving Account',
                         <th>Rider</th>
                         @elseif($invoiceType == 'sim')
                         <th>Vendor</th>
+                        @elseif($invoiceType == 'vat_return')
+                        <th>VAT Return</th>
                         @else
                         <th>Leasing Company</th>
                         @endif
@@ -373,13 +381,19 @@ default => 'Receiving Account',
                             data-reference="{{ $invoice->invoice_number }}"
                             data-invoice-date="{{ $invoiceDate }}"
                             data-billing-month="{{ $invoiceBillingMonth }}"
-                            data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id ?? optional($invoice->employee)->id ?? optional($invoice->rider)->id ?? optional($invoice->company)->id ?? optional($invoice->vendor)->id }}"
-                            data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->company)->name ?? optional($invoice->vendor)->name }}">
+                            data-customer-id="{{ ($invoiceType ?? null) === 'vat_return' ? $invoice->id : (optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id ?? optional($invoice->employee)->id ?? optional($invoice->rider)->id ?? optional($invoice->company)->id ?? optional($invoice->vendor)->id) }}"
+                            data-customer-name="{{ ($invoiceType ?? null) === 'vat_return' ? (($invoice->quarter_label ?? ('Q'.$invoice->quarter_slot)).' '.$invoice->year) : (optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->company)->name ?? optional($invoice->vendor)->name) }}">
                             <td class="text-center">
                                 <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox" {{ (string) $openedInvoiceId === (string) $invoice->id ? 'checked' : '' }}>
                             </td>
                             <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
-                            <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->company)->name ?? optional($invoice->vendor)->name ?? '-' }}</td>
+                            <td>
+                              @if(($invoiceType ?? null) === 'vat_return')
+                                {{ ($invoice->quarter_label ?? ('Q'.$invoice->quarter_slot)) . ' ' . $invoice->year }}
+                              @else
+                                {{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->company)->name ?? optional($invoice->vendor)->name ?? '-' }}
+                              @endif
+                            </td>
                             <td>{{ $invoice->billing_month ? date('M-Y', strtotime($invoice->billing_month)) : '-' }}</td>
                             <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
                             <td class="text-right">{{ number_format($invoice->paid_amount ?? 0, 2) }}</td>
@@ -440,6 +454,21 @@ default => 'Receiving Account',
                             ]) !!}
                         </div>
                     </div>
+                    @if($isVatReturnPayment)
+                    <div class="rpf-summary-row rpf-summary-charges">
+                        <span>Govt. Charges:</span>
+                        <div class="input-group input-group-sm rpf-charges-group">
+                            <span class="input-group-text">{!! $currencyMark !!}</span>
+                            {!! Form::number('govt_charges', null, [
+                            'class' => 'form-control govt_charges',
+                            'step' => 'any',
+                            'placeholder' => '0.00',
+                            'id' => 'govt_charges',
+                            'min' => '0',
+                            ]) !!}
+                        </div>
+                    </div>
+                    @endif
                     <span id="display_charges" class="d-none">0.00</span>
                     <div class="rpf-summary-total">
                         Total Payment: {!! $currencyMark !!} <span id="total_debit">0.00</span>

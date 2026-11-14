@@ -26,6 +26,16 @@ final class GlobalAccounts
         return app(GlobalAccountResolver::class)->account($code);
     }
 
+    public static function accountOrNull(string $code): ?Accounts
+    {
+        $accountId = self::idOrNull($code);
+        if ($accountId === null) {
+            return null;
+        }
+
+        return Accounts::withoutGlobalScopes(['company', 'branch'])->find($accountId);
+    }
+
     public static function name(string $code): string
     {
         return self::account($code)->name ?? $code;

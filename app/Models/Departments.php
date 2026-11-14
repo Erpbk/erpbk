@@ -14,7 +14,8 @@ class Departments extends BaseModel
     public $fillable = [
         'name',
         'detail',
-        'status'
+        'status',
+        'company_id',
     ];
 
     protected $casts = [

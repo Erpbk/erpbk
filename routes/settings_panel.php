@@ -19,7 +19,20 @@ Route::get('settings-pane/{path?}', function (Request $request, ?string $path = 
 // Settings Panel (opens in separate window, Zoho-style admin)
 Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings'])->group(function () {
     Route::get('/', [App\Http\Controllers\SettingsPanelController::class, 'index'])->name('settings-panel.index');
-    Route::match(['get', 'post'], '/company', [HomeController::class, 'settings'])->name('settings-panel.company');
+    Route::get('/company', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'index'])->name('settings-panel.company');
+    Route::post('/company/entities', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'storeEntity'])->name('settings-panel.company.entities.store');
+    Route::post('/company/entities/{profile}', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'save'])->whereNumber('profile')->name('settings-panel.company.entities.save');
+    Route::delete('/company/entities/{profile}', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'destroy'])->whereNumber('profile')->name('settings-panel.company.entities.destroy');
+    Route::post('/company/entities/{profile}/asset', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'uploadAsset'])->whereNumber('profile')->name('settings-panel.company.entities.asset');
+    Route::post('/company/entities/{profile}/document', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'uploadDocument'])->whereNumber('profile')->name('settings-panel.company.entities.document');
+    Route::post('/company/field-orders', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'saveFieldOrders'])->name('settings-panel.company.field-orders');
+    Route::post('/company/user-stamps/{user}', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'saveUserStamp'])->whereNumber('user')->name('settings-panel.company.user-stamps.save');
+    Route::post('/company/user-stamps/{user}/asset', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'uploadUserStampAsset'])->whereNumber('user')->name('settings-panel.company.user-stamps.asset');
+    Route::post('/company/departments', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'storeDepartment'])->name('settings-panel.company.departments.store');
+    Route::put('/company/departments/{department}', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'updateDepartment'])->whereNumber('department')->name('settings-panel.company.departments.update');
+    Route::delete('/company/departments/{department}', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'destroyDepartment'])->whereNumber('department')->name('settings-panel.company.departments.destroy');
+    // Legacy company form (email OTP helpers still used by older flows)
+    Route::match(['get', 'post'], '/company-legacy', [HomeController::class, 'settings'])->name('settings-panel.company.legacy');
     Route::post('/company/email/send-otp', [\App\Http\Controllers\Company\CompanyEmailChangeController::class, 'sendOtp'])->name('settings-panel.company.email.send-otp');
     Route::post('/company/email/verify-otp', [\App\Http\Controllers\Company\CompanyEmailChangeController::class, 'verifyOtp'])->name('settings-panel.company.email.verify-otp');
     Route::get('/global', [App\Http\Controllers\GlobalSettingsController::class, 'index'])->name('settings-panel.global');
@@ -84,9 +97,10 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::put('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'updateField'])->name('settings-panel.voucher-settings.update-field');
     Route::delete('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'destroyField'])->name('settings-panel.voucher-settings.destroy-field');
     Route::post('voucher-settings/fields/reorder', [App\Http\Controllers\VoucherSettingsController::class, 'reorderFields'])->name('settings-panel.voucher-settings.reorder-fields');
-    // Voucher Signature Assignment (per-type print/display signature slots)
+    // Voucher Signature Assignment (per-type print header + signature slots)
     Route::get('voucher-signature-assignment', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'index'])->name('settings-panel.voucher-signature-assignment.index');
     Route::post('voucher-signature-assignment/module-label', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'storeModuleLabel'])->name('settings-panel.voucher-signature-assignment.store-module-label');
+    Route::post('voucher-signature-assignment/reorder', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'reorder'])->name('settings-panel.voucher-signature-assignment.reorder');
     Route::get('voucher-signature-assignment/{code}', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'configure'])->name('settings-panel.voucher-signature-assignment.configure');
     Route::post('voucher-signature-assignment/{code}', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'save'])->name('settings-panel.voucher-signature-assignment.save');
     Route::delete('voucher-signature-assignment/{code}', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'clear'])->name('settings-panel.voucher-signature-assignment.clear');

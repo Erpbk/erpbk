@@ -1,117 +1,12 @@
-@push('third_party_stylesheets')
-<style>
-   /* Totals cards */
-   .totals-cards {
-      display: flex;
-      flex-wrap: nowrap;
-      gap: 8px;
-      margin-bottom: 15px;
-   }
-
-   .total-card {
-      flex: 1 1 0;
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      border-left-width: 4px;
-      border-radius: 8px;
-      padding: 8px 10px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-   }
-
-   .total-card .label {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: .3px;
-      color: #6b7280;
-      margin-bottom: 4px;
-   }
-
-   .total-card .label i {
-      font-size: 11px;
-   }
-
-   .total-card .value {
-      font-size: 16px;
-      font-weight: 700;
-      color: #111827;
-   }
-
-   .total-delivered {
-      border-left-color: #10b981;
-      background: linear-gradient(180deg, rgba(16, 185, 129, 0.06), rgba(16, 185, 129, 0.02));
-   }
-
-   .total-rejected {
-      border-left-color: #ef4444;
-      background: linear-gradient(180deg, rgba(239, 68, 68, 0.06), rgba(239, 68, 68, 0.02));
-   }
-
-   .total-hours {
-      border-left-color: #3b82f6;
-      background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), rgba(59, 130, 246, 0.02));
-   }
-
-   .total-ontime {
-      border-left-color: #8b5cf6;
-      background: linear-gradient(180deg, rgba(139, 92, 246, 0.06), rgba(139, 92, 246, 0.02));
-   }
-
-   .total-valid-days {
-      border-left-color: #f59e0b;
-      background: linear-gradient(180deg, rgba(245, 158, 11, 0.06), rgba(245, 158, 11, 0.02));
-   }
-
-   /* Table header bold and fixed */
-   #dataTableBuilder thead th {
-      font-weight: bold;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background-color: #f8f9fa;
-      box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
-   }
-
-   /* Ensure table container is scrollable */
-   .table-responsive {
-      max-height: calc(100vh - 300px);
-      overflow-y: auto;
-      overflow-x: hidden;
-      position: relative;
-   }
-
-   /* Hide scrollbar for Chrome, Safari and Opera */
-   .table-responsive::-webkit-scrollbar {
-      display: none;
-   }
-
-   /* Hide scrollbar for IE, Edge and Firefox */
-   .table-responsive {
-      -ms-overflow-style: none;
-      /* IE and Edge */
-      scrollbar-width: none;
-      /* Firefox */
-   }
-</style>
-@endpush
-
-
 @php
 $isConsolidated = $isConsolidated ?? false;
 $isAllTab = !empty($isAllTab);
-$hideDay = !empty($hideDay);
+$hideDay = !empty($hideDay) || !$isAllTab; // activities: day stacked under DATE
 @endphp
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
       <tr role="row">
-         @unless($isAllTab)
          <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Date: activate to sort column ascending">Date</th>
-         @unless($hideDay)
-         <th title="Day" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Day: activate to sort column ascending">Day</th>
-         @endunless
-         @endunless
          <th title="ID" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="ID: activate to sort column ascending">ID</th>
          <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending">Name</th>
          <th title="Fleet Supr" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Fleet Supr">Fleet Supr</th>
@@ -120,52 +15,84 @@ $hideDay = !empty($hideDay);
          <th title="Ontime%" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Ontime%: activate to sort column ascending">Ontime%</th>
          <th title="HR" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="HR: activate to sort column ascending">HR</th>
          <th title="Rejected" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rejected: activate to sort column ascending">Rejected</th>
-         <th title="Delivered" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Delivered: activate to sort column ascending">Delivered</th>
+         <th title="Orders" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Orders: activate to sort column ascending">{{ $isAllTab ? 'Delivered' : 'Orders' }}</th>
          @if($isAllTab)
-         <th title="Total Days" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Total Days: activate to sort column ascending">Total Days</th>
+         <th title="Valid" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Valid: activate to sort column ascending">Valid</th>
+         <th title="Invalid" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Invalid: activate to sort column ascending">Invalid</th>
+         <th title="Off" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Off: activate to sort column ascending">Off</th>
          @else
-         <th title="Rating" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rating: activate to sort column ascending">Valid Day</th>
+         <th title="Valid Day" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Valid Day: activate to sort column ascending">Valid Day</th>
          @endif
       </tr>
    </thead>
    <tbody>
       @foreach($data as $r)
       @php
-      $isRowConsolidated = !empty($r->is_consolidated);
+      $isRowConsolidated = !empty($r->is_consolidated) || $isAllTab;
       $rider = $r->rider ?? company_table('riders')->where('id', $r->rider_id)->first();
+
+      if ($isRowConsolidated) {
+        $validCount = (int) ($r->valid_days_count ?? 0);
+        $invalidCount = (int) ($r->invalid_days_count ?? 0);
+        $offCount = (int) ($r->off_days_count ?? 0);
+        $dayStatus = null;
+      } else {
+        $orders = (float) ($r->delivered_orders ?? 0);
+        $hours = (float) ($r->login_hr ?? 0);
+        if ($hours == 0) {
+          $dayStatus = 'Off';
+        } elseif (($orders >= 5 && $hours >= 10) || $orders >= 10) {
+          $dayStatus = 'Valid';
+        } else {
+          $dayStatus = 'Invalid';
+        }
+        $validCount = $dayStatus === 'Valid' ? 1 : 0;
+        $invalidCount = $dayStatus === 'Invalid' ? 1 : 0;
+        $offCount = $dayStatus === 'Off' ? 1 : 0;
+      }
+
+      $imageName = trim((string) ($rider->image_name ?? ''));
+      $photoUrl = ($imageName !== '' && ! in_array(strtolower($imageName), ['default.png', 'default.jpg'], true))
+        ? (storage_url('profile/' . $imageName) ?: null)
+        : null;
+      $initials = collect(preg_split('/\s+/', trim((string) ($rider->name ?? ''))))
+        ->filter()
+        ->take(2)
+        ->map(fn ($w) => mb_strtoupper(mb_substr($w, 0, 1)))
+        ->implode('');
+      $initials = $initials !== '' ? $initials : 'R';
       @endphp
       <tr class="text-center"
          data-delivered="{{ $r->delivered_orders ?? 0 }}"
          data-rejected="{{ $r->rejected_orders ?? 0 }}"
          data-hours="{{ $r->login_hr ?? 0 }}"
          data-ontime="{{ $r->ontime_orders_percentage ?? 0 }}"
-         data-valid="{{ $r->delivery_rating == 'Yes' ? 1 : 0 }}"
-         data-invalid="{{ $r->delivery_rating == 'No' ? 1 : 0 }}"
-         data-off="{{ ($r->delivery_rating != 'Yes' && $r->delivery_rating != 'No') ? 1 : 0 }}">
-         @unless($isAllTab)
-         <td>
+         data-valid="{{ $validCount }}"
+         data-invalid="{{ $invalidCount }}"
+         data-off="{{ $offCount }}">
+         <td class="ra-date">
             @if($isRowConsolidated && !empty($r->date_from) && !empty($r->date_to))
-            {{ \Carbon\Carbon::parse($r->date_from)->format('d M Y') }}
-            –
-            {{ \Carbon\Carbon::parse($r->date_to)->format('d M Y') }}
+              <span>{{ \Carbon\Carbon::parse($r->date_from)->format('d M Y') }}</span>
+              <small>to {{ \Carbon\Carbon::parse($r->date_to)->format('d M Y') }}</small>
             @else
-            {{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}
+              <span>{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</span>
+              <small>{{ \Carbon\Carbon::parse($r->date)->format('l') }}</small>
             @endif
          </td>
-         @unless($hideDay)
-         <td>
-            @if($isRowConsolidated)
-            -
-            @else
-            {{ \Carbon\Carbon::parse($r->date)->format('l') }}
-            @endif
-         </td>
-         @endunless
-         @endunless
-         <td>{{ $r->d_rider_id }}</td>
+         <td class="ra-id">{{ $r->d_rider_id }}</td>
          <td class="text-left">
             @if($rider)
-            <a href="{{ route('rider.activities', $r->rider_id) }}">{{ $rider->name }}</a>
+            <div class="ra-nmw">
+              <div class="ra-av" data-ini="{{ $initials }}">
+                <span class="ra-av-ini">{{ $initials }}</span>
+                @if($photoUrl)
+                  <img src="{{ $photoUrl }}" alt="" loading="lazy"
+                       onload="this.parentElement.classList.add('has-img')"
+                       onerror="this.remove()">
+                @endif
+              </div>
+              <a href="{{ route('rider.activities', $r->rider_id) }}">{{ $rider->name }}</a>
+            </div>
             @else
             -
             @endif
@@ -187,16 +114,13 @@ $hideDay = !empty($hideDay);
          $isEmploymentInactive = $rider && (int) ($rider->status ?? 1) !== 1;
 
          if ($isEmploymentInactive) {
-         // Show employment inactive/vacation/absconded even when bike status differs
-         $statusText = $employmentStatus['label'];
-         $badgeClass = $employmentStatus['badge'];
+           $statusText = $employmentStatus['label'];
          } elseif ($isWalker) {
-         $statusText = 'Active';
-         $badgeClass = 'bg-label-success';
+           $statusText = 'Active';
          } else {
-         $statusText = $hasActiveBike ? 'Active' : 'Inactive';
-         $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
+           $statusText = $hasActiveBike ? 'Active' : 'Inactive';
          }
+         $statusClass = preg_replace('/\s+/', '', $statusText) ?: 'Inactive';
          $statusDaysInfo = $rider
          ? \App\Models\Riders::resolveEmploymentStatusDays($rider)
          : ['days' => null, 'changed_at' => null];
@@ -205,44 +129,34 @@ $hideDay = !empty($hideDay);
          : 'Days in current status';
          @endphp
          <td class="text-center">
-            <div class="d-inline-flex flex-column align-items-center gap-1">
-               <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+            <div class="ra-st">
+               <span class="{{ $statusClass }}">{{ $statusText }}</span>
                @if($statusDaysInfo['days'] !== null)
-               <small class="text-muted lh-1" title="{{ $statusDaysTitle }}">{{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}</small>
+               <small title="{{ $statusDaysTitle }}">{{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}</small>
                @endif
             </div>
          </td>
-         <td>@if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage }}% @else - @endif</td>
+         <td>
+            @php $ontime = (float) ($r->ontime_orders_percentage ?? 0); @endphp
+            @if($ontime)
+              <span class="ra-pill {{ $ontime >= 90 ? 'g' : ($ontime >= 70 ? 'a' : 'r') }}">{{ rtrim(rtrim(number_format($ontime, 2), '0'), '.') }}%</span>
+            @else
+              <span class="ra-pill n">—</span>
+            @endif
+         </td>
          <td>{{ $r->login_hr }}</td>
-         <td>{{ $r->rejected_orders }}</td>
-         <td>{{ $r->delivered_orders }}</td>
+         <td>
+            @php $rej = (int) ($r->rejected_orders ?? 0); @endphp
+            <span class="ra-pill {{ $rej > 0 ? 'r' : 'n' }}">{{ $rej }}</span>
+         </td>
+         <td><b>{{ $r->delivered_orders }}</b></td>
          @if($isAllTab)
-         <td>{{ $r->valid_days_count ?? 0 }}</td>
+         <td><span class="ra-num-good">{{ $validCount }}</span></td>
+         <td><span class="{{ $invalidCount > 0 ? 'ra-num-bad' : '' }}">{{ $invalidCount }}</span></td>
+         <td><span class="ra-off-badge">{{ $offCount }}</span></td>
          @else
          <td>
-            @if($isRowConsolidated)
-            <span class="badge bg-success" title="Valid days">{{ $r->valid_days_count ?? 0 }} Valid</span>
-            <span class="badge bg-warning" title="Invalid days">{{ $r->invalid_days_count ?? 0 }} Invalid</span>
-            <span class="badge bg-danger" title="Off days">{{ $r->off_days_count ?? 0 }} Off</span>
-            @else
-            @php
-            $orders = $r->delivered_orders ?? 0;
-            $hours = $r->login_hr ?? 0;
-
-            // Determine status based on new logic
-            if ($hours == 0) {
-            $status = 'Off';
-            $badgeClass = 'bg-danger';
-            } elseif (($orders >= 5 && $hours >= 10) || ($orders >= 10)) {
-            $status = 'Valid';
-            $badgeClass = 'bg-success';
-            } else {
-            $status = 'Invalid';
-            $badgeClass = 'bg-warning';
-            }
-            @endphp
-            <span class="badge {{ $badgeClass }}">{{ $status }}</span>
-            @endif
+            <span class="ra-vd {{ $dayStatus }}">{{ $dayStatus }}</span>
          </td>
          @endif
       </tr>
@@ -252,108 +166,3 @@ $hideDay = !empty($hideDay);
 @if(method_exists($data, 'links'))
 {!! $data->links('components.global-pagination') !!}
 @endif
-<div class="modal modal-default filtetmodal fade" id="customoizecolmn" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-   <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-      <div class="modal-content">
-         <div class="modal-header">
-            <h5 class="modal-title">Filter Riders</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-         </div>
-         <div class="modal-body" id="searchTopbody">
-            <div style="display: none;" class="loading-overlay" id="loading-overlay">
-               <div class="spinner-border text-primary" role="status"></div>
-            </div>
-            <form id="filterForm" action="{{ route('banks.index') }}" method="GET">
-               <div class="row">
-                  <div class="form-group col-md-12">
-                     <input type="number" name="search" class="form-control" placeholder="Search">
-                  </div>
-                  <div class="col-md-12 form-group text-center">
-                     <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                  </div>
-               </div>
-            </form>
-         </div>
-      </div>
-   </div>
-</div>
-
-@push('scripts')
-<script>
-   $(document).ready(function() {
-      // Recalculate totals when table is updated (for AJAX filtering)
-      @unless($isAllTab)
-      calculateTotals();
-      @endunless
-
-      // Recalculate when DataTable is redrawn (if using DataTables)
-      if ($.fn.DataTable) {
-         $('#dataTableBuilder').on('draw.dt', function() {
-            @unless($isAllTab)
-            calculateTotals();
-            @endunless
-         });
-      }
-   });
-
-   function calculateTotals() {
-      let workingDays = 0;
-      let validDays = 0;
-      let invalidDays = 0;
-      let offDays = 0;
-      let totalOrders = 0;
-      let totalRejected = 0;
-      let totalHours = 0;
-      let totalOntime = 0;
-      let ontimeCount = 0;
-
-      $('#dataTableBuilder tbody tr').each(function() {
-         const delivered = parseFloat($(this).data('delivered')) || 0;
-         const rejected = parseFloat($(this).data('rejected')) || 0;
-         const hours = parseFloat($(this).data('hours')) || 0;
-         const ontime = parseFloat($(this).data('ontime')) || 0;
-         const valid = parseInt($(this).data('valid')) || 0;
-         const invalid = parseInt($(this).data('invalid')) || 0;
-         const off = parseInt($(this).data('off')) || 0;
-
-         // Count working days (all rows)
-         workingDays++;
-
-         // Count day types
-         if (valid === 1) {
-            validDays++;
-         }
-         if (invalid === 1) {
-            invalidDays++;
-         }
-         if (off === 1) {
-            offDays++;
-         }
-
-         // Sum orders and hours
-         totalOrders += delivered;
-         totalRejected += rejected;
-         totalHours += hours;
-
-         // Calculate ontime percentage
-         if (ontime > 0) {
-            totalOntime += ontime;
-            ontimeCount++;
-         }
-      });
-
-      // Calculate average ontime percentage
-      const avgOntime = ontimeCount > 0 ? (totalOntime / ontimeCount) * 100 : 0;
-
-      // Update the totals display
-      $('#working_days').text(workingDays);
-      $('#valid_days').text(validDays);
-      $('#invalid_days').text(invalidDays);
-      $('#off_days').text(offDays);
-      $('#total_orders').text(totalOrders.toLocaleString());
-      $('#avg_ontime').text(avgOntime.toFixed(2) + '%');
-      $('#total_rejected').text(totalRejected.toLocaleString());
-      $('#total_hours').text(totalHours.toFixed(2));
-   }
-</script>
-@endpush

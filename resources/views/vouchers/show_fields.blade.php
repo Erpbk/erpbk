@@ -591,10 +591,16 @@
             @endif
 
             @php
+                $signatureResolver = app(\App\Services\Voucher\VoucherSignatureResolver::class);
                 $signatureSlots = $signatureSlots
-                    ?? app(\App\Services\Voucher\VoucherSignatureResolver::class)
-                        ->slotsFor((string) ($voucher->voucher_type ?? ''));
+                    ?? $signatureResolver->slotsFor((string) ($voucher->voucher_type ?? ''));
+                [$printLayout, $plHeader, $plPos] = $signatureResolver
+                    ->layoutPartsFor((string) ($voucher->voucher_type ?? ''));
             @endphp
+            @include('vouchers.partials.print_layout_styles', [
+                'printLayout' => $printLayout,
+                'isPdf' => false,
+            ])
             @if($signatureSlots->isNotEmpty())
                 @include('vouchers.partials.signature_block', [
                     'signatureSlots' => $signatureSlots,

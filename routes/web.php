@@ -940,7 +940,18 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::prefix('settings')->group(function () {
 
-        Route::any('/company', [HomeController::class, 'settings'])->name('settings');
+        Route::get('/company', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'index'])->name('settings');
+        Route::post('/company/entities', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'storeEntity'])->name('settings.company.entities.store');
+        Route::post('/company/entities/{profile}', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'save'])->whereNumber('profile')->name('settings.company.entities.save');
+        Route::delete('/company/entities/{profile}', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'destroy'])->whereNumber('profile')->name('settings.company.entities.destroy');
+        Route::post('/company/entities/{profile}/asset', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'uploadAsset'])->whereNumber('profile')->name('settings.company.entities.asset');
+        Route::post('/company/entities/{profile}/document', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'uploadDocument'])->whereNumber('profile')->name('settings.company.entities.document');
+        Route::post('/company/field-orders', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'saveFieldOrders'])->name('settings.company.field-orders');
+        Route::post('/company/user-stamps/{user}', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'saveUserStamp'])->whereNumber('user')->name('settings.company.user-stamps.save');
+        Route::post('/company/user-stamps/{user}/asset', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'uploadUserStampAsset'])->whereNumber('user')->name('settings.company.user-stamps.asset');
+        Route::post('/company/departments', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'storeDepartment'])->name('settings.company.departments.store');
+        Route::put('/company/departments/{department}', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'updateDepartment'])->whereNumber('department')->name('settings.company.departments.update');
+        Route::delete('/company/departments/{department}', [\App\Http\Controllers\CompanyDetailsSettingsController::class, 'destroyDepartment'])->whereNumber('department')->name('settings.company.departments.destroy');
         Route::get('/global', [\App\Http\Controllers\GlobalSettingsController::class, 'index'])->name('settings.global');
         Route::post('/global', [\App\Http\Controllers\GlobalSettingsController::class, 'store'])->name('settings.global.store');
         Route::get('/erp', [ErpSettingsController::class, 'index'])->name('settings.erp');

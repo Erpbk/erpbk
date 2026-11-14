@@ -542,8 +542,6 @@ class PaymentController extends Controller
         }
         $input['branch_id'] = Accounts::where('id', $input['payee_account_id'])->value('branch_id');
         $input['amount'] = $totalAmount;
-        $input['govt_charges'] = null;
-        $input['govt_charges_account'] = null;
 
         try {
             DB::beginTransaction();
@@ -1100,13 +1098,11 @@ class PaymentController extends Controller
 
             // Prepare data for payment update (keep existing attachment unless a new file is uploaded)
             // resource_links is rebuilt on allocation sync — never take from the form.
-            $input = $request->except(['attachment', 'resource_links', 'govt_charges', 'govt_charges_account']);
+            $input = $request->except(['attachment', 'resource_links']);
             $input['branch_id'] = Accounts::where('id', $input['payee_account_id'])->value('branch_id');
             $input['amount'] = $totalAmount;
             $input['updated_by'] = auth()->id();
             $input['bank_charges_account'] = $bankChargesAccountId;
-            $input['govt_charges'] = null;
-            $input['govt_charges_account'] = null;
             $pending = null;
             $partial = null;
             $paid = null;

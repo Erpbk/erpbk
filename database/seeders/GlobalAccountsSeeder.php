@@ -64,7 +64,6 @@ class GlobalAccountsSeeder extends Seeder
             'COD_ACCOUNT' => ['label' => 'COD Account', 'account_id' => null, 'account_type' => 'Liability'],
             'GARAGE_PARENT' => ['label' => 'Garage (Parent)', 'account_id' => null, 'account_type' => 'Liability'],
             'BANK_CHARGES' => ['label' => 'Bank Charges', 'account_id' => null, 'account_type' => 'Expense', 'is_active' => false, 'description' => 'Configure via Global Accounts admin'],
-            'GOVT_CHARGES' => ['label' => 'Govt. Charges', 'account_id' => null, 'account_type' => 'Expense', 'is_active' => false, 'description' => 'Configure via Global Accounts admin — used for VAT payment government charges'],
             'LEGAL_CASE_ACCOUNT' => ['label' => 'Legal Case Expense', 'account_id' => null, 'account_type' => 'Expense', 'is_active' => false, 'description' => 'Configure via Global Accounts admin'],
             'GARAGE_INCOME_ACCOUNT' => ['label' => 'Garage Income', 'account_id' => null, 'account_type' => 'Revenue', 'is_active' => false, 'description' => 'Configure via Global Accounts admin'],
             'PAYMENT_ACCOUNT' => ['label' => 'Payment Account', 'account_id' => null, 'account_type' => 'Expense', 'is_active' => false, 'description' => 'Configure via Global Accounts admin'],

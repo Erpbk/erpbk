@@ -33,9 +33,8 @@ class VatPaymentVoucherViewData
         $settings = RiderPaymentVoucherDefaults::all();
         $brand = $this->branding->forCompany(CompanyContext::id() ?? $payment->company_id);
         $bankCharges = round((float) ($payment->bank_charges ?? 0), 2);
-        $govtCharges = round((float) ($payment->govt_charges ?? 0), 2);
         $totalAmount = round((float) ($payment->amount ?? 0), 2);
-        $paymentAmount = round(max(0, $totalAmount - $bankCharges - $govtCharges), 2);
+        $paymentAmount = round(max(0, $totalAmount - $bankCharges), 2);
 
         $allocations = $this->allocationRows($payment);
         $allocatedTotal = round($allocations->sum('payment'), 2);
@@ -78,7 +77,6 @@ class VatPaymentVoucherViewData
             'paymentType' => 'VAT Payment',
             'paymentAmount' => $paymentAmount,
             'bankCharges' => $bankCharges,
-            'govtCharges' => $govtCharges,
             'totalPayment' => $totalAmount,
             'allocatedTotal' => $allocatedTotal,
             'difference' => $difference,
@@ -218,8 +216,7 @@ class VatPaymentVoucherViewData
             }
             if ($thisPayment < 0.01 && $returns->count() === 1) {
                 $bankCharges = round((float) ($payment->bank_charges ?? 0), 2);
-                $govtCharges = round((float) ($payment->govt_charges ?? 0), 2);
-                $thisPayment = round(max(0, (float) $payment->amount - $bankCharges - $govtCharges), 2);
+                $thisPayment = round(max(0, (float) $payment->amount - $bankCharges), 2);
             }
             if ($thisPayment < 0.01) {
                 continue;

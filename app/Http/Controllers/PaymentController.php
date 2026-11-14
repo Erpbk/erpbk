@@ -446,7 +446,6 @@ class PaymentController extends Controller
             'billing_month' => ($isRiderPaymentCreate || $isEmployeePaymentCreate) ? 'nullable|date_format:Y-m' : 'required|date_format:Y-m',
             'amount' => 'required|numeric|min:0.01',
             'bank_charges' => 'nullable|numeric|min:0',
-            'govt_charges' => $isVatReturnPaymentCreate ? 'nullable|numeric|min:0' : 'nullable|numeric|min:0',
             'description' => 'required|string|max:500',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
             'invoice_ids' => ($isRiderPaymentCreate || $isEmployeePaymentCreate)
@@ -510,11 +509,10 @@ class PaymentController extends Controller
             }
         }
 
-        // Calculate total debit (payment amount + bank charges + govt charges)
+        // Calculate total debit (payment amount + bank charges)
         $paymentAmount = floatval($request->input('amount', 0));
         $bankCharges = floatval($request->input('bank_charges', 0));
-        $govtCharges = $isVatReturnPaymentCreate ? floatval($request->input('govt_charges', 0)) : 0.0;
-        $totalAmount = $paymentAmount + $bankCharges + $govtCharges;
+        $totalAmount = $paymentAmount + $bankCharges;
 
         // Get the paying account (bank account)
         $bank = Banks::find($request->input('bank_id'));
@@ -544,7 +542,8 @@ class PaymentController extends Controller
         }
         $input['branch_id'] = Accounts::where('id', $input['payee_account_id'])->value('branch_id');
         $input['amount'] = $totalAmount;
-        $input['govt_charges'] = $govtCharges > 0 ? $govtCharges : null;
+        $input['govt_charges'] = null;
+        $input['govt_charges_account'] = null;
 
         try {
             DB::beginTransaction();
@@ -554,12 +553,6 @@ class PaymentController extends Controller
                 $bankChargesAccountId = GlobalAccounts::account('BANK_CHARGES')->id;
             }
             $input['bank_charges_account'] = $bankChargesAccountId;
-
-            $govtChargesAccountId = null;
-            if ($govtCharges > 0) {
-                $govtChargesAccountId = GlobalAccounts::account('GOVT_CHARGES')->id;
-            }
-            $input['govt_charges_account'] = $govtChargesAccountId;
 
             // Validate invoice payments if invoices are selected
             $salaryBalancesBefore = [];
@@ -786,9 +779,7 @@ class PaymentController extends Controller
                 $bankChargesAccountId,
                 $billingMonth,
                 $payment->branch_id ? (int) $payment->branch_id : null,
-                (string) $desc,
-                $govtCharges,
-                $govtChargesAccountId
+                (string) $desc
             );
 
             // Create voucher — rider salary payments use "Salary Payment" on the PV form.
@@ -1082,13 +1073,10 @@ class PaymentController extends Controller
             }
         }
 
-        // Calculate total debit (payment amount + bank charges + govt charges)
+        // Calculate total debit (payment amount + bank charges)
         $paymentAmount = floatval($request->input('amount', 0));
         $bankCharges = floatval($request->input('bank_charges', 0));
-        $isVatReturnPaymentUpdate = ($request->input('invoice_type') === 'vat_return')
-            || (ResourceLinks::invoiceType(is_array($payment->resource_links) ? $payment->resource_links : null) === 'vat_return');
-        $govtCharges = $isVatReturnPaymentUpdate ? floatval($request->input('govt_charges', 0)) : 0.0;
-        $totalAmount = $paymentAmount + $bankCharges + $govtCharges;
+        $totalAmount = $paymentAmount + $bankCharges;
 
         // Get the paying account (bank account)
         $bank = Banks::find($request->input('bank_id'));
@@ -1110,20 +1098,15 @@ class PaymentController extends Controller
                 $bankChargesAccountId = GlobalAccounts::account('BANK_CHARGES')->id;
             }
 
-            $govtChargesAccountId = null;
-            if ($govtCharges > 0) {
-                $govtChargesAccountId = GlobalAccounts::account('GOVT_CHARGES')->id;
-            }
-
             // Prepare data for payment update (keep existing attachment unless a new file is uploaded)
             // resource_links is rebuilt on allocation sync — never take from the form.
-            $input = $request->except(['attachment', 'resource_links']);
+            $input = $request->except(['attachment', 'resource_links', 'govt_charges', 'govt_charges_account']);
             $input['branch_id'] = Accounts::where('id', $input['payee_account_id'])->value('branch_id');
             $input['amount'] = $totalAmount;
             $input['updated_by'] = auth()->id();
             $input['bank_charges_account'] = $bankChargesAccountId;
-            $input['govt_charges'] = $govtCharges > 0 ? $govtCharges : null;
-            $input['govt_charges_account'] = $govtChargesAccountId;
+            $input['govt_charges'] = null;
+            $input['govt_charges_account'] = null;
             $pending = null;
             $partial = null;
             $paid = null;
@@ -1155,7 +1138,7 @@ class PaymentController extends Controller
                 );
             $amountFieldsDirty = array_intersect(
                 $meaningfulDirty,
-                ['amount', 'bank_charges', 'bank_charges_account', 'govt_charges', 'govt_charges_account']
+                ['amount', 'bank_charges', 'bank_charges_account']
             ) !== [];
             // Skip revert/reapply when only the attachment (or non-amount fields) changed.
             $shouldSyncInvoiceStatuses = $hasInvoiceSelection
@@ -1374,9 +1357,7 @@ class PaymentController extends Controller
                     $bankChargesAccountId,
                     $billingMonth,
                     $payment->branch_id ? (int) $payment->branch_id : null,
-                    (string) $desc,
-                    $govtCharges,
-                    $govtChargesAccountId
+                    (string) $desc
                 );
 
                 // Update voucher
@@ -2068,25 +2049,15 @@ class PaymentController extends Controller
         ?int $bankChargesAccountId,
         string $billingMonth,
         ?int $branchId,
-        string $desc,
-        float $govtCharges = 0.0,
-        ?int $govtChargesAccountId = null
+        string $desc
     ): void {
         $paymentAmount = round($paymentAmount, 2);
         $bankCharges = round(max(0, $bankCharges), 2);
-        $govtCharges = round(max(0, $govtCharges), 2);
-        $bankCredit = round($paymentAmount + $bankCharges + $govtCharges, 2);
+        $bankCredit = round($paymentAmount + $bankCharges, 2);
 
         $bankNarration = $desc;
-        $extras = [];
         if ($bankCharges > 0.009) {
-            $extras[] = 'Bank charges ' . number_format($bankCharges, 2);
-        }
-        if ($govtCharges > 0.009) {
-            $extras[] = 'Govt. charges ' . number_format($govtCharges, 2);
-        }
-        if ($extras !== []) {
-            $bankNarration = trim($desc . ' | ' . implode(' | ', $extras));
+            $bankNarration = trim($desc . ' | Bank charges ' . number_format($bankCharges, 2));
         }
 
         // 1. Debit payee — payment amount only
@@ -2103,7 +2074,7 @@ class PaymentController extends Controller
             'narration' => $desc,
         ]);
 
-        // 2. Credit bank for payment + bank charges + govt charges
+        // 2. Credit bank for payment + bank charges
         Transactions::create([
             'trans_code' => $transCode,
             'trans_date' => $date,
@@ -2130,22 +2101,6 @@ class PaymentController extends Controller
                 'billing_month' => $billingMonth,
                 'branch_id' => $branchId,
                 'narration' => 'Bank charges for ( ' . $desc . ' )',
-            ]);
-        }
-
-        // 4. Debit govt charges account (VAT payments)
-        if ($govtCharges > 0.009 && $govtChargesAccountId) {
-            Transactions::create([
-                'trans_code' => $transCode,
-                'trans_date' => $date,
-                'reference_id' => $paymentId,
-                'reference_type' => 'PV',
-                'account_id' => $govtChargesAccountId,
-                'credit' => 0,
-                'debit' => $govtCharges,
-                'billing_month' => $billingMonth,
-                'branch_id' => $branchId,
-                'narration' => 'Govt. charges for ( ' . $desc . ' )',
             ]);
         }
     }

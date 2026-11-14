@@ -27,12 +27,10 @@ $savedPrimaryAmount = null;
 if (isset($payment) && $payment) {
 $savedPrimaryAmount = round(
     (float) $payment->amount
-    - (float) ($payment->bank_charges ?? 0)
-    - (float) ($payment->govt_charges ?? 0),
+    - (float) ($payment->bank_charges ?? 0),
     2
 );
 }
-$isVatReturnPayment = ($invoiceType ?? null) === 'vat_return';
 $defaultCreatePaymentType = old('create_payment_type', 'salary_payment');
 $currencyMark = \App\Helpers\Currency::mark();
 $currencySymbol = \App\Helpers\Currency::symbol();
@@ -454,21 +452,6 @@ default => 'Receiving Account',
                             ]) !!}
                         </div>
                     </div>
-                    @if($isVatReturnPayment)
-                    <div class="rpf-summary-row rpf-summary-charges">
-                        <span>Govt. Charges:</span>
-                        <div class="input-group input-group-sm rpf-charges-group">
-                            <span class="input-group-text">{!! $currencyMark !!}</span>
-                            {!! Form::number('govt_charges', null, [
-                            'class' => 'form-control govt_charges',
-                            'step' => 'any',
-                            'placeholder' => '0.00',
-                            'id' => 'govt_charges',
-                            'min' => '0',
-                            ]) !!}
-                        </div>
-                    </div>
-                    @endif
                     <span id="display_charges" class="d-none">0.00</span>
                     <div class="rpf-summary-total">
                         Total Payment: {!! $currencyMark !!} <span id="total_debit">0.00</span>

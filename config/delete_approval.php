@@ -181,6 +181,18 @@ return [
             'display_columns' => ['inv_id', 'billing_month', 'total_amount', 'status'],
             'show_route' => 'supplierInvoices.show',
         ],
+        'customer_invoices' => [
+            'model' => \App\Models\CustomerInvoices::class,
+            'name' => 'Customer Invoices',
+            'display_columns' => ['invoice_number', 'id', 'billing_month', 'total', 'status'],
+            'show_route' => 'customer_invoices.show',
+        ],
+        'employee_invoices' => [
+            'model' => \App\Models\EmployeeInvoices::class,
+            'name' => 'Employee Invoices',
+            'display_columns' => ['invoice_number', 'id', 'billing_month', 'total_amount', 'status'],
+            'show_route' => 'employeeInvoices.show',
+        ],
         'loans' => [
             'model' => \App\Models\Loan::class,
             'name' => 'Bank Loans',

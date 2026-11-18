@@ -1,3 +1,4 @@
+@if(empty($deleteRequestPreview))
 <!DOCTYPE html>
 
 <html lang="en">
@@ -18,6 +19,7 @@
 
 
 <body>
+@endif
 
 
     @include('invoices.partials.tax_invoice_styles')
@@ -93,7 +95,7 @@
 
 
 
-    @if(empty($isPdf))
+    @if(empty($isPdf) && empty($deleteRequestPreview))
 
     <div class="controls no-print">
 
@@ -433,8 +435,8 @@
 
     @include('invoices.partials.tax_invoice_print_script', ['isPdf' => $isPdf ?? null])
 
+@if(empty($deleteRequestPreview))
 </body>
 
-
-
 </html>
+@endif

@@ -19,7 +19,7 @@
   }
 
   function dropdownParentFor($el) {
-    var $parent = $el.closest('.modal.show, .modal, .offcanvas.show, .offcanvas, .cd-modal, .cd-card, .dropdown-menu, .tab-pane.active, .tab-pane, .company-details-root, .content-wrapper');
+    var $parent = $el.closest('.modal.show, .modal, .offcanvas.show, .offcanvas, .cd-modal, .cd-card, .dropdown-menu, .tab-pane.active, .tab-pane, .company-details-root, .dr-fp, .dr-drawer, .content-wrapper');
     return $parent.length ? $parent : window.jQuery(document.body);
   }
 

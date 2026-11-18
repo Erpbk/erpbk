@@ -1,3 +1,4 @@
+@if(empty($deleteRequestPreview))
 <!DOCTYPE html>
 <html lang="en">
 
@@ -10,6 +11,7 @@
 
 
 <body>
+@endif
 
     @include('invoices.partials.tax_invoice_styles')
 
@@ -56,7 +58,7 @@
     $billingLabel = date('M-Y', strtotime($invoice->billing_month));
     @endphp
 
-    @if(empty($isPdf))
+    @if(empty($isPdf) && empty($deleteRequestPreview))
     <div class="controls no-print">
         @php
             $companySlug = request()->route('company_slug');
@@ -228,6 +230,8 @@
     </div>
 
     @include('invoices.partials.tax_invoice_print_script', ['isPdf' => $isPdf ?? null])
+@if(empty($deleteRequestPreview))
 </body>
 
 </html>
+@endif

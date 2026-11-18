@@ -1,3 +1,4 @@
+@if(empty($deleteRequestPreview))
 <!DOCTYPE html>
 <html lang="en">
 
@@ -10,6 +11,7 @@
 
 
 <body>
+@endif
 
     @include('invoices.partials.tax_invoice_styles')
 
@@ -55,7 +57,7 @@
     : '';
     @endphp
 
-    @if(empty($isPdf))
+    @if(empty($isPdf) && empty($deleteRequestPreview))
     <div class="controls no-print">
         @php
             $siStatus = $supplierInvoice->status ?? null;
@@ -210,6 +212,8 @@
     </div>
 
     @include('invoices.partials.tax_invoice_print_script', ['isPdf' => $isPdf ?? null])
+@if(empty($deleteRequestPreview))
 </body>
 
 </html>
+@endif

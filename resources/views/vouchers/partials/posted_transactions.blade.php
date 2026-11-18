@@ -36,10 +36,10 @@ $currencyMark = \App\Helpers\Currency::mark();
             </colgroup>
             <thead>
                 <tr>
-                    <th>Account</th>
-                    <th>Narration</th>
-                    <th class="text-end">Debit</th>
-                    <th class="text-end">Credit</th>
+                    <th class="vpt-col-account">Account</th>
+                    <th class="vpt-col-narration">Narration</th>
+                    <th class="vpt-col-debit">Debit</th>
+                    <th class="vpt-col-credit">Credit</th>
                 </tr>
             </thead>
             <tbody>
@@ -54,8 +54,8 @@ $currencyMark = \App\Helpers\Currency::mark();
                         : '—';
                 @endphp
                 <tr>
-                    <td>{{ $accountLabel !== '' ? $accountLabel : '—' }}</td>
-                    <td class="vpt-narration">
+                    <td class="vpt-col-account">{{ $accountLabel !== '' ? $accountLabel : '—' }}</td>
+                    <td class="vpt-col-narration vpt-narration">
                         @if($voucherType === 'RFV' && $finDetail)
                             {!! $item->narration !!}
                             <strong>Ticket No:</strong> {{ $finDetail->ticket_no ?? '' }},
@@ -67,16 +67,16 @@ $currencyMark = \App\Helpers\Currency::mark();
                             {!! $item->narration ?: '—' !!}
                         @endif
                     </td>
-                    <td class="text-end">{{ $debit > 0.00001 ? number_format($debit, 2) : '' }}</td>
-                    <td class="text-end">{{ $credit > 0.00001 ? number_format($credit, 2) : '' }}</td>
+                    <td class="vpt-col-debit">{{ $debit > 0.00001 ? number_format($debit, 2) : '' }}</td>
+                    <td class="vpt-col-credit">{{ $credit > 0.00001 ? number_format($credit, 2) : '' }}</td>
                 </tr>
                 @endforeach
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="2" class="text-end vpt-total-label">Total</td>
-                    <td class="text-end vpt-total-val"><span class="vpt-currency">{!! $currencyMark !!}</span>{{ number_format($totalDebit, 2) }}</td>
-                    <td class="text-end vpt-total-val"><span class="vpt-currency">{!! $currencyMark !!}</span>{{ number_format($totalCredit, 2) }}</td>
+                    <td colspan="2" class="vpt-total-label">Total</td>
+                    <td class="vpt-col-debit vpt-total-val"><span class="vpt-currency">{!! $currencyMark !!}</span>{{ number_format($totalDebit, 2) }}</td>
+                    <td class="vpt-col-credit vpt-total-val"><span class="vpt-currency">{!! $currencyMark !!}</span>{{ number_format($totalCredit, 2) }}</td>
                 </tr>
             </tfoot>
         </table>
@@ -123,6 +123,13 @@ $currencyMark = \App\Helpers\Currency::mark();
 .voucher-posted-transactions .vpt-table col.col-narration { width: 40%; }
 .voucher-posted-transactions .vpt-table col.col-debit,
 .voucher-posted-transactions .vpt-table col.col-credit { width: 13%; }
+.voucher-posted-transactions .vpt-table thead th,
+.voucher-posted-transactions .vpt-table tbody td,
+.voucher-posted-transactions .vpt-table tfoot td {
+    padding: 0.65rem 0.75rem !important;
+    box-sizing: border-box;
+    vertical-align: middle;
+}
 .voucher-posted-transactions .vpt-table thead th {
     background: var(--vpt-blue) !important;
     color: #ffffff !important;
@@ -130,22 +137,16 @@ $currencyMark = \App\Helpers\Currency::mark();
     font-size: 0.72rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    padding: 0.65rem 0.75rem;
     border: none;
     white-space: nowrap;
-    text-align: left;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
 }
-.voucher-posted-transactions .vpt-table thead th.text-end {
-    text-align: right;
-}
 .voucher-posted-transactions .vpt-table tbody td,
 .voucher-posted-transactions .vpt-table tfoot td {
-    padding: 0.55rem 0.75rem;
     border-bottom: 1px solid #e2e8f0;
-    vertical-align: top;
     background: #fff;
+    vertical-align: top;
 }
 .voucher-posted-transactions .vpt-table tbody tr:nth-child(even) td {
     background: #f8fafc;
@@ -153,12 +154,23 @@ $currencyMark = \App\Helpers\Currency::mark();
 .voucher-posted-transactions .vpt-table tbody tr:last-child td {
     border-bottom: 1px solid #cbd5e1;
 }
+/* Keep header + body + footer cells aligned column-by-column */
+.voucher-posted-transactions .vpt-table .vpt-col-account,
+.voucher-posted-transactions .vpt-table .vpt-col-narration {
+    text-align: left !important;
+}
+.voucher-posted-transactions .vpt-table .vpt-col-debit,
+.voucher-posted-transactions .vpt-table .vpt-col-credit {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
 .voucher-posted-transactions .vpt-narration {
     color: #334155;
     word-break: break-word;
 }
 .voucher-posted-transactions .vpt-table .text-end {
-    text-align: right;
+    text-align: right !important;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
@@ -173,6 +185,9 @@ $currencyMark = \App\Helpers\Currency::mark();
 .voucher-posted-transactions .vpt-total-val {
     font-weight: 800;
     color: #0f172a;
+}
+.voucher-posted-transactions .vpt-table tfoot .vpt-total-label {
+    text-align: right !important;
 }
 .voucher-posted-transactions .vpt-currency {
     display: inline-flex;

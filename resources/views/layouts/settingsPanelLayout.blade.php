@@ -92,12 +92,6 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endif
-        <li class="menu-item {{ Request::routeIs('settings-panel.delete-requests.mine') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.delete-requests.mine', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-file-dislike"></i>
-            <div>My Delete Requests</div>
-          </a>
-        </li>
         @can('settings_email_view')
 
         @if($settingsIsCompanyAdmin)
@@ -186,12 +180,6 @@ $containerNav = 'container-fluid';
           <a href="{{ route('settings-panel.profile', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-user"></i>
             <div>{{ __('Profile') }}</div>
-          </a>
-        </li>
-        <li class="menu-item {{ Request::routeIs('settings-panel.delete-requests.mine') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.delete-requests.mine', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-file-dislike"></i>
-            <div>{{ __('My Delete Requests') }}</div>
           </a>
         </li>
         @endif

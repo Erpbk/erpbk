@@ -1,3 +1,4 @@
+@if(empty($deleteRequestPreview))
 <!DOCTYPE html>
 <html lang="en">
 
@@ -7,6 +8,7 @@
 </head>
 
 <body>
+@endif
     @include('invoices.partials.tax_invoice_styles')
     @php
         $riBrand = $brand ?? ($companyBrand ?? []);
@@ -261,7 +263,7 @@
     || ($riderInvoice->items && $riderInvoice->items->count() > 0);
     @endphp
 
-    @if(empty($isPdf))
+    @if(empty($isPdf) && empty($deleteRequestPreview))
     <div class="controls no-print">
         @include('rider_invoices.partials.action_buttons')
     </div>
@@ -383,7 +385,7 @@
 
     @include('invoices.partials.tax_invoice_print_script', ['isPdf' => $isPdf ?? null])
 
-    @if(empty($isPdf))
+    @if(empty($isPdf) && empty($deleteRequestPreview))
     <script>
         (function() {
             document.querySelectorAll('.num').forEach(function(el) {
@@ -423,6 +425,8 @@
         })();
     </script>
     @endif
+@if(empty($deleteRequestPreview))
 </body>
 
 </html>
+@endif

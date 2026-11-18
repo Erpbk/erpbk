@@ -178,6 +178,8 @@ class DeleteRequestService
             'leasing_company_invoices' => $attr('invoice_number', 'leasing_company_invoice_number') ?: $padded('INV', $id),
             'sim_invoices' => $attr('invoice_number') ?: $padded('SIMI', $id),
             'supplier_invoices' => $attr('invoice_number', 'inv_id') ?: $padded('SUP', $id),
+            'customer_invoices' => $attr('invoice_number') ?: $padded('CI', $id),
+            'employee_invoices' => $attr('invoice_number') ?: $padded('EI', $id),
             'rta_fines' => 'fine-' . ($attr('ticket_no') ?: $id),
             'salik' => 'salik-' . ($attr('ticket_no') ?: $id),
             'cheques' => $attr('cheque_number') ?: ('cheque-' . $id),
@@ -403,6 +405,336 @@ class DeleteRequestService
         $separator = str_contains($url, '?') ? '&' : '?';
 
         return $url . $separator . 'delete_request=' . $deleteRequest->id;
+    }
+
+    /**
+     * Build module document embed for the delete-request preview drawer.
+     * Returns vouchers / invoice show views so admins review the real module UI.
+     *
+     * @return array{embed_module:?string,embed_view:?string,embed_data:array<string,mixed>}
+     */
+    public static function buildPreviewEmbed(DeleteRequest $deleteRequest, ?Model $record): array
+    {
+        $empty = [
+            'embed_module' => null,
+            'embed_view' => null,
+            'embed_data' => [],
+        ];
+
+        if ($deleteRequest->wasPermanentlyDeleted() || ! $record) {
+            return $empty;
+        }
+
+        try {
+            return match ($deleteRequest->module_key) {
+                'vouchers' => static::previewEmbedVoucher($record),
+                'customer_invoices' => static::previewEmbedCustomerInvoice($record),
+                'supplier_invoices' => static::previewEmbedSupplierInvoice($record),
+                'rider_invoices' => static::previewEmbedRiderInvoice($record),
+                'sim_invoices' => static::previewEmbedSimInvoice($record),
+                'employee_invoices' => static::previewEmbedEmployeeInvoice($record),
+                'leasing_company_invoices' => static::previewEmbedLeasingCompanyInvoice($record),
+                default => $empty,
+            };
+        } catch (\Throwable $e) {
+            Log::warning('Delete request preview embed failed', [
+                'delete_request_id' => $deleteRequest->id,
+                'module_key' => $deleteRequest->module_key,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $empty;
+        }
+    }
+
+    /**
+     * @return array{embed_module:?string,embed_view:?string,embed_data:array<string,mixed>}
+     */
+    protected static function previewEmbedVoucher(Model $record): array
+    {
+        if (! $record instanceof Vouchers) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        $voucher = Vouchers::withTrashed()
+            ->with(['transactions.account', 'approvedByUser', 'rejectedByUser', 'approvalEvents'])
+            ->find($record->getKey());
+
+        if (! $voucher) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        return [
+            'embed_module' => 'vouchers',
+            'embed_view' => 'vouchers.show_modal',
+            'embed_data' => [
+                'voucher' => $voucher,
+                'editDeleteFlags' => \App\Models\VoucherType::getEditDeleteFlagsByModule('vouchers'),
+                'deleteRequestPreview' => true,
+            ],
+        ];
+    }
+
+    /**
+     * @return array{embed_module:?string,embed_view:?string,embed_data:array<string,mixed>}
+     */
+    protected static function previewEmbedCustomerInvoice(Model $record): array
+    {
+        if (! $record instanceof \App\Models\CustomerInvoices) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        $invoice = \App\Models\CustomerInvoices::withTrashed()
+            ->with(['items', 'customer'])
+            ->find($record->getKey());
+
+        if (! $invoice) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        return [
+            'embed_module' => 'customer_invoices',
+            'embed_view' => 'customer_invoices.show',
+            'embed_data' => [
+                'invoice' => $invoice,
+                'deleteRequestPreview' => true,
+            ],
+        ];
+    }
+
+    /**
+     * @return array{embed_module:?string,embed_view:?string,embed_data:array<string,mixed>}
+     */
+    protected static function previewEmbedSupplierInvoice(Model $record): array
+    {
+        if (! $record instanceof \App\Models\SupplierInvoices) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        $supplierInvoice = \App\Models\SupplierInvoices::withTrashed()
+            ->with(['supplier', 'garage', 'createdBy', 'updatedBy', 'items'])
+            ->find($record->getKey());
+
+        if (! $supplierInvoice) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        return [
+            'embed_module' => 'supplier_invoices',
+            'embed_view' => 'supplier_invoices.show',
+            'embed_data' => [
+                'supplierInvoice' => $supplierInvoice,
+                'deleteRequestPreview' => true,
+            ],
+        ];
+    }
+
+    /**
+     * @return array{embed_module:?string,embed_view:?string,embed_data:array<string,mixed>}
+     */
+    protected static function previewEmbedRiderInvoice(Model $record): array
+    {
+        if (! $record instanceof \App\Models\RiderInvoices) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        $riderInvoice = \App\Models\RiderInvoices::withTrashed()
+            ->with([
+                'items',
+                'customer',
+                'rider' => function ($query) {
+                    $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes', 'account', 'customer']);
+                },
+            ])
+            ->find($record->getKey());
+
+        if (! $riderInvoice || ! $riderInvoice->rider) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        if (class_exists(\App\Models\RiderInvoiceTemplate::class)
+            && \App\Models\RiderInvoiceTemplate::isSchemaReady()
+        ) {
+            $riderInvoice->load('template');
+        }
+
+        $resolver = app(\App\Services\RiderInvoice\RiderInvoiceTemplateResolver::class);
+        $templateView = $resolver->resolveViewForInvoice($riderInvoice);
+        if (! \Illuminate\Support\Facades\View::exists($templateView)) {
+            $templateView = \App\Models\RiderInvoiceTemplate::FALLBACK_VIEW;
+        }
+
+        $builder = app(\App\Services\RiderInvoice\RiderInvoiceViewDataBuilder::class);
+        $viewData = array_merge(
+            $builder->build($riderInvoice),
+            [
+                'riderInvoice' => $riderInvoice,
+                'activeTemplate' => $resolver->resolveForInvoice($riderInvoice),
+                'templateView' => $templateView,
+                'templates' => $resolver->activeTemplates(),
+                'paymentVouchers' => $builder->paymentVouchersForInvoice($riderInvoice),
+                'deleteRequestPreview' => true,
+            ]
+        );
+
+        return [
+            'embed_module' => 'rider_invoices',
+            'embed_view' => 'rider_invoices.show',
+            'embed_data' => $viewData,
+        ];
+    }
+
+    /**
+     * @return array{embed_module:?string,embed_view:?string,embed_data:array<string,mixed>}
+     */
+    protected static function previewEmbedSimInvoice(Model $record): array
+    {
+        if (! $record instanceof \App\Models\SimInvoice) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        $invoice = \App\Models\SimInvoice::withTrashed()
+            ->with(['items.item', 'items.sim', 'company'])
+            ->find($record->getKey());
+
+        if (! $invoice) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        $pivot = $invoice->pivotChargeGrid();
+
+        return [
+            'embed_module' => 'sim_invoices',
+            'embed_view' => 'sim_invoices.show',
+            'embed_data' => [
+                'invoice' => $invoice,
+                'pivotColumns' => $pivot['columns'],
+                'pivotRows' => $pivot['rows'],
+                'deleteRequestPreview' => true,
+            ],
+        ];
+    }
+
+    /**
+     * @return array{embed_module:?string,embed_view:?string,embed_data:array<string,mixed>}
+     */
+    protected static function previewEmbedEmployeeInvoice(Model $record): array
+    {
+        if (! $record instanceof \App\Models\EmployeeInvoices) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        $employeeInvoice = \App\Models\EmployeeInvoices::withTrashed()
+            ->with([
+                'items',
+                'employee' => function ($query) {
+                    $query->withTrashed()->with(['department', 'account']);
+                },
+            ])
+            ->find($record->getKey());
+
+        if (! $employeeInvoice || ! $employeeInvoice->employee) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        $builder = app(\App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder::class);
+        $viewData = array_merge(
+            $builder->build($employeeInvoice),
+            [
+                'employeeInvoice' => $employeeInvoice,
+                'paymentVouchers' => $builder->paymentVouchersForInvoice($employeeInvoice),
+                'deleteRequestPreview' => true,
+            ]
+        );
+
+        return [
+            'embed_module' => 'employee_invoices',
+            'embed_view' => 'employee_invoices.show',
+            'embed_data' => $viewData,
+        ];
+    }
+
+    /**
+     * @return array{embed_module:?string,embed_view:?string,embed_data:array<string,mixed>}
+     */
+    protected static function previewEmbedLeasingCompanyInvoice(Model $record): array
+    {
+        if (! $record instanceof \App\Models\LeasingCompanyInvoice) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        $invoice = \App\Models\LeasingCompanyInvoice::withTrashed()
+            ->with(['items', 'leasingCompany'])
+            ->find($record->getKey());
+
+        if (! $invoice) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        return [
+            'embed_module' => 'leasing_company_invoices',
+            'embed_view' => 'leasing_company_invoices.show',
+            'embed_data' => [
+                'invoice' => $invoice,
+                'deleteRequestPreview' => true,
+            ],
+        ];
     }
 
     /**

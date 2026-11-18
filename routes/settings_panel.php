@@ -415,6 +415,9 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
             return redirect()->route('notifications.index');
         })->name('notifications');
         Route::post('/notifications/{notification}/read', [\App\Http\Controllers\NotificationCenterController::class, 'markRead'])->name('notifications.read');
+        Route::post('/bulk-approve', [App\Http\Controllers\DeleteRequestsController::class, 'bulkApprove'])->name('bulk-approve');
+        Route::post('/bulk-reject', [App\Http\Controllers\DeleteRequestsController::class, 'bulkReject'])->name('bulk-reject');
+        Route::get('/{deleteRequest}/preview', [App\Http\Controllers\DeleteRequestsController::class, 'preview'])->name('preview');
         Route::get('/{deleteRequest}', [App\Http\Controllers\DeleteRequestsController::class, 'show'])->name('show');
         Route::post('/{deleteRequest}/approve', [App\Http\Controllers\DeleteRequestsController::class, 'approve'])->name('approve');
         Route::post('/{deleteRequest}/reject', [App\Http\Controllers\DeleteRequestsController::class, 'reject'])->name('reject');

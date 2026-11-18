@@ -30,7 +30,7 @@ $voucher_number = $doc['voucherNo']
   ?? ($voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT));
 @endphp
 <div class="voucher-modal-content">
-  @if(empty($visaCreditEditEmbed))
+  @if(empty($visaCreditEditEmbed) && empty($deleteRequestPreview))
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom no-print">
     <div class="d-flex align-items-center gap-2">
       @if($voucherPendingDeletion)
@@ -66,6 +66,11 @@ $voucher_number = $doc['voucherNo']
         <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-arrow-right  me-1"></i> Email</a>
       @endcan
     </div>
+  </div>
+  @elseif(!empty($deleteRequestPreview) && $voucherPendingDeletion)
+  <div class="mb-3 no-print">
+    @include('delete_requests._pending_badge', ['model' => $voucher])
+    <span class="text-muted small ms-2"><i class="ti ti-lock me-1"></i>Locked — awaiting delete approval</span>
   </div>
   @endif
 

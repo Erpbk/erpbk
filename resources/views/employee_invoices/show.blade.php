@@ -1,3 +1,4 @@
+@if(empty($deleteRequestPreview))
 <!DOCTYPE html>
 <html lang="en">
 
@@ -7,6 +8,7 @@
 </head>
 
 <body>
+@endif
     {{-- Styles in body so AJAX modal .load() keeps them (head is stripped) --}}
     @include('invoices.partials.tax_invoice_styles')
     @include('invoices.partials.tax_invoice_pdf_styles')
@@ -49,7 +51,7 @@
     $employee_balance_final = $employee_balance_final ?? 0;
     @endphp
 
-    @if(empty($isPdf))
+    @if(empty($isPdf) && empty($deleteRequestPreview))
     <div class="controls no-print">
         @php
             $companySlug = request()->route('company_slug');
@@ -284,6 +286,8 @@
     </div>
 
     @include('invoices.partials.tax_invoice_print_script', ['isPdf' => $isPdf ?? null])
+@if(empty($deleteRequestPreview))
 </body>
 
 </html>
+@endif

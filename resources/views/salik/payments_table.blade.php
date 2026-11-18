@@ -64,7 +64,7 @@
                                data-url="{{ route('salik.payment.unpay', $voucher->id) }}"
                                data-label="{{ $voucherId }}"
                                data-count="{{ $voucher->salik_count ?? 0 }}"
-                               data-amount="{{ \App\Helpers\Currency::format($voucher->amount, 2) }}">
+                               data-amount="{{ \App\Helpers\Currency::formatPlain($voucher->amount, 2) }}">
                                 <i class="fa fa-undo my-1"></i> Unpay
                             </a>
                             @endcan

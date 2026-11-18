@@ -143,5 +143,7 @@ $voucher_number = $doc['voucherNo']
     </div>
   @endif
 
-  <div id="voucher-panel-current" data-number="{{ $voucher_number }}" data-amount="{{ \App\Helpers\Currency::format($voucher->amount, 2) }}" style="display: none;" aria-hidden="true"></div>
+  @if(empty($deleteRequestPreview))
+  <div id="voucher-panel-current" data-number="{{ $voucher_number }}" data-amount="{{ \App\Helpers\Currency::formatPlain($voucher->amount, 2) }}" style="display: none;" aria-hidden="true"></div>
+  @endif
 </div>

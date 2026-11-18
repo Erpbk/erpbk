@@ -29,7 +29,7 @@ $isPrint = request()->boolean('print') || (bool) request()->get('print');
     </div>
     <div id="voucher-panel-current"
         data-number="{{ $voucherNo ?? '' }}"
-        data-amount="{{ isset($formatMoney) && is_callable($formatMoney) ? $formatMoney((float) ($amount ?? 0)) : \App\Helpers\Currency::format((float) ($amount ?? 0)) }}"
+        data-amount="{{ \App\Helpers\Currency::formatPlain((float) ($amount ?? 0), 2) }}"
         style="display:none;"
         aria-hidden="true"></div>
 @endif

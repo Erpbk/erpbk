@@ -128,5 +128,5 @@
   </div>
 
   {{-- Data for panel footer --}}
-  <div id="voucher-panel-current" data-number="{{ $voucher_number }}" data-amount="{{ \App\Helpers\Currency::format($voucher->amount, 2) }}" style="display: none;" aria-hidden="true"></div>
+  <div id="voucher-panel-current" data-number="{{ $voucher_number }}" data-amount="{{ \App\Helpers\Currency::formatPlain($voucher->amount, 2) }}" style="display: none;" aria-hidden="true"></div>
 </div>

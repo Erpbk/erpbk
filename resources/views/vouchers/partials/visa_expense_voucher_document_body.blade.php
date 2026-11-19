@@ -21,7 +21,10 @@
     $lineColumnLabel = trim((string) ($lineColumnLabel ?? $detailLabel)) ?: 'Visa Status';
     $allocations = collect($allocations ?? []);
     $allocatedTotal = $allocatedTotal ?? ($amount ?? 0);
-    $companyTrn = trim((string) ($companyTrn ?? (\App\Helpers\Common::getSetting('vat_number') ?? '')));
+    $companyTrn = trim((string) ($companyTrn ?? ($brand['trn'] ?? ($brand['vat_number'] ?? ''))));
+    if ($companyTrn === '' && auth()->user()?->company_id) {
+        $companyTrn = trim((string) (\App\Helpers\Common::getSetting('vat_number') ?? ''));
+    }
     $companyPhone = trim((string) ($companyPhone ?? ($brand['phone'] ?? '')));
     $companyEmail = trim((string) ($companyEmail ?? ($brand['email'] ?? '')));
     $companyAddress = trim((string) ($companyAddress ?? ($brand['address'] ?? '')));

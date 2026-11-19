@@ -38,6 +38,43 @@ class VisaExpenseVoucherViewData
     }
 
     /**
+     * Document view-model for an unpaid / not-yet-vouchered Visa Expense entry
+     * (same LV chrome as vouchers.show_modal).
+     *
+     * @return array<string, mixed>
+     */
+    public function buildFromExpense(visa_expenses $expense): array
+    {
+        $ghost = new Vouchers([
+            'company_id' => $expense->company_id,
+            'voucher_type' => 'LV',
+            'amount' => $expense->amount,
+            'billing_month' => $expense->billing_month,
+            'trans_date' => $expense->date,
+            'remarks' => $expense->detail,
+            'ref_id' => $expense->id,
+            'reference_number' => $expense->reference_number ?? null,
+            'payment_type' => null,
+            'Created_By' => $expense->created_by ?? $expense->Created_By ?? null,
+            'created_by' => $expense->created_by ?? $expense->Created_By ?? null,
+        ]);
+        $ghost->setAttribute('id', $expense->id);
+        $ghost->setRelation('transactions', collect());
+
+        $doc = $this->build($ghost);
+        $doc['voucherNo'] = 'VE-'.str_pad((string) $expense->id, 4, '0', STR_PAD_LEFT);
+        $doc['referenceNo'] = $doc['voucherNo'];
+        $doc['voucherTypeCode'] = 'LV';
+        if (strtolower((string) ($expense->payment_status ?? '')) !== 'paid') {
+            $doc['paymentMode'] = 'Unpaid';
+            $doc['paymentType'] = 'Unpaid';
+            $doc['paidBy'] = '—';
+        }
+
+        return $doc;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function build(Vouchers $voucher): array
@@ -118,6 +155,8 @@ class VisaExpenseVoucherViewData
             'payment' => $amount,
         ]]);
 
+        $companyId = CompanyContext::id() ?? $voucher->company_id;
+
         return [
             'voucher' => $voucher,
             'settings' => $settings,
@@ -125,6 +164,10 @@ class VisaExpenseVoucherViewData
             'documentTitle' => strtoupper($typeLabel),
             'companyName' => $brand['name'] ?? ($brand['company_name'] ?? '—'),
             'logoSrc' => $brand['logo_src'] ?? ($brand['logo_url'] ?? null),
+            'companyTrn' => (string) ($brand['trn'] ?? $brand['vat_number'] ?? ''),
+            'companyPhone' => (string) ($brand['phone'] ?? ''),
+            'companyEmail' => (string) ($brand['email'] ?? ''),
+            'companyAddress' => (string) ($brand['address'] ?? ''),
             'voucherNo' => $voucherNo,
             'referenceNo' => $referenceNo,
             'voucherDate' => $voucherDate,
@@ -137,6 +180,7 @@ class VisaExpenseVoucherViewData
             'paidBy' => $paidBy,
             'createdBy' => $this->userName($voucher->Created_By ?? $voucher->created_by) ?: '—',
             'voucherTypeLabel' => $typeLabel,
+            'voucherTypeCode' => $typeCode,
             'paymentMode' => $paymentMode,
             'paymentType' => $paymentType,
             'detailLabel' => $detailLabel,
@@ -157,7 +201,7 @@ class VisaExpenseVoucherViewData
             'formatMoney' => static fn (float $n) => Currency::format($n),
             'signatureSlots' => $this->signatureResolver->slotsFor(
                 $typeCode,
-                CompanyContext::id() ?? $voucher->company_id
+                $companyId
             ),
         ];
     }

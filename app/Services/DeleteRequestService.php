@@ -434,7 +434,14 @@ class DeleteRequestService
                 'sim_invoices' => static::previewEmbedSimInvoice($record),
                 'employee_invoices' => static::previewEmbedEmployeeInvoice($record),
                 'leasing_company_invoices' => static::previewEmbedLeasingCompanyInvoice($record),
-                default => $empty,
+                'visa_expenses' => static::previewEmbedVisaExpense($record),
+                'license_expenses' => static::previewEmbedLicenseExpense($record),
+                'visa_installment_plans',
+                'license_installment_plans',
+                'rta_fines',
+                'salik',
+                'receipts' => static::previewEmbedRelatedVoucher($record, $deleteRequest->module_key),
+                default => static::previewEmbedRelatedVoucher($record, $deleteRequest->module_key),
             };
         } catch (\Throwable $e) {
             Log::warning('Delete request preview embed failed', [
@@ -448,21 +455,101 @@ class DeleteRequestService
     }
 
     /**
+     * Prefer the module's linked voucher document (same UI as vouchers.show).
+     *
+     * @return array{embed_module:?string,embed_view:?string,embed_data:array<string,mixed>}
+     */
+    protected static function previewEmbedRelatedVoucher(Model $record, string $moduleKey): array
+    {
+        $related = static::findRelatedVoucher($record);
+        if ($related) {
+            return static::previewEmbedVoucher($related);
+        }
+
+        return [
+            'embed_module' => null,
+            'embed_view' => null,
+            'embed_data' => [],
+        ];
+    }
+
+    /**
+     * Resolve a voucher linked to a module record (ref_id, FK, or trans_code).
+     */
+    protected static function findRelatedVoucher(Model $record): ?Vouchers
+    {
+        if ($record instanceof Vouchers) {
+            return Vouchers::withTrashed()
+                ->with(['transactions.account', 'approvedByUser', 'rejectedByUser', 'approvalEvents'])
+                ->find($record->getKey());
+        }
+
+        if (method_exists($record, 'vouchers')) {
+            try {
+                $record->loadMissing('vouchers');
+                $first = $record->vouchers?->first();
+                if ($first instanceof Vouchers) {
+                    return Vouchers::withTrashed()
+                        ->with(['transactions.account', 'approvedByUser', 'rejectedByUser', 'approvalEvents'])
+                        ->find($first->getKey()) ?? $first;
+                }
+            } catch (\Throwable $e) {
+                // continue with other strategies
+            }
+        }
+
+        foreach (['voucher', 'paymentVoucher', 'paidVoucher'] as $relation) {
+            if (! method_exists($record, $relation)) {
+                continue;
+            }
+            try {
+                $record->loadMissing($relation);
+                $related = $record->{$relation};
+                if ($related instanceof Vouchers) {
+                    return Vouchers::withTrashed()
+                        ->with(['transactions.account', 'approvedByUser', 'rejectedByUser', 'approvalEvents'])
+                        ->find($related->getKey()) ?? $related;
+                }
+            } catch (\Throwable $e) {
+                // continue
+            }
+        }
+
+        foreach (['voucher_id', 'payment_voucher_id', 'paid_voucher_id'] as $column) {
+            $id = $record->getAttribute($column);
+            if ($id) {
+                $voucher = Vouchers::withTrashed()
+                    ->with(['transactions.account', 'approvedByUser', 'rejectedByUser', 'approvalEvents'])
+                    ->find($id);
+                if ($voucher) {
+                    return $voucher;
+                }
+            }
+        }
+
+        $transCode = $record->getAttribute('trans_code');
+        if ($transCode !== null && $transCode !== '') {
+            return Vouchers::withTrashed()
+                ->with(['transactions.account', 'approvedByUser', 'rejectedByUser', 'approvalEvents'])
+                ->where('trans_code', $transCode)
+                ->orderBy('id')
+                ->first();
+        }
+
+        return null;
+    }
+
+    /**
      * @return array{embed_module:?string,embed_view:?string,embed_data:array<string,mixed>}
      */
     protected static function previewEmbedVoucher(Model $record): array
     {
-        if (! $record instanceof Vouchers) {
-            return [
-                'embed_module' => null,
-                'embed_view' => null,
-                'embed_data' => [],
-            ];
+        $voucher = null;
+        if ($record instanceof Vouchers) {
+            $voucher = $record->exists
+                ? static::findRelatedVoucher($record)
+                : $record;
         }
-
-        $voucher = Vouchers::withTrashed()
-            ->with(['transactions.account', 'approvedByUser', 'rejectedByUser', 'approvalEvents'])
-            ->find($record->getKey());
 
         if (! $voucher) {
             return [
@@ -470,6 +557,12 @@ class DeleteRequestService
                 'embed_view' => null,
                 'embed_data' => [],
             ];
+        }
+
+        if ($voucher->exists) {
+            $voucher->loadMissing(['transactions.account', 'approvedByUser', 'rejectedByUser', 'approvalEvents']);
+        } else {
+            $voucher->loadMissing(['transactions.account']);
         }
 
         return [
@@ -481,6 +574,92 @@ class DeleteRequestService
                 'deleteRequestPreview' => true,
             ],
         ];
+    }
+
+    /**
+     * @return array{embed_module:?string,embed_view:?string,embed_data:array<string,mixed>}
+     */
+    protected static function previewEmbedVisaExpense(Model $record): array
+    {
+        $related = static::previewEmbedRelatedVoucher($record, 'visa_expenses');
+        if (! empty($related['embed_view'])) {
+            return $related;
+        }
+
+        if (! $record instanceof \App\Models\visa_expenses) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        $data = \App\Models\visa_expenses::withTrashed()
+            ->with('vouchers')
+            ->find($record->getKey());
+        if (! $data) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        $doc = app(\App\Services\Voucher\VisaExpenseVoucherViewData::class)->buildFromExpense($data);
+        $doc['deleteRequestPreview'] = true;
+
+        return [
+            'embed_module' => 'visa_expenses',
+            'embed_view' => 'vouchers.partials.visa_expense_voucher_document_body',
+            'embed_data' => $doc,
+        ];
+    }
+
+    /**
+     * @return array{embed_module:?string,embed_view:?string,embed_data:array<string,mixed>}
+     */
+    protected static function previewEmbedLicenseExpense(Model $record): array
+    {
+        $related = static::previewEmbedRelatedVoucher($record, 'license_expenses');
+        if (! empty($related['embed_view'])) {
+            return $related;
+        }
+
+        if (! $record instanceof \App\Models\license_expenses) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        $data = \App\Models\license_expenses::withTrashed()
+            ->with('vouchers')
+            ->find($record->getKey());
+        if (! $data) {
+            return [
+                'embed_module' => null,
+                'embed_view' => null,
+                'embed_data' => [],
+            ];
+        }
+
+        // Unpaid license entries have no LE voucher yet — show the same voucher document chrome.
+        $ghost = new Vouchers([
+            'company_id' => $data->company_id,
+            'voucher_type' => 'LE',
+            'amount' => $data->amount,
+            'billing_month' => $data->billing_month,
+            'trans_date' => $data->date,
+            'remarks' => $data->detail ?? ('License Expense — '.($data->license_status ?? '')),
+            'ref_id' => $data->id,
+            'Created_By' => $data->created_by ?? null,
+            'created_by' => $data->created_by ?? null,
+        ]);
+        $ghost->setAttribute('id', $data->id);
+        $ghost->setRelation('transactions', collect());
+
+        return static::previewEmbedVoucher($ghost);
     }
 
     /**

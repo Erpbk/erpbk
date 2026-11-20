@@ -649,7 +649,7 @@
                     <div class="rpv-card">
                         <table class="rpv-kv" cellpadding="0" cellspacing="0">
                             <tr class="rpv-kv-head">
-                                <td colspan="2" class="rpv-kv-head-title"><strong>Person</strong></td>
+                                <td colspan="2" class="rpv-kv-head-title"><strong>Paid To</strong></td>
                             </tr>
                             <tr>
                                 <td class="k">Name</td>
@@ -677,8 +677,8 @@
                                 <td colspan="2" class="rpv-kv-head-title"><strong>Payment Detail</strong></td>
                             </tr>
                             <tr>
-                                <td class="k">Voucher Type</td>
-                                <td class="v">{{ $voucherTypeLabel }}</td>
+                                <td class="k">Payment Mode</td>
+                                <td class="v">{{ $paymentMode ?? $voucherTypeLabel }}</td>
                             </tr>
                             <tr>
                                 <td class="k">Payment Type</td>
@@ -697,6 +697,13 @@
                 </td>
             </tr>
         </table>
+
+        @if(!empty($narration) && $narration !== '—')
+        <div class="rpv-box">
+            <div class="rpv-box-title">Narration / Description</div>
+            <div class="rpv-box-body">{{ $narration }}</div>
+        </div>
+        @endif
 
         <div class="rpv-table-wrap">
             <table class="rpv-table">

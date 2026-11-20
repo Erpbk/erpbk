@@ -1,420 +1,340 @@
 @extends('layouts.app')
 @section('title', 'Vouchers')
 
-@push('page-styles')
+@php
+  $hideModuleTopBarSlider = true;
+@endphp
+
+@push('third_party_stylesheets')
+@include('vouchers.partials.demo_shell_styles')
 <style>
-    .filter-sidebar {
-        position: fixed;
-        top: 0;
-        right: -400px;
-        width: 400px;
-        height: 100vh;
-        background: white;
-        box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
-        transition: right 0.3s ease;
-        z-index: 1050;
-        overflow-y: auto;
-    }
-
-    .filter-sidebar.open {
-        right: 0;
-    }
-
-    .filter-header {
-        padding: 15px 20px;
-        border-bottom: 1px solid #dee2e6;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: #f8f9fa;
-    }
-
-    .filter-body {
-        padding: 20px;
-    }
-
-    .filter-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1040;
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.3s ease;
-    }
-
-    .filter-overlay.show {
-        opacity: 1;
-        visibility: visible;
-    }
-
-    .card-search {
-        max-width: 300px;
-    }
-
-    .btn-close {
-        border: none;
-        background: none;
-        font-size: 1.2rem;
-        cursor: pointer;
-    }
-
-    /* Table action menus use Popper fixed strategy (see initializeDropdowns) */
-    #table-data .dropdown-menu,
-    #dataTableBuilder .dropdown-menu {
-        z-index: 1080 !important;
-    }
+  .filter-sidebar {
+    position: fixed;
+    top: 0;
+    right: -400px;
+    width: 400px;
+    height: 100vh;
+    background: white;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    transition: right 0.3s ease;
+    z-index: 11060;
+    overflow-y: auto;
+  }
+  .filter-sidebar.open { right: 0; }
+  .filter-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 11050;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+  .filter-overlay.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+  .btn-close {
+    border: none;
+    background: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
+  #table-data .dropdown-menu,
+  #dataTableBuilder .dropdown-menu {
+    z-index: 1080 !important;
+  }
 </style>
 @endpush
 
 @section('content')
-<div class="content-wrapper">
-    <section class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h3>Vouchers</h3>
-                </div>
-                <div class="col-sm-6">
-                    @can('vouchers_create')
-                    <a class="btn btn-info action-btn show-modal"
-                        href="javascript:void(0);" data-size="sm" data-title="Import Voucher" data-action="{{ route('voucher.import') }}">
-                        Import Voucher
-                    </a>
-                    <a class="show-modal action-btn btn btn-primary" style="margin-right:5px;"
-                        href="javascript:void(0);"
-                        data-size="xl"
-                        data-title="Create Journal Voucher"
-                        data-action="{{ route('vouchers.create', ['vt' => 'JV']) }}">
-                        <i class="fa fa-plus"></i>&nbsp;Journal Voucher
-                    </a>
-                    @endcan
-                </div>
-            </div>
+<div style="display: none;" class="loading-overlay" id="loading-overlay">
+  <div class="spinner-border text-primary" role="status"></div>
+</div>
+
+{{-- Overlay first (below drawer), then filter drawer — same stacking as Riders --}}
+<div class="filter-overlay" id="filterOverlay"></div>
+<div id="filterSidebar" class="filter-sidebar vc-filter-drawer">
+  <div class="filter-header d-flex justify-content-between align-items-center">
+    <h5>Filter Vouchers</h5>
+    <button type="button" class="btn-close" id="closeSidebar" aria-label="Close">&times;</button>
+  </div>
+  <div class="filter-body" id="searchTopbody">
+    <form id="filterForm" action="{{ route('vouchers.index') }}" method="GET">
+      <div class="row">
+        @if(auth()->user()->hasMultiplebranches())
+        <div class="form-group col-md-12">
+          <label for="branch_id">Filter by Branch</label>
+          <select class="form-control" id="branch_id" name="branch_id">
+            @foreach(auth()->user()->branchDropdown() as $id => $name)
+            <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
+            @endforeach
+          </select>
         </div>
-    </section>
-
-    <div class="content px-0">
-        <div class="clearfix"></div>
-
-        <!-- Filter Sidebar -->
-        <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
-            <div class="filter-header">
-                <h5>Filter Vouchers</h5>
-                <button type="button" class="btn-close" id="closeSidebar">&times;</button>
-            </div>
-            <div class="filter-body" id="searchTopbody">
-                <form id="filterForm" action="{{ route('vouchers.index') }}" method="GET">
-                    <div class="row">
-                        @if(auth()->user()->hasMultiplebranches())
-                        <div class="form-group col-md-12">
-                            <label for="branch_id">Filter by Branch</label>
-                            <select class="form-control " id="branch_id" name="branch_id">
-                                @foreach(auth()->user()->branchDropdown() as $id => $name)
-                                <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @endif
-                        <div class="form-group col-md-12">
-                            <label for="voucher_id">Voucher ID</label>
-                            <input type="text" name="voucher_id" class="form-control" placeholder="Filter By Voucher ID (e.g., JV-0001)" value="{{ request('voucher_id') }}">
-                        </div>
-                        @if(field_visible('voucher', 'trans_date'))
-                        <div class="form-group col-md-12">
-                            <label for="trans_date">Transaction Date</label>
-                            <input type="date" name="trans_date" class="form-control" value="{{ request('trans_date') }}">
-                        </div>
-                        @endif
-                        @if(field_visible('voucher', 'billing_month'))
-                        <div class="form-group col-md-12">
-                            <label for="billing_month">Billing Month</label>
-                            <input type="month" name="billing_month" class="form-control" value="{{ request('billing_month') }}">
-                        </div>
-                        @endif
-                        @if(field_visible('voucher', 'voucher_type'))
-                        <div class="form-group col-md-12">
-                            <label for="voucher_type">Voucher Type</label>
-                            <select class="form-control" id="voucher_type" name="voucher_type">
-                                <option value="" selected>Select</option>
-                                @foreach($voucherTypesForFilter ?? \App\Helpers\General::VoucherType() as $key => $value)
-                                <option value="{{ $key }}" {{ request('voucher_type') == $key ? 'selected' : '' }}>{{ $value }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @endif
-                        @if(field_visible('voucher', 'created_by'))
-                        <div class="form-group col-md-12">
-                            <label for="created_by">Created By</label>
-                            <select class="form-control" id="created_by" name="created_by">
-                                @php
-                                $createdByUsers = \App\Models\Vouchers::whereNotNull('Created_By')
-                                ->pluck('Created_By')
-                                ->unique();
-                                @endphp
-                                <option value="" selected>Select</option>
-                                @foreach($createdByUsers as $userId)
-                                @php
-                                $user = \App\Models\User::find($userId);
-                                @endphp
-                                @if($user)
-                                <option value="{{ $userId }}" {{ request('created_by') == $userId ? 'selected' : '' }}>{{ $user->name }}</option>
-                                @endif
-                                @endforeach
-                            </select>
-                        </div>
-                        @endif
-                        <div class="form-group col-md-12">
-                            <label for="quick_search">Quick Search</label>
-                            <input type="text" name="quick_search" id="quickSearchSidebar" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
-                        </div>
-                        <div class="col-md-12 form-group text-center">
-                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                            <a href="{{ route('vouchers.index') }}" class="btn btn-secondary pull-right mt-3 mr-2"><i class="fa fa-refresh mx-2"></i> Clear Filters</a>
-                        </div>
-                    </div>
-                </form>
-            </div>
+        @endif
+        <div class="form-group col-md-12">
+          <label for="voucher_id">Voucher ID</label>
+          <input type="text" name="voucher_id" class="form-control" placeholder="Filter By Voucher ID (e.g., JV-0001)" value="{{ request('voucher_id') }}">
         </div>
-        <div class="filter-overlay" id="filterOverlay"></div>
+        @if(field_visible('voucher', 'trans_date'))
+        <div class="form-group col-md-12">
+          <label for="trans_date">Date</label>
+          <input type="date" name="trans_date" class="form-control" value="{{ request('trans_date') }}">
+        </div>
+        @endif
+        <div class="form-group col-md-12">
+          <label for="account_kind">Type</label>
+          <select class="form-control" name="account_kind" id="account_kind">
+            <option value="">All (Bank &amp; Cash)</option>
+            <option value="bank" {{ request('account_kind') === 'bank' ? 'selected' : '' }}>Bank</option>
+            <option value="cash" {{ request('account_kind') === 'cash' ? 'selected' : '' }}>Cash</option>
+            <option value="oth" {{ request('account_kind') === 'oth' ? 'selected' : '' }}>Account</option>
+          </select>
+        </div>
+        <input type="hidden" name="approval_tab" id="approval_tab" value="{{ $approvalTab ?? request('approval_tab', 'all') }}">
+        @if(field_visible('voucher', 'billing_month'))
+        <div class="form-group col-md-12">
+          <label for="billing_month">Billing Month</label>
+          <input type="month" name="billing_month" class="form-control" value="{{ request('billing_month') }}">
+        </div>
+        @endif
+        @if(field_visible('voucher', 'voucher_type'))
+        <div class="form-group col-md-12">
+          <label for="voucher_type">Voucher Type</label>
+          <select class="form-control" id="voucher_type" name="voucher_type">
+            <option value="">Filter By Voucher Type</option>
+            @foreach($voucherTypesForFilter ?? \App\Helpers\General::VoucherType() as $key => $value)
+            <option value="{{ $key }}" {{ request('voucher_type') == $key ? 'selected' : '' }}>{{ $value }}</option>
+            @endforeach
+          </select>
+        </div>
+        @endif
+        @if(field_visible('voucher', 'created_by'))
+        <div class="form-group col-md-12">
+          <label for="created_by">Created By</label>
+          <select class="form-control" id="created_by" name="created_by">
+            @php
+              $createdByUsers = \App\Models\Vouchers::whereNotNull('Created_By')->pluck('Created_By')->unique();
+            @endphp
+            <option value="">Filter By Created By</option>
+            @foreach($createdByUsers as $userId)
+              @php $user = \App\Models\User::find($userId); @endphp
+              @if($user)
+              <option value="{{ $userId }}" {{ request('created_by') == $userId ? 'selected' : '' }}>{{ $user->name }}</option>
+              @endif
+            @endforeach
+          </select>
+        </div>
+        @endif
+        <div class="form-group col-md-12">
+          <label for="quickSearchSidebar">Quick Search</label>
+          <input type="text" name="quick_search" id="quickSearchSidebar" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
+        </div>
+        <div class="col-md-12 form-group vc-fgo">
+          <button type="submit" class="vc-sbtn p">Filter Data</button>
+          <a href="{{ route('vouchers.index') }}" class="vc-sbtn g">Clear Filters</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
 
-        {{-- Include Column Control Panel --}}
-        @php
-        $tableColumns = [
-        ['data' => 'voucher_id', 'title' => 'Voucher ID'],
-        ['data' => 'trans_date', 'title' => 'Date'],
-        ['data' => 'trans_code', 'title' => 'Trans Code'],
-        ['data' => 'billing_month', 'title' => 'Billing Month'],
-        ['data' => 'reference_number', 'title' => 'Reference Number'],
-        ['data' => 'voucher_type', 'title' => 'Type'],
-        ['data' => 'amount', 'title' => 'Amount'],
-        ['data' => 'approval_status', 'title' => 'Status'],
-        ['data' => 'created_by', 'title' => 'Created By'],
-        ['data' => 'updated_by', 'title' => 'Updated By'],
-        ['data' => 'attach_file', 'title' => 'File'],
-        ['data' => 'action', 'title' => 'Actions'],
-        ['data' => 'search', 'title' => 'Search'],
-        ['data' => 'control', 'title' => 'Control']
-        ];
-        // Drop columns whose field the current user may not view (Role → Field Permissions).
-        $tableColumns = \App\Support\RoleFieldAccess::filterTableColumns($tableColumns, 'voucher');
-        @endphp
-        @include('components.column-control-panel', [
-        'tableColumns' => $tableColumns,
-        'tableIdentifier' => 'vouchers_table',
-        // Keep Actions + trailing search/control out of reorder/hide so Status index shifts cannot drop Actions.
-        'fixedColumnsCount' => 3,
+@php
+  $tableColumns = [
+    ['data' => 'ck', 'title' => 'Select'],
+    ['data' => 'trans_date', 'title' => 'Date'],
+    ['data' => 'billing_month', 'title' => 'Billing Month'],
+    ['data' => 'voucher_id', 'title' => 'Voucher ID'],
+    ['data' => 'reference_number', 'title' => 'Reference'],
+    ['data' => 'module', 'title' => 'Module'],
+    ['data' => 'account_kind', 'title' => 'Type'],
+    ['data' => 'paid_from', 'title' => 'Paid From'],
+    ['data' => 'amount', 'title' => 'Amount'],
+    ['data' => 'created_by', 'title' => 'Created By'],
+    ['data' => 'updated_by', 'title' => 'Updated By'],
+    ['data' => 'attach_file', 'title' => 'File'],
+    ['data' => 'approval_status', 'title' => 'Status'],
+    ['data' => 'action', 'title' => 'Actions'],
+    ['data' => 'search', 'title' => 'Search'],
+    ['data' => 'control', 'title' => 'Control'],
+  ];
+  $tableColumns = \App\Support\RoleFieldAccess::filterTableColumns($tableColumns, 'voucher');
+@endphp
+@include('riders.partials.column_control_modal', [
+  'tableColumns' => $tableColumns,
+  'tableIdentifier' => 'vouchers_table',
+  'tableId' => 'dataTableBuilder',
+  'fixedColumnsCount' => 3,
+  'exportRoute' => route('vouchers.exportCustomizable'),
+  'showExportOptions' => true,
+  'exportNote' => 'Only ticked columns are exported, in the current order, for all vouchers.',
+  'moduleKey' => 'voucher',
+])
+
+<div class="vc-demo" id="vouchersDemo">
+  <div class="vc-wrap">
+    @include('flash::message')
+
+    @include('vouchers.partials.type_ticker', [
+      'voucherTypesForFilter' => $voucherTypesForFilter ?? [],
+      'typeTickerStats' => $typeTickerStats ?? [],
+    ])
+
+    @include('vouchers.partials.demo_toolbar', [
+      'data' => $data ?? collect(),
+      'tabCounts' => $tabCounts ?? [],
+      'approvalTab' => $approvalTab ?? request('approval_tab', 'all'),
+    ])
+
+    @include('vouchers.partials.bulk_bar')
+
+    <div class="vc-tbox" id="table-data">
+      @include('vouchers.table', [
+        'data' => $data ?? collect(),
+        'editDeleteFlags' => $editDeleteFlags ?? [],
+      ])
+    </div>
+
+    <div id="vcPagerWrap">
+      @if(isset($data) && method_exists($data, 'links'))
+        @include('components.riders-demo-pagination', [
+          'paginator' => $data,
+          'entityLabel' => 'vouchers',
+          'perPageOptions' => [10, 20, 50, 100, 'all'],
         ])
-        <!-- Column Control Overlay -->
-        <div class="filter-overlay" id="columnControlOverlay"></div>
-
-        <div class="card">
-            <div class="card-header d-flex justify-content-between">
-                <div class="card-search">
-                    <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
-                </div>
-                <div class="d-flex justify-content-end gap-2">
-                    <button class="btn btn-primary btn-sm openColumnControlSidebar" title="Column Control"> Column Control</button>
-                    <button class="btn btn-primary btn-sm openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
-                </div>
-            </div>
-            <div class="card-body  px-2 py-0 table-responsive" id="table-data">
-                @include('vouchers.table', ['data' => $data ?? collect(), 'editDeleteFlags' => $editDeleteFlags ?? []])
-            </div>
-        </div>
+      @endif
     </div>
+  </div>
 </div>
 
-<!-- Loading Overlay -->
-<div id="loading-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
-    <div class="text-white text-center">
-        <div class="spinner-border" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <div class="mt-2">Loading...</div>
-    </div>
-</div>
+@include('vouchers.partials.ui_modals')
 @endsection
 
 @section('page-script')
-<!-- Include Sortable.js for column reordering -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+@include('vouchers.partials.demo_scripts')
 <script type="text/javascript">
-    // Wait for jQuery to be available
-    (function checkJQuery() {
-        if (typeof jQuery === 'undefined') {
-            console.warn('jQuery not loaded yet, waiting...');
-            setTimeout(checkJQuery, 50);
-            return;
+(function checkJQuery() {
+  if (typeof jQuery === 'undefined') {
+    setTimeout(checkJQuery, 50);
+    return;
+  }
+
+  $(document).ready(function () {
+    function initializeDropdowns() {
+      var attempts = 0;
+      var maxAttempts = 10;
+      function tryInitialize() {
+        attempts++;
+        if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
+          document.querySelectorAll('#dataTableBuilder [data-bs-toggle="dropdown"]').forEach(function (el) {
+            try {
+              var existing = bootstrap.Dropdown.getInstance(el);
+              if (existing) existing.dispose();
+              new bootstrap.Dropdown(el, {
+                popperConfig: function (defaultConfig) {
+                  return Object.assign({}, defaultConfig, {
+                    strategy: 'fixed',
+                    modifiers: (defaultConfig.modifiers || []).concat([{
+                      name: 'preventOverflow',
+                      options: { boundary: 'viewport' }
+                    }])
+                  });
+                }
+              });
+            } catch (e) {}
+          });
+        } else if (attempts < maxAttempts) {
+          setTimeout(tryInitialize, 100);
         }
+      }
+      tryInitialize();
+    }
 
-        $(document).ready(function() {
-            console.log('Vouchers filter script loaded'); // Debug line
+    initializeDropdowns();
 
-            // Test jQuery is working
-            console.log('jQuery version:', $.fn.jquery);
+    if (typeof $.fn.select2 !== 'undefined') {
+      $('#voucher_type').select2({
+        dropdownParent: $('#searchTopbody'),
+        placeholder: 'Filter By Voucher Type',
+        allowClear: true,
+      });
+      $('#created_by').select2({
+        dropdownParent: $('#searchTopbody'),
+        placeholder: 'Filter By Created By',
+        allowClear: true,
+      });
+      $('#branch_id').select2({
+        dropdownParent: $('#searchTopbody'),
+        placeholder: 'Filter By Branch',
+        allowClear: true,
+      });
+    }
 
-            // Function to initialize Bootstrap dropdowns (fixed strategy escapes table overflow)
-            function initializeDropdowns() {
-                var attempts = 0;
-                var maxAttempts = 10;
+    $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      $('#filterSidebar').addClass('open');
+      $('#filterOverlay').addClass('show');
+      return false;
+    });
 
-                function tryInitialize() {
-                    attempts++;
+    // Close only via × or the dimmed overlay — not clicks inside the drawer
+    $(document).on('click', '#closeSidebar', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      $('#filterSidebar').removeClass('open');
+      $('#filterOverlay').removeClass('show');
+      return false;
+    });
+    $(document).on('click', '#filterOverlay', function (e) {
+      if (e.target !== this) return;
+      e.preventDefault();
+      $('#filterSidebar').removeClass('open');
+      $('#filterOverlay').removeClass('show');
+      return false;
+    });
+    $(document).on('click', '#filterSidebar', function (e) {
+      e.stopPropagation();
+    });
 
-                    if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
-                        document.querySelectorAll('#dataTableBuilder [data-bs-toggle="dropdown"]').forEach(function(el) {
-                            try {
-                                var existing = bootstrap.Dropdown.getInstance(el);
-                                if (existing) {
-                                    existing.dispose();
-                                }
-                                new bootstrap.Dropdown(el, {
-                                    popperConfig: function(defaultConfig) {
-                                        return Object.assign({}, defaultConfig, {
-                                            strategy: 'fixed',
-                                            modifiers: (defaultConfig.modifiers || []).concat([{
-                                                name: 'preventOverflow',
-                                                options: { boundary: 'viewport' }
-                                            }])
-                                        });
-                                    }
-                                });
-                            } catch (e) {
-                                console.warn('Failed to initialize dropdown:', e);
-                            }
-                        });
-                    } else if (attempts < maxAttempts) {
-                        setTimeout(tryInitialize, 100);
-                    }
-                }
+    // Column Control uses riders.partials.column_control_modal (centered rl-ov).
+    // Close the Actions menu when that opens.
+    $(document).on('click', '.openColumnControlSidebar', function () {
+      $('#vcActMenu').removeClass('open');
+      $('#vcActBtn').attr('aria-expanded', 'false');
+    });
 
-                tryInitialize();
-            }
+    // Phase 1: full-page filter so ticker / tabs / demo pager stay in sync (no backend change).
+    $('#filterForm').on('submit', function () {
+      $('#loading-overlay').show();
+      $('#filterSidebar').removeClass('open');
+      $('#filterOverlay').removeClass('show');
+    });
 
-            // Initialize dropdowns on page load
-            initializeDropdowns();
+    $('#quickSearch').on('keyup', function (e) {
+      if (e.keyCode === 13 || $(this).val().length === 0) {
+        $('#quickSearchSidebar').val($(this).val());
+        $('#filterForm').trigger('submit');
+      }
+    });
 
-            // Initialize Select2 for filter dropdowns if available
-            if (typeof $.fn.select2 !== 'undefined') {
-                $('#voucher_type').select2({
-                    dropdownParent: $('#searchTopbody'),
-                    placeholder: "Filter By Voucher Type",
-                    allowClear: true,
-                });
-                $('#created_by').select2({
-                    dropdownParent: $('#searchTopbody'),
-                    placeholder: "Filter By Created By",
-                    allowClear: true,
-                });
-                $('#branch_id').select2({
-                    dropdownParent: $('#searchTopbody'),
-                    placeholder: "Filter By Branch",
-                    allowClear: true,
-                });
-            }
+    $('#quickSearchSidebar').on('keyup', function (e) {
+      if (e.keyCode === 13 || $(this).val().length === 0) {
+        $('#quickSearch').val($(this).val());
+        $('#filterForm').trigger('submit');
+      }
+    });
 
-            // Sidebar open/close with event delegation
-            $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {
-                e.preventDefault();
-                console.log('Filter button clicked!'); // Debug line
-                $('#filterSidebar').addClass('open');
-                $('#filterOverlay').addClass('show');
-                return false;
-            });
-
-            $(document).on('click', '#closeSidebar, #filterOverlay', function(e) {
-                e.preventDefault();
-                console.log('Close button clicked!'); // Debug line
-                $('#filterSidebar').removeClass('open');
-                $('#filterOverlay').removeClass('show');
-                return false;
-            });
-
-            // Column control button with event delegation
-            $(document).on('click', '.openColumnControlSidebar', function(e) {
-                e.preventDefault();
-                console.log('Column control button clicked!'); // Debug line
-                $('#columnControlSidebar').addClass('open');
-                $('#filterOverlay').addClass('show');
-                return false;
-            });
-
-            // Handle filter form submission
-            $('#filterForm').on('submit', function(e) {
-                e.preventDefault();
-                console.log('Filter form submitted'); // Debug line
-
-                $('#loading-overlay').show();
-                $('#filterSidebar').removeClass('open');
-                $('#filterOverlay').removeClass('show');
-                const loaderStartTime = Date.now();
-                let filteredFields = $(this).serializeArray().filter(field => field.name !== '_token' && field.value.trim() !== '');
-                let formData = $.param(filteredFields);
-
-                $.ajax({
-                    url: "{{ route('vouchers.index') }}",
-                    type: "GET",
-                    data: formData,
-                    success: function(data) {
-                        console.log('Filter response received:', data); // Debug line
-                        $('#table-data').html(data.tableData);
-                        let newUrl = "{{ route('vouchers.index') }}" + (formData ? '?' + formData : '');
-                        history.pushState(null, '', newUrl);
-                        if (filteredFields.length > 0) {
-                            $('#clearFilterBtn').show();
-                        } else {
-                            $('#clearFilterBtn').hide();
-                        }
-
-                        // Reinitialize dropdowns after loading new content
-                        setTimeout(function() {
-                            initializeDropdowns();
-                        }, 100);
-
-                        // Reapply column control settings after table update
-                        if (window.ColumnController) {
-                            setTimeout(() => {
-                                window.ColumnController.reapplySettings();
-                                window.ColumnController.initializeDropdowns();
-                            }, 100);
-                        }
-
-                        const elapsed = Date.now() - loaderStartTime;
-                        const remaining = 1000 - elapsed;
-                        setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Filter error:', xhr, status, error); // Debug line
-                        const elapsed = Date.now() - loaderStartTime;
-                        const remaining = 1000 - elapsed;
-                        setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
-                    }
-                });
-            });
-
-            // Quick search input (main)
-            $('#quickSearch').on('keyup', function(e) {
-                if (e.keyCode === 13 || $(this).val().length === 0) {
-                    // Set the sidebar quick search too
-                    $('#quickSearchSidebar').val($(this).val());
-                    $('#filterForm').submit();
-                }
-            });
-
-            // Quick search input (sidebar)
-            $('#quickSearchSidebar').on('keyup', function(e) {
-                if (e.keyCode === 13 || $(this).val().length === 0) {
-                    // Set the main quick search too
-                    $('#quickSearch').val($(this).val());
-                    $('#filterForm').submit();
-                }
-            });
-        }); // End $(document).ready
-
-    })(); // End jQuery availability check
+    // Pager per-page (riders-demo-pagination)
+    $(document).on('change', '#rlPerPage', function () {
+      var url = new URL(window.location.href);
+      url.searchParams.set('per_page', $(this).val());
+      url.searchParams.delete('page');
+      window.location.href = url.toString();
+    });
+  });
+})();
 </script>
 @endsection

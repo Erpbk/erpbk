@@ -28,11 +28,19 @@ $doc = $useRiderDocument
   : ($useVisaDocument ? $visaDoc->build($voucher) : null);
 $voucher_number = $doc['voucherNo']
   ?? ($voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT));
+$moduleBadge = $doc['moduleBadge'] ?? (
+  (\App\Helpers\General::VoucherType($voucher->voucher_type) ?: $voucher->voucher_type)
+  .' - '.$voucher->voucher_type
+);
+$printUrl = route('vouchers.show', array_merge($voucherRouteParams($voucher->id), ['print' => 1]));
+$pdfUrl = route('vouchers.show', array_merge($voucherRouteParams($voucher->id), ['print' => 1]));
 @endphp
 <div class="voucher-modal-content">
   @if(empty($visaCreditEditEmbed) && empty($deleteRequestPreview))
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom no-print">
-    <div class="d-flex align-items-center gap-2">
+  <div class="rpv-toolbar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom no-print">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <h5 class="mb-0 fw-bold" style="letter-spacing:0.02em;">{{ $voucher_number }}</h5>
+      <span class="badge bg-label-primary">{{ $moduleBadge }}</span>
       @if($voucherPendingDeletion)
         @include('delete_requests._pending_badge', ['model' => $voucher])
       @endif
@@ -61,9 +69,10 @@ $voucher_number = $doc['voucherNo']
       @endif
       @endcanany
       @endif
-      <a href="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}?print=1" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF/Print</a>
+      <a href="{{ $printUrl }}" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-printer me-1"></i> Print</a>
+      <a href="{{ $pdfUrl }}" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF</a>
       @can('email_create')
-        <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-arrow-right  me-1"></i> Email</a>
+        <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-mail me-1"></i> Email</a>
       @endcan
     </div>
   </div>
@@ -75,7 +84,9 @@ $voucher_number = $doc['voucherNo']
   @endif
 
   @if($useModernDocument)
-    @include($useVisaDocument ? 'vouchers.partials.visa_expense_voucher_document_body' : 'vouchers.partials.rider_voucher_document_body', $doc)
+    <div class="rpv-page">
+      @include($useVisaDocument ? 'vouchers.partials.visa_expense_voucher_document_body' : 'vouchers.partials.rider_voucher_document_body', $doc)
+    </div>
   @else
     @php
       $voucher_type_label = \App\Helpers\General::VoucherType($voucher->voucher_type);

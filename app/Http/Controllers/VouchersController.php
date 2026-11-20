@@ -18,23 +18,28 @@ use App\Models\User;
 use App\Models\Banks;
 use App\Models\Receipt;
 use App\Models\Payment;
+use App\Exports\CustomizableVoucherExport;
+use App\Models\UserTableSettings;
 use App\Models\Vouchers;
 use App\Models\VoucherCustomField;
 use App\Models\VoucherType;
+use App\Services\DeleteRequestService;
 use App\Services\TransactionService;
+use App\Services\Voucher\VoucherImportGridService;
 use App\Services\VoucherService;
-use Illuminate\Http\Request;
-use App\Traits\GlobalPagination;
-use App\Traits\TracksCascadingDeletions;
 use App\Support\PublicStorageDisk;
 use App\Support\RiderVoucherPermissions;
+use App\Support\VoucherAccountKind;
 use App\Support\VoucherModulePermissions;
+use App\Traits\GlobalPagination;
+use App\Traits\TracksCascadingDeletions;
+use Carbon\Carbon;
+use DB;
 use Flash;
+use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use Response;
 use Yajra\DataTables\DataTables;
-use DB;
-use Carbon\Carbon;
 
 class VouchersController extends Controller
 {
@@ -63,59 +68,26 @@ class VouchersController extends Controller
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
-    // Hide rejected vouchers from the normal active list (admin dashboard still shows them).
-    $query = Vouchers::query()->activeApproval()->orderBy('id', 'desc');
-
-    // Apply filters
-    if ($request->has('voucher_id') && !empty($request->voucher_id)) {
-      $voucherId = $request->voucher_id;
-
-      $query->where(function ($q) use ($voucherId) {
-        $q->whereRaw("CONCAT(voucher_type, '-', LPAD(id, 4, '0')) LIKE ?", ["%{$voucherId}%"])
-          ->orWhere('id', 'like', "%{$voucherId}%")
-          ->orWhere('voucher_type', 'like', "%{$voucherId}%");
-      });
-    }
-    if ($request->has('trans_date') && !empty($request->trans_date)) {
-      $query->whereDate('trans_date', $request->trans_date);
+    $approvalTab = strtolower((string) $request->input('approval_tab', 'all'));
+    if (! in_array($approvalTab, ['all', 'pending', 'approved', 'rejected', 'cashp'], true)) {
+      $approvalTab = 'all';
     }
 
-    if ($request->has('billing_month') && !empty($request->billing_month)) {
-      $billingMonth = Carbon::parse($request->billing_month);
-      $query->whereYear('billing_month', $billingMonth->year)
-        ->whereMonth('billing_month', $billingMonth->month);
-    }
+    // Shared filters (status tab / type applied after card + tab counts as needed)
+    $query = Vouchers::query()->orderBy('id', 'desc');
+    $this->applyVoucherListFilters($query, $request);
 
-    if ($request->has('voucher_type') && !empty($request->voucher_type)) {
-      $query->where('voucher_type', $request->voucher_type);
-    }
+    // Type ticker: Approved/Pending per voucher_type (ignore selected type + status tab)
+    $typeTickerStats = $this->voucherTypeTickerStats($request);
 
+    // Status tab counts (respect list filters including voucher_type, ignore active tab)
+    $tabCounts = $this->voucherApprovalTabCounts(clone $query);
 
-    if ($request->has('created_by') && !empty($request->created_by)) {
-      $query->where('Created_By', $request->created_by);
-    }
-
-    // Quick search across multiple fields
-    if ($request->filled('quick_search')) {
-      $search = $request->input('quick_search');
-      $query->where(function ($q) use ($search) {
-        $q->whereRaw("CONCAT(voucher_type, '-', LPAD(id, 4, '0')) LIKE ?", ["%{$search}%"])
-          ->orWhere('id', 'like', "%{$search}%")
-          ->orWhere('voucher_type', 'like', "%{$search}%")
-          ->orWhere('amount', 'like', "%{$search}%")
-          ->orWhere('Created_By', 'like', "%{$search}%")
-          ->orWhere('Updated_By', 'like', "%{$search}%");
-      });
-    }
-
-    // Debug: Log the SQL query for troubleshooting
-    if (config('app.debug')) {
-      \Log::info('Voucher Filter Query: ' . $query->toSql());
-      \Log::info('Voucher Filter Bindings: ' . json_encode($query->getBindings()));
-    }
+    $this->applyApprovalTabFilter($query, $approvalTab);
 
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
+    VoucherAccountKind::hydrateListRows($data->items());
 
     $voucherModuleKey = 'vouchers';
     $voucherTypesForFilter = VoucherType::activeCodeLabelMapForModuleWithEditAccess($voucherModuleKey);
@@ -131,6 +103,9 @@ class VouchersController extends Controller
       return response()->json([
         'tableData' => $tableData,
         'paginationLinks' => $paginationLinks,
+        'tabCounts' => $tabCounts,
+        'approval_tab' => $approvalTab,
+        'typeTickerStats' => $typeTickerStats,
       ]);
     }
 
@@ -138,7 +113,397 @@ class VouchersController extends Controller
       'data' => $data,
       'voucherTypesForFilter' => $voucherTypesForFilter,
       'editDeleteFlags' => $editDeleteFlags,
+      'tabCounts' => $tabCounts,
+      'approvalTab' => $approvalTab,
+      'typeTickerStats' => $typeTickerStats,
     ]);
+  }
+
+  /**
+   * Apply voucher index filters except approval_tab.
+   *
+   * @param  array<int, string>  $except  Filter keys to skip (e.g. voucher_type for type cards)
+   */
+  private function applyVoucherListFilters($query, Request $request, array $except = []): void
+  {
+    $skip = static fn (string $key): bool => in_array($key, $except, true);
+
+    if (! $skip('voucher_id') && $request->filled('voucher_id')) {
+      $voucherId = $request->voucher_id;
+      $query->where(function ($q) use ($voucherId) {
+        $q->whereRaw("CONCAT(voucher_type, '-', LPAD(id, 4, '0')) LIKE ?", ["%{$voucherId}%"])
+          ->orWhere('id', 'like', "%{$voucherId}%")
+          ->orWhere('voucher_type', 'like', "%{$voucherId}%");
+      });
+    }
+
+    if (! $skip('trans_date') && $request->filled('trans_date')) {
+      $query->whereDate('trans_date', $request->trans_date);
+    }
+
+    if (! $skip('billing_month') && $request->filled('billing_month')) {
+      $billingMonth = Carbon::parse($request->billing_month);
+      $query->whereYear('billing_month', $billingMonth->year)
+        ->whereMonth('billing_month', $billingMonth->month);
+    }
+
+    if (! $skip('voucher_type') && $request->filled('voucher_type')) {
+      $query->where('voucher_type', $request->voucher_type);
+    }
+
+    if (! $skip('created_by') && $request->filled('created_by')) {
+      $query->where('Created_By', $request->created_by);
+    }
+
+    if (! $skip('account_kind') && $request->filled('account_kind')) {
+      VoucherAccountKind::applyKindFilter($query, (string) $request->input('account_kind'));
+    }
+
+    if (! $skip('quick_search') && $request->filled('quick_search')) {
+      $search = $request->input('quick_search');
+      $query->where(function ($q) use ($search) {
+        $q->whereRaw("CONCAT(voucher_type, '-', LPAD(id, 4, '0')) LIKE ?", ["%{$search}%"])
+          ->orWhere('id', 'like', "%{$search}%")
+          ->orWhere('voucher_type', 'like', "%{$search}%")
+          ->orWhere('reference_number', 'like', "%{$search}%")
+          ->orWhere('amount', 'like', "%{$search}%")
+          ->orWhere('Created_By', 'like', "%{$search}%")
+          ->orWhere('Updated_By', 'like', "%{$search}%");
+
+        $matchingAccountIds = \App\Models\Accounts::query()
+          ->where(function ($aq) use ($search) {
+            $aq->where('name', 'like', "%{$search}%")
+              ->orWhere('account_code', 'like', "%{$search}%")
+              ->orWhereRaw("CONCAT(account_code, ' - ', name) LIKE ?", ["%{$search}%"]);
+          })
+          ->limit(200)
+          ->pluck('id')
+          ->all();
+
+        if ($matchingAccountIds !== []) {
+          $q->orWhereIn('payment_from', $matchingAccountIds)
+            ->orWhereExists(function ($sub) use ($matchingAccountIds) {
+              $sub->selectRaw('1')
+                ->from('transactions')
+                ->whereColumn('transactions.trans_code', 'vouchers.trans_code')
+                ->where('transactions.credit', '>', 0)
+                ->whereIn('transactions.account_id', $matchingAccountIds);
+              if (\Illuminate\Support\Facades\Schema::hasColumn('transactions', 'deleted_at')) {
+                $sub->where(function ($dq) {
+                  $dq->whereNull('transactions.deleted_at');
+                  if (\Illuminate\Support\Facades\Schema::hasColumn('transactions', 'approval_held_at')) {
+                    $dq->orWhereNotNull('transactions.approval_held_at');
+                  }
+                });
+              }
+            });
+        }
+      });
+    }
+  }
+
+  private function applyApprovalTabFilter($query, string $approvalTab): void
+  {
+    if ($approvalTab === 'pending') {
+      $query->pendingApproval();
+      return;
+    }
+    if ($approvalTab === 'approved') {
+      $query->approvalApproved();
+      return;
+    }
+    if ($approvalTab === 'rejected') {
+      $query->approvalRejected();
+      return;
+    }
+    if ($approvalTab === 'cashp') {
+      $query->pendingApproval();
+      VoucherAccountKind::applyKindFilter($query, VoucherAccountKind::KIND_CASH);
+      return;
+    }
+
+    // Default "All": hide rejected (same as historical active list)
+    $query->activeApproval();
+  }
+
+  /**
+   * Approved / Pending counts per voucher_type for the type ticker cards.
+   * Respects list filters except voucher_type and approval_tab (cards always show both boxes).
+   *
+   * @return array<string, array{a:int,p:int}>
+   */
+  private function voucherTypeTickerStats(Request $request): array
+  {
+    $query = Vouchers::query()->activeApproval();
+    $this->applyVoucherListFilters($query, $request, ['voucher_type']);
+
+    $rows = $query
+      ->selectRaw("voucher_type,
+        SUM(CASE WHEN approval_status = 'approved' THEN 1 ELSE 0 END) AS approved_count,
+        SUM(CASE WHEN approval_status IS NULL
+          OR approval_status = ''
+          OR approval_status = 'pending_approval'
+          OR approval_status = 'pending'
+          THEN 1 ELSE 0 END) AS pending_count")
+      ->groupBy('voucher_type')
+      ->get();
+
+    $stats = [];
+    foreach ($rows as $row) {
+      $code = (string) ($row->voucher_type ?? '');
+      if ($code === '') {
+        continue;
+      }
+      $stats[$code] = [
+        'a' => (int) ($row->approved_count ?? 0),
+        'p' => (int) ($row->pending_count ?? 0),
+      ];
+    }
+
+    return $stats;
+  }
+
+  /**
+   * @return array{all:int,pending:int,approved:int,rejected:int,cashp:int}
+   */
+  private function voucherApprovalTabCounts($baseQuery): array
+  {
+    $pending = (clone $baseQuery)->pendingApproval()->count();
+    $approved = (clone $baseQuery)->approvalApproved()->count();
+    $rejected = (clone $baseQuery)->approvalRejected()->count();
+    $cashPending = (clone $baseQuery);
+    $cashPending->pendingApproval();
+    VoucherAccountKind::applyKindFilter($cashPending, VoucherAccountKind::KIND_CASH);
+
+    return [
+      'all' => (clone $baseQuery)->activeApproval()->count(),
+      'pending' => $pending,
+      'approved' => $approved,
+      'rejected' => $rejected,
+      'cashp' => $cashPending->count(),
+    ];
+  }
+
+  /**
+   * Export filtered vouchers using Column Control visible columns / order.
+   */
+  public function exportCustomizable(Request $request)
+  {
+    if (! user_can('vouchers_view') && ! user_can('voucher_view')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $visibleColumns = $request->input('visible_columns');
+    $columnOrder = $request->input('column_order');
+    $format = $request->input('format', 'excel');
+
+    if (is_string($visibleColumns)) {
+      $visibleColumns = json_decode($visibleColumns, true);
+    }
+    if (is_string($columnOrder)) {
+      $columnOrder = json_decode($columnOrder, true);
+    }
+
+    if (empty($visibleColumns) || empty($columnOrder)) {
+      $userSettings = UserTableSettings::getSettings(auth()->id(), 'vouchers_table');
+      if ($userSettings) {
+        $visibleColumns = $visibleColumns ?: $userSettings->visible_columns;
+        $columnOrder = $columnOrder ?: $userSettings->column_order;
+      }
+    }
+
+    $vouchers = $this->vouchersForExport($request);
+    VoucherAccountKind::hydrateListRows($vouchers);
+
+    $export = new CustomizableVoucherExport($visibleColumns, $columnOrder, $vouchers);
+
+    $timestamp = now()->format('Y-m-d_H-i-s');
+    $username = auth()->user()->name ?? auth()->user()->email ?? 'user';
+    $username = preg_replace('/[^a-zA-Z0-9]/', '_', $username);
+    $filename = "Vouchers_export_{$username}_{$timestamp}";
+
+    return match ($format) {
+      'csv' => Excel::download($export, "{$filename}.csv", \Maatwebsite\Excel\Excel::CSV),
+      'pdf' => Excel::download($export, "{$filename}.pdf", \Maatwebsite\Excel\Excel::DOMPDF),
+      default => Excel::download($export, "{$filename}.xlsx"),
+    };
+  }
+
+  /**
+   * Bulk submit delete requests for selected vouchers (same rules as single-row delete).
+   */
+  public function bulkDestroy(Request $request)
+  {
+    if (! user_can('voucher_delete') && ! user_can('vouchers_delete')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $validated = $request->validate([
+      'ids' => 'required|array|min:1',
+      'ids.*' => 'integer',
+      'delete_reason' => 'nullable|string|max:2000',
+      'reason' => 'nullable|string|max:2000',
+    ]);
+
+    $reason = trim((string) ($validated['delete_reason'] ?? $validated['reason'] ?? ''));
+    if ($reason === '') {
+      return response()->json([
+        'errors' => ['error' => 'Please enter a delete reason.'],
+      ], 422);
+    }
+
+    $request->merge(['delete_reason' => $reason, 'reason' => $reason]);
+
+    $queued = 0;
+    $skipped = 0;
+    $errors = [];
+
+    foreach ($validated['ids'] as $id) {
+      $voucher = Vouchers::query()->find($id);
+      if (! $voucher) {
+        $skipped++;
+        $errors[] = "Voucher #{$id} was not found.";
+        continue;
+      }
+
+      $label = $voucher->voucher_type.'-'.str_pad((string) $voucher->id, 4, '0', STR_PAD_LEFT);
+
+      if (function_exists('record_is_pending_deletion') && record_is_pending_deletion($voucher)) {
+        $skipped++;
+        $errors[] = "{$label} is already pending deletion.";
+        continue;
+      }
+
+      $deleteFlags = VoucherType::getEditDeleteFlagsByModule('vouchers');
+      if (empty($deleteFlags[$voucher->voucher_type]['can_delete'])) {
+        $skipped++;
+        $errors[] = "{$label} cannot be deleted in the Vouchers module.";
+        continue;
+      }
+
+      if (VoucherType::isLockedInVouchersModule($voucher->voucher_type)) {
+        $skipped++;
+        $errors[] = "{$label} is locked and cannot be deleted here.";
+        continue;
+      }
+
+      try {
+        $result = $this->queueDeleteForVoucher($voucher, $reason);
+        if (($result['ok'] ?? false) === true) {
+          $queued++;
+        } else {
+          $skipped++;
+          $errors[] = $result['message'] ?? "{$label} could not be queued.";
+        }
+      } catch (\Throwable $e) {
+        $skipped++;
+        $errors[] = "{$label}: ".$e->getMessage();
+      }
+    }
+
+    $message = $queued > 0
+      ? "{$queued} delete request".($queued === 1 ? '' : 's').' submitted.'
+      : 'No delete requests were submitted.';
+    if ($skipped > 0) {
+      $message .= " {$skipped} skipped.";
+    }
+
+    return response()->json([
+      'message' => $message,
+      'queued' => $queued,
+      'skipped' => $skipped,
+      'errors' => $errors,
+      'pending_deletion' => $queued > 0,
+    ], $queued > 0 ? 200 : 422);
+  }
+
+  /**
+   * @return array{ok:bool,message?:string}
+   */
+  private function queueDeleteForVoucher(Vouchers $voucher, string $reason): array
+  {
+    $label = $voucher->voucher_type.'-'.str_pad((string) $voucher->id, 4, '0', STR_PAD_LEFT);
+
+    if (! DeleteRequestService::enabled() || DeleteRequestService::shouldBypassApproval()) {
+      // Keep bulk path aligned with approval workflow; bypass users should delete one-by-one.
+      return [
+        'ok' => false,
+        'message' => "{$label}: bulk delete requires the delete-request workflow.",
+      ];
+    }
+
+    if (DeleteRequestService::hasPending($voucher)) {
+      $existing = DeleteRequestService::lastCreatedFor($voucher);
+
+      return [
+        'ok' => false,
+        'message' => DeleteRequestService::pendingMessage($existing) ?: "{$label} already has a pending delete request.",
+      ];
+    }
+
+    request()->merge(['delete_reason' => $reason, 'reason' => $reason]);
+
+    DB::beginTransaction();
+    try {
+      $siblings = Vouchers::where('trans_code', $voucher->trans_code)->get();
+      $relatedTransactions = Transactions::where('trans_code', $voucher->trans_code)->get();
+
+      $voucher->delete();
+
+      $deleteRequest = request()->attributes->get('delete_approval_request')
+        ?? DeleteRequestService::lastCreatedFor($voucher);
+
+      if (! $deleteRequest) {
+        DB::rollBack();
+
+        return ['ok' => false, 'message' => "{$label}: could not create delete request."];
+      }
+
+      foreach ($siblings as $sibling) {
+        if ((int) $sibling->id === (int) $voucher->id) {
+          continue;
+        }
+        $siblingLabel = $sibling->voucher_type.'-'.str_pad((string) $sibling->id, 4, '0', STR_PAD_LEFT);
+        $deleteRequest->appendCascadedRecord(Vouchers::class, $sibling->id, $siblingLabel);
+      }
+
+      foreach ($relatedTransactions as $transaction) {
+        $deleteRequest->appendCascadedRecord(
+          Transactions::class,
+          $transaction->id,
+          "Transaction #{$transaction->id} - {$transaction->narration} (Trans Code: {$transaction->trans_code})"
+        );
+      }
+
+      DeleteRequestService::clearPendingIdsCache(Vouchers::class);
+      DeleteRequestService::clearPendingIdsCache(Transactions::class);
+      DB::commit();
+
+      return ['ok' => true, 'message' => DeleteRequestService::pendingMessage($deleteRequest)];
+    } catch (\Throwable $e) {
+      DB::rollBack();
+
+      return ['ok' => false, 'message' => "{$label}: ".$e->getMessage()];
+    }
+  }
+
+  /**
+   * Filtered voucher collection for export (same filters as the list, no pagination).
+   *
+   * @return \Illuminate\Support\Collection<int, Vouchers>
+   */
+  private function vouchersForExport(Request $request)
+  {
+    $approvalTab = strtolower((string) $request->input('approval_tab', 'all'));
+    if (! in_array($approvalTab, ['all', 'pending', 'approved', 'rejected', 'cashp'], true)) {
+      $approvalTab = 'all';
+    }
+
+    $query = Vouchers::query()->orderBy('id', 'desc');
+    $this->applyVoucherListFilters($query, $request);
+    $this->applyApprovalTabFilter($query, $approvalTab);
+
+    return $query->get();
   }
 
   /**
@@ -1055,6 +1420,298 @@ class VouchersController extends Controller
     }
 
     return view('vouchers.import');
+  }
+
+  /**
+   * Parse Excel/CSV into an editable import grid (no DB writes).
+   */
+  public function importPreview(Request $request, VoucherImportGridService $service)
+  {
+    if (! user_can('vouchers_create') && ! user_can('voucher_create')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $request->validate([
+      'file' => 'required|file|mimes:xlsx,xls,csv,txt|max:51200',
+    ]);
+
+    try {
+      $result = $service->preview($request->file('file'));
+      $filename = $request->file('file')->getClientOriginalName();
+      $paymentFrom = $request->input('payment_from');
+      $this->storeVoucherImportDraft([
+        'filename' => $filename,
+        'payment_from' => $paymentFrom !== null && $paymentFrom !== '' ? (int) $paymentFrom : null,
+        'rows' => $result['rows'],
+        'counts' => $result['counts'],
+      ]);
+
+      return response()->json([
+        'success' => true,
+        'rows' => $result['rows'],
+        'counts' => $result['counts'],
+        'draft' => $this->voucherImportDraftPayload(),
+      ]);
+    } catch (\Throwable $e) {
+      \Log::error('Voucher import preview failed: '.$e->getMessage());
+
+      return response()->json([
+        'success' => false,
+        'message' => 'Could not read this file',
+      ], 422);
+    }
+  }
+
+  /**
+   * Re-validate edited grid rows.
+   */
+  public function importValidate(Request $request, VoucherImportGridService $service)
+  {
+    if (! user_can('vouchers_create') && ! user_can('voucher_create')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $rows = $request->input('rows', []);
+    if (! is_array($rows)) {
+      return response()->json(['success' => false, 'message' => 'Invalid rows'], 422);
+    }
+
+    $result = $service->validateRows($rows);
+    $existing = $this->voucherImportDraft() ?? [];
+    $paymentFrom = $request->input('payment_from', $existing['payment_from'] ?? null);
+    $this->storeVoucherImportDraft([
+      'filename' => $request->input('filename', $existing['filename'] ?? null),
+      'payment_from' => $paymentFrom !== null && $paymentFrom !== '' ? (int) $paymentFrom : null,
+      'rows' => $result['rows'],
+      'counts' => $result['counts'],
+    ]);
+
+    return response()->json([
+      'success' => true,
+      'rows' => $result['rows'],
+      'counts' => $result['counts'],
+      'draft' => $this->voucherImportDraftPayload(),
+    ]);
+  }
+
+  /**
+   * Save / refresh the in-progress import draft (survives page reload).
+   */
+  public function importDraftSave(Request $request, VoucherImportGridService $service)
+  {
+    if (! user_can('vouchers_create') && ! user_can('voucher_create')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $rows = $request->input('rows', []);
+    if (! is_array($rows) || $rows === []) {
+      return response()->json(['success' => false, 'message' => 'No rows to save'], 422);
+    }
+
+    $result = $service->validateRows($rows);
+    $existing = $this->voucherImportDraft() ?? [];
+    $paymentFrom = $request->input('payment_from', $existing['payment_from'] ?? null);
+    $this->storeVoucherImportDraft([
+      'filename' => $request->input('filename', $existing['filename'] ?? null),
+      'payment_from' => $paymentFrom !== null && $paymentFrom !== '' ? (int) $paymentFrom : null,
+      'rows' => $result['rows'],
+      'counts' => $result['counts'],
+    ]);
+
+    return response()->json([
+      'success' => true,
+      'draft' => $this->voucherImportDraftPayload(),
+      'rows' => $result['rows'],
+      'counts' => $result['counts'],
+    ]);
+  }
+
+  /**
+   * Return the current import draft from session (if any).
+   */
+  public function importDraftShow()
+  {
+    if (! user_can('vouchers_create') && ! user_can('voucher_create')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $draft = $this->voucherImportDraftPayload();
+
+    return response()->json([
+      'success' => true,
+      'draft' => $draft,
+      'has_draft' => $draft !== null,
+    ]);
+  }
+
+  /**
+   * Discard the in-progress import draft.
+   */
+  public function importDraftDestroy()
+  {
+    if (! user_can('vouchers_create') && ! user_can('voucher_create')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $this->clearVoucherImportDraft();
+
+    return response()->json([
+      'success' => true,
+      'message' => 'Import draft cleared',
+    ]);
+  }
+
+  /**
+   * Credit-account balance for the import modal (demo-style warning line).
+   */
+  public function importAccountBalance(Request $request)
+  {
+    if (! user_can('vouchers_create') && ! user_can('voucher_create')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $accountId = (int) $request->query('account_id', 0);
+    if ($accountId < 1) {
+      return response()->json(['success' => false, 'message' => 'Account required'], 422);
+    }
+
+    $row = \App\Models\Transactions::where('account_id', $accountId)
+      ->selectRaw('COALESCE(SUM(debit),0) as total_debit, COALESCE(SUM(credit),0) as total_credit')
+      ->first();
+
+    $balance = (float) ($row->total_debit ?? 0) - (float) ($row->total_credit ?? 0);
+
+    return response()->json([
+      'success' => true,
+      'account_id' => $accountId,
+      'balance' => round($balance, 2),
+      'formatted' => number_format($balance, 2),
+    ]);
+  }
+
+  /**
+   * Commit edited import grid rows (creates JV vouchers like legacy import).
+   */
+  public function importCommit(Request $request, VoucherImportGridService $service)
+  {
+    if (! user_can('vouchers_create') && ! user_can('voucher_create')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $validated = $request->validate([
+      'payment_from' => 'required|integer',
+      'rows' => 'required|array|min:1',
+    ]);
+
+    $result = $service->commit((int) $validated['payment_from'], $validated['rows']);
+    $msg = 'Import finished: '.$result['created'].' voucher'.($result['created'] === 1 ? '' : 's').' created';
+    if ($result['skipped'] > 0) {
+      $msg .= ', '.$result['skipped'].' skipped';
+    }
+
+    if ($result['created'] > 0 && $result['skipped'] === 0) {
+      $this->clearVoucherImportDraft();
+    } else {
+      // Keep draft so a page reload can resume the same sheet.
+      // After a partial import, keep only rows that were skipped / still have errors.
+      $annotated = $service->validateRows($validated['rows']);
+      $keepRows = $annotated['rows'];
+      if ($result['created'] > 0) {
+        $errorLines = [];
+        foreach ($result['errors'] as $errLine) {
+          if (preg_match('/^Row\s+(\d+):/', (string) $errLine, $m)) {
+            $errorLines[(int) $m[1]] = true;
+          }
+        }
+        $keepRows = [];
+        foreach ($annotated['rows'] as $i => $row) {
+          $line = $i + 1;
+          if (! empty($row['errors']) || isset($errorLines[$line])) {
+            $keepRows[] = $row;
+          }
+        }
+      }
+
+      if ($keepRows === []) {
+        $this->clearVoucherImportDraft();
+      } else {
+        $re = $service->validateRows($keepRows);
+        $existing = $this->voucherImportDraft() ?? [];
+        $this->storeVoucherImportDraft([
+          'filename' => $request->input('filename', $existing['filename'] ?? null),
+          'payment_from' => (int) $validated['payment_from'],
+          'rows' => $re['rows'],
+          'counts' => $re['counts'],
+        ]);
+      }
+    }
+
+    return response()->json([
+      'success' => $result['created'] > 0,
+      'message' => $msg,
+      'created' => $result['created'],
+      'skipped' => $result['skipped'],
+      'errors' => $result['errors'],
+      'draft' => $this->voucherImportDraftPayload(),
+    ], $result['created'] > 0 ? 200 : 422);
+  }
+
+  private function voucherImportDraftSessionKey(): string
+  {
+    $userId = (int) (auth()->id() ?? 0);
+    $company = (string) (request()->route('company_slug') ?? session('company_slug') ?? 'default');
+
+    return 'voucher_import_draft.'.$company.'.'.$userId;
+  }
+
+  /**
+   * @return array<string, mixed>|null
+   */
+  private function voucherImportDraft(): ?array
+  {
+    $draft = session($this->voucherImportDraftSessionKey());
+
+    return is_array($draft) && ! empty($draft['rows']) ? $draft : null;
+  }
+
+  /**
+   * @return array<string, mixed>|null
+   */
+  private function voucherImportDraftPayload(): ?array
+  {
+    $draft = $this->voucherImportDraft();
+    if (! $draft) {
+      return null;
+    }
+
+    return [
+      'filename' => $draft['filename'] ?? null,
+      'payment_from' => $draft['payment_from'] ?? null,
+      'rows' => $draft['rows'] ?? [],
+      'counts' => $draft['counts'] ?? ['ok' => 0, 'err' => 0, 'warn' => 0],
+      'saved_at' => $draft['saved_at'] ?? null,
+    ];
+  }
+
+  /**
+   * @param  array{filename?:mixed,payment_from?:mixed,rows:list<array<string,mixed>>,counts?:array<string,int>}  $data
+   */
+  private function storeVoucherImportDraft(array $data): void
+  {
+    session([
+      $this->voucherImportDraftSessionKey() => [
+        'filename' => isset($data['filename']) ? (string) $data['filename'] : null,
+        'payment_from' => $data['payment_from'] ?? null,
+        'rows' => array_values($data['rows'] ?? []),
+        'counts' => $data['counts'] ?? ['ok' => 0, 'err' => 0, 'warn' => 0],
+        'saved_at' => now()->toIso8601String(),
+      ],
+    ]);
+  }
+
+  private function clearVoucherImportDraft(): void
+  {
+    session()->forget($this->voucherImportDraftSessionKey());
   }
 
   public function cloneVoucher($company_slug, $id)

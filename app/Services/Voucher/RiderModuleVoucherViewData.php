@@ -8,20 +8,29 @@ use App\Helpers\Currency;
 use App\Helpers\General;
 use App\Models\Accounts;
 use App\Models\Riders;
+use App\Models\Settings;
 use App\Models\User;
 use App\Models\Vouchers;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Support\CompanyContext;
 use App\Support\RiderPaymentVoucherDefaults;
+use App\Support\VoucherAccountKind;
 
 /**
- * View-model for Rider-module vouchers (COD, PN, INC, VC, AL, legacy PAY)
- * using the same document chrome as the Payment Voucher.
+ * View-model for Rider-module vouchers (+ JV) using Payment Voucher document chrome.
  */
 class RiderModuleVoucherViewData
 {
+    /**
+     * Preferred types that always use Payment-style chrome.
+     * Other non-visa types also use it via supports() so View never falls back to classic.
+     *
+     * @var list<string>
+     */
+    public const RIDER_DOCUMENT_TYPES = ['COD', 'PN', 'INC', 'VC', 'AL', 'PAY', 'JV'];
+
     /** @var list<string> */
-    public const RIDER_DOCUMENT_TYPES = ['COD', 'PN', 'INC', 'VC', 'AL', 'PAY'];
+    private const VISA_DOCUMENT_TYPES = ['LV', 'VL'];
 
     public function __construct(
         protected AgreementPdfBranding $branding,
@@ -30,7 +39,13 @@ class RiderModuleVoucherViewData
 
     public function supports(Vouchers $voucher): bool
     {
-        return in_array(strtoupper((string) $voucher->voucher_type), self::RIDER_DOCUMENT_TYPES, true);
+        $type = strtoupper((string) $voucher->voucher_type);
+        // Visa expenses keep VisaExpenseVoucherViewData chrome.
+        if (in_array($type, self::VISA_DOCUMENT_TYPES, true)) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -56,8 +71,13 @@ class RiderModuleVoucherViewData
         $voucherNo = $typeCode.'-'.str_pad((string) $voucher->id, 4, '0', STR_PAD_LEFT);
 
         $narration = trim((string) ($voucher->remarks ?? ''));
-        if ($narration === '') {
-            $narration = trim((string) ($voucher->transactions->first()->narration ?? '')) ?: '—';
+        if ($narration === '' || strcasecmp($narration, 'Journal Voucher') === 0) {
+            $txNarration = trim((string) ($voucher->transactions->first()->narration ?? ''));
+            if ($txNarration !== '') {
+                $narration = $txNarration;
+            } elseif ($narration === '') {
+                $narration = '—';
+            }
         }
 
         $amountInWords = Account::convertNumberToWord(number_format($amount, 2, '.', ''));
@@ -74,14 +94,27 @@ class RiderModuleVoucherViewData
                 : url('storage/vouchers/'.ltrim($attach, '/')))
             : null;
 
-        $paymentTypeLabel = $this->paymentTypeLabel($voucher->payment_type);
+        $paymentMode = $this->resolvePaymentMode($voucher, $counterAccount);
+        $lines = $this->buildLineRows($voucher);
+        $riderModuleLabel = trim((string) Settings::getMenuLabel('riders')) ?: 'Riders';
+        $moduleBadgeLabel = in_array($typeCode, self::RIDER_DOCUMENT_TYPES, true)
+            ? $riderModuleLabel
+            : (General::VoucherType($typeCode) ?: $typeCode);
 
         return [
             'voucher' => $voucher,
+            'voucherTypeCode' => $typeCode,
             'settings' => $settings,
             'brand' => $brand,
             'documentTitle' => strtoupper($typeLabel),
             'companyName' => $brand['name'] ?? ($brand['company_name'] ?? '—'),
+            'companyTrn' => trim((string) (
+                (auth()->user() ? (Common::getSetting('vat_number') ?? '') : '')
+                ?: ($brand['trn'] ?? '')
+            )),
+            'companyPhone' => trim((string) ($brand['phone'] ?? '')),
+            'companyEmail' => trim((string) ($brand['email'] ?? '')),
+            'companyAddress' => trim((string) ($brand['address'] ?? '')),
             'logoSrc' => $brand['logo_src'] ?? ($brand['logo_url'] ?? null),
             'voucherNo' => $voucherNo,
             'referenceNo' => $voucher->reference_number ?: $voucherNo,
@@ -96,20 +129,26 @@ class RiderModuleVoucherViewData
                 ? Common::MonthFormat($voucher->billing_month)
                 : '—',
             'counterAccount' => $this->accountLabel($counterAccount),
+            'paidBy' => $this->accountLabel($counterAccount),
             'createdBy' => $this->userName($voucher->Created_By) ?: '—',
             'voucherTypeLabel' => $typeLabel,
-            'paymentMode' => $paymentTypeLabel,
+            'paymentType' => $typeLabel,
+            'paymentMode' => $paymentMode,
             'amount' => $amount,
             'currencyCode' => $currencyCode,
             'narration' => $narration,
             'amountInWords' => $amountInWords,
             'attachmentUrl' => $attachmentUrl,
             'attachmentName' => $attach !== '' ? basename($attach) : null,
+            'lines' => $lines,
+            'lineTotal' => round(collect($lines)->sum('amount'), 2) ?: $amount,
             'postedTransactions' => $voucher->transactions ?? collect(),
             'finDetail' => $typeCode === 'RFV'
                 ? company_table('rta_fines')->where('id', $voucher->ref_id)->first()
                 : null,
             'formatMoney' => static fn (float $n) => Currency::format($n),
+            'riderModuleLabel' => $riderModuleLabel,
+            'moduleBadge' => trim((string) $moduleBadgeLabel).' - '.$typeCode,
             'signatureSlots' => $this->signatureResolver->slotsFor(
                 $typeCode,
                 CompanyContext::id() ?? $voucher->company_id
@@ -117,9 +156,62 @@ class RiderModuleVoucherViewData
         ];
     }
 
+    /**
+     * @return list<array{account:string,narration:string,amount:float}>
+     */
+    private function buildLineRows(Vouchers $voucher): array
+    {
+        $debits = $voucher->transactions
+            ->filter(fn ($t) => (float) ($t->debit ?? 0) > 0.00001)
+            ->values();
+
+        if ($debits->isEmpty()) {
+            $debits = $voucher->transactions->values();
+        }
+
+        $rows = [];
+        foreach ($debits as $tx) {
+            $amt = (float) ($tx->debit ?? 0);
+            if ($amt < 0.00001) {
+                $amt = (float) ($tx->credit ?? 0);
+            }
+            $rows[] = [
+                'account' => $this->accountLabel($tx->account),
+                'narration' => trim((string) ($tx->narration ?? '')) ?: '—',
+                'amount' => round($amt, 2),
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function resolvePaymentMode(Vouchers $voucher, ?Accounts $counterAccount): string
+    {
+        $fromList = $this->paymentTypeLabel($voucher->payment_type);
+        if (in_array($fromList, ['Select', '—', '0', ''], true) || (int) $voucher->payment_type === 0) {
+            $fromList = '';
+        }
+
+        if ($fromList !== '' && ! in_array($fromList, ['1', '2', '3', '4'], true)) {
+            return $fromList;
+        }
+
+        if ($counterAccount) {
+            $kind = VoucherAccountKind::classifyAccount($counterAccount);
+            if ($kind === VoucherAccountKind::KIND_CASH) {
+                return 'Cash';
+            }
+            if ($kind === VoucherAccountKind::KIND_BANK) {
+                return 'Bank';
+            }
+        }
+
+        return $fromList !== '' ? $fromList : 'Account';
+    }
+
     private function resolveRider(Vouchers $voucher): ?Riders
     {
-        $riderId = (int) ($voucher->ref_id ?: $voucher->rider_id ?: 0);
+        $riderId = (int) ($voucher->rider_id ?: $voucher->ref_id ?: 0);
         if ($riderId > 0) {
             $rider = Riders::withTrashed()->find($riderId);
             if ($rider) {
@@ -137,7 +229,6 @@ class RiderModuleVoucherViewData
 
     private function partyAccount(Vouchers $voucher, ?Riders $rider = null): ?Accounts
     {
-        // Prefer the rider ledger line (INC/AL credit the rider; COD/PN/VC debit the rider).
         if ($rider) {
             $riderTx = $voucher->transactions->first(function ($t) use ($rider) {
                 $account = $t->account;
@@ -151,6 +242,21 @@ class RiderModuleVoucherViewData
             if ($riderTx?->account) {
                 return $riderTx->account;
             }
+
+            if (! empty($rider->account_id)) {
+                $linked = Accounts::query()->find($rider->account_id);
+                if ($linked) {
+                    return $linked;
+                }
+            }
+        }
+
+        $paymentTo = (int) ($voucher->payment_to ?? 0);
+        if ($paymentTo > 0) {
+            $toAccount = Accounts::query()->find($paymentTo);
+            if ($toAccount) {
+                return $toAccount;
+            }
         }
 
         $tx = $voucher->transactions
@@ -162,7 +268,6 @@ class RiderModuleVoucherViewData
 
     private function counterAccount(Vouchers $voucher, ?int $partyAccountId, ?Riders $rider = null): ?Accounts
     {
-        // Same account stored on create (INCENTIVE_ACCOUNT / COD_ACCOUNT / etc.).
         $paymentFromId = (int) ($voucher->payment_from ?? 0);
         if ($paymentFromId > 0 && $paymentFromId !== (int) $partyAccountId) {
             $fromPayment = Accounts::query()->find($paymentFromId);
@@ -171,7 +276,25 @@ class RiderModuleVoucherViewData
             }
         }
 
-        // Otherwise: non-rider / non-party line from posted transactions.
+        // Prefer a credit line for "Paid By".
+        $credit = $voucher->transactions->first(function ($t) use ($partyAccountId, $rider) {
+            if ($partyAccountId && (int) $t->account_id === (int) $partyAccountId) {
+                return false;
+            }
+            $account = $t->account;
+            if ($rider && $account
+                && strcasecmp((string) ($account->ref_name ?? ''), 'Rider') === 0
+                && (int) ($account->ref_id ?? 0) === (int) $rider->id) {
+                return false;
+            }
+
+            return (float) ($t->credit ?? 0) > 0.00001;
+        });
+
+        if ($credit?->account) {
+            return $credit->account;
+        }
+
         $other = $voucher->transactions->first(function ($t) use ($partyAccountId, $rider) {
             if ($partyAccountId && (int) $t->account_id === (int) $partyAccountId) {
                 return false;

@@ -3,6 +3,7 @@
 $tableId = $tableId ?? 'dataTableBuilder';
 $tableColumns = $tableColumns ?? [];
 $exportRoute = $exportRoute ?? null;
+$showExportOptions = $showExportOptions ?? (bool) $exportRoute;
 $tableIdentifier = $tableIdentifier ?? 'riders_table';
 $fixedColumnsCount = (int) ($fixedColumnsCount ?? 1);
 $exportNote = $exportNote
@@ -107,7 +108,7 @@ foreach ($tableColumns as $index => $column) {
         <button type="button" class="rl-ghost" id="resetColumns">Reset to Default</button>
       </div>
 
-      @if($exportRoute)
+      @if($showExportOptions)
       <div class="sect">Export options</div>
       <div class="row3">
         <button type="button" class="exp e-x export-btn" data-format="excel">Export to Excel</button>
@@ -284,13 +285,14 @@ document.addEventListener('DOMContentLoaded', function() {
       if (targetIndex >= 0 && targetIndex < totalDataColumns && headerCells[targetIndex]) {
         headerCells[targetIndex].classList.toggle('column-hidden', !isVisible);
       }
-      table.querySelectorAll('tbody tr').forEach(row => {
+      table.querySelectorAll('tbody tr, tfoot tr').forEach(row => {
         if (targetIndex >= 0 && targetIndex < totalDataColumns && row.children[targetIndex]) {
           row.children[targetIndex].classList.toggle('column-hidden', !isVisible);
         }
       });
 
       this.updateColumnStats();
+      if (typeof window.vcSyncFooterCols === 'function') window.vcSyncFooterCols();
       if (persist && !this.isInitialLoad) this.saveSettings();
     },
 
@@ -326,7 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
       reordered.forEach(cell => headerRow.appendChild(cell));
       actionHeaders.forEach(cell => headerRow.appendChild(cell));
 
-      table.querySelectorAll('tbody tr').forEach(row => {
+      table.querySelectorAll('tbody tr, tfoot tr').forEach(row => {
         const cells = Array.from(row.children);
         const dataCells = fixed > 0 ? cells.slice(0, -fixed) : cells.slice();
         const actionCells = fixed > 0 ? cells.slice(-fixed) : [];
@@ -338,6 +340,7 @@ document.addEventListener('DOMContentLoaded', function() {
         reorderedCells.forEach(c => row.appendChild(c));
         actionCells.forEach(c => row.appendChild(c));
       });
+      if (typeof window.vcSyncFooterCols === 'function') window.vcSyncFooterCols();
     },
 
     showAllColumns() {
@@ -386,7 +389,13 @@ document.addEventListener('DOMContentLoaded', function() {
     },
 
     exportTable(format) {
-      if (!this.exportRoute) return;
+      if (!this.exportRoute) {
+        const msg = 'Export ' + String(format || '').toUpperCase() + ' — Phase 2 (UI only for now)';
+        if (typeof window.vcToast === 'function') window.vcToast(msg);
+        else if (typeof window.rlToast === 'function') window.rlToast(msg);
+        else alert(msg);
+        return;
+      }
       const visibleColumns = [];
       const columnOrder = [];
       document.querySelectorAll('#columnList .column-item').forEach(item => {

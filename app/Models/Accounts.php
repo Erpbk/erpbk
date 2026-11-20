@@ -237,16 +237,32 @@ class Accounts extends BaseModel
 
   /**
    * Dropdown for Bank and Cash accounts (for voucher credit field).
-   * Returns leaf accounts under the Bank parent.
+   * Returns leaf accounts under the Bank and Cash parents.
    */
   public static function bankAndCashDropdown()
   {
-    return self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))
+    $parentIds = array_values(array_filter([
+      \App\Support\GlobalAccounts::idOrNull('BANK'),
+      \App\Support\GlobalAccounts::idOrNull('CASH'),
+    ]));
+
+    $query = self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))
       ->where('account_type', 'Asset')
-      ->where('parent_id', \App\Support\GlobalAccounts::id('BANK'))
       ->leafOnly()
-      ->pluck('full_name', 'id')
-      ->prepend('Select', '');
+      ->orderBy('account_code');
+
+    if ($parentIds !== []) {
+      $query->whereIn('parent_id', $parentIds);
+    } else {
+      // Fallback when BANK/CASH globals are not mapped: BK*/cash-named leaves.
+      $query->where(function ($q) {
+        $q->where('account_code', 'like', 'BK%')
+          ->orWhere('name', 'like', '%Cash%')
+          ->orWhere('name', 'like', '%Bank%');
+      });
+    }
+
+    return $query->pluck('full_name', 'id')->prepend('Select', '');
   }
 
   public function getBranchNameAttribute()

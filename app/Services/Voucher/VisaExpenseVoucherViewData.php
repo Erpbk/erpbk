@@ -10,6 +10,7 @@ use App\Models\Accounts;
 use App\Models\Employee;
 use App\Models\ExpenseAccount;
 use App\Models\Riders;
+use App\Models\Settings;
 use App\Models\User;
 use App\Models\visa_expenses;
 use App\Models\visa_installment_plan;
@@ -199,6 +200,7 @@ class VisaExpenseVoucherViewData
             'finDetail' => null,
             'isVisaExpenseDocument' => true,
             'formatMoney' => static fn (float $n) => Currency::format($n),
+            'moduleBadge' => trim((string) Settings::getMenuLabel('visa_expenses') ?: 'Visa Expense').' - '.$typeCode,
             'signatureSlots' => $this->signatureResolver->slotsFor(
                 $typeCode,
                 $companyId

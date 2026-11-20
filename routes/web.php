@@ -922,6 +922,15 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::get('vouchers/{id}/clone', [VouchersController::class, 'cloneVoucher'])->name('vouchers.clone');
     Route::get('vouchers/list-sidebar', [VouchersController::class, 'listSidebar'])->name('vouchers.list-sidebar');
+    Route::get('vouchers-export-customizable', [VouchersController::class, 'exportCustomizable'])->name('vouchers.exportCustomizable');
+    Route::post('vouchers/bulk-destroy', [VouchersController::class, 'bulkDestroy'])->name('vouchers.bulk-destroy');
+    Route::post('vouchers/import/preview', [VouchersController::class, 'importPreview'])->name('vouchers.import.preview');
+    Route::post('vouchers/import/validate', [VouchersController::class, 'importValidate'])->name('vouchers.import.validate');
+    Route::post('vouchers/import/commit', [VouchersController::class, 'importCommit'])->name('vouchers.import.commit');
+    Route::get('vouchers/import/draft', [VouchersController::class, 'importDraftShow'])->name('vouchers.import.draft');
+    Route::post('vouchers/import/draft', [VouchersController::class, 'importDraftSave'])->name('vouchers.import.draft.save');
+    Route::delete('vouchers/import/draft', [VouchersController::class, 'importDraftDestroy'])->name('vouchers.import.draft.destroy');
+    Route::get('vouchers/import/balance', [VouchersController::class, 'importAccountBalance'])->name('vouchers.import.balance');
     Route::resource('vouchers', VouchersController::class);
     Route::any('voucher/import', [VouchersController::class, 'import'])->name('voucher.import');
     Route::get('get_invoice_balance', [VouchersController::class, 'GetInvoiceBalance'])->name('get_invoice_balance');

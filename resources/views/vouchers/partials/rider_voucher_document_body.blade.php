@@ -330,7 +330,13 @@
         <div class="rpv-meta-box rpv-attachments no-print">
             <strong>Attachments:</strong>
             @if(!empty($attachmentUrl))
-            <a href="{{ $attachmentUrl }}" target="_blank" rel="noopener">{{ $attachmentName ?? 'View attachment' }}</a>
+            <a href="{{ $attachmentUrl }}"
+               class="js-vc-doc-view"
+               rel="noopener"
+               data-file-url="{{ $attachmentUrl }}"
+               data-file-name="{{ $attachmentName ?? 'attachment' }}"
+               data-file-meta="{{ trim(($voucherTypeLabel ?? '').' · '.($voucherNo ?? '')) }}"
+               data-file-context="{{ $voucherTypeLabel ?? 'this voucher' }}">{{ $attachmentName ?? 'View attachment' }}</a>
             @else
             No attachment
             @endif

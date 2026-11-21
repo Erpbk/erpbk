@@ -171,4 +171,34 @@
 {{-- Row action menu (positioned by JS) --}}
 <div class="vc-menu vc-rmenu" id="vcRowMenu" hidden></div>
 
+{{-- Attachment document viewer (matches Payment/Visa doc preview chrome) --}}
+<div class="vc-docv" id="vcDocViewer" hidden aria-hidden="true">
+  <div class="vc-docv-panel" role="dialog" aria-modal="true" aria-labelledby="vcDocVTitle">
+    <div class="vc-docv-hd">
+      <div class="vc-docv-hd-l">
+        <span class="vc-docv-ico" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+            <path d="M14 3v5h5"/>
+            <path d="M9 13h6M9 17h4"/>
+          </svg>
+        </span>
+        <div class="vc-docv-titles">
+          <div class="vc-docv-name" id="vcDocVTitle">Document</div>
+          <div class="vc-docv-meta" id="vcDocVMeta"></div>
+        </div>
+      </div>
+      <div class="vc-docv-hd-r">
+        <a href="#" class="vc-docv-dl" id="vcDocVDownload" download target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+          Download
+        </a>
+        <button type="button" class="vc-docv-x" id="vcDocVClose" aria-label="Close">&times;</button>
+      </div>
+    </div>
+    <div class="vc-docv-body" id="vcDocVBody"></div>
+    <div class="vc-docv-note" id="vcDocVNote" hidden></div>
+  </div>
+</div>
+
 <div class="vc-toast" id="vcToast" hidden></div>

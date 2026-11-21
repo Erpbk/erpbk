@@ -559,8 +559,8 @@
   color: #474a55;
   height: 54px;
   background: #fff;
-  border-right: 1px solid var(--vc-edge-soft);
-  border-bottom: 1px solid var(--vc-edge-soft);
+  border-right: 0;
+  border-bottom: 0;
   white-space: nowrap;
 }
 
@@ -580,13 +580,7 @@
   background: var(--vc-sel) !important;
 }
 
-.vc-demo .vc-tbox tr.pend td {
-  background: #fffbeb !important;
-}
-
-.vc-demo .vc-tbox tr.pend td:first-child {
-  box-shadow: inset 3px 0 0 #f59e0b;
-}
+/* Pending approval: status pill only — no row tint / accent bar */
 
 .vc-demo .vc-tbox th.vc-ck-col,
 .vc-demo .vc-tbox td.vc-ck-col {
@@ -747,10 +741,10 @@
   height: auto;
 }
 
+/* Footer stays after rows (not sticky) so it cannot paint over body cells. */
 .vc-demo .vc-tbox tfoot td {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
+  position: static;
+  z-index: auto;
   background: var(--vc-head) !important;
   color: var(--vc-head-ink);
   border-top: 2px solid var(--vc-blue);
@@ -764,8 +758,6 @@
   text-align: left;
   white-space: nowrap;
   overflow: visible;
-  position: relative;
-  z-index: 3;
 }
 
 .vc-demo .vc-tbox tfoot .a {
@@ -774,8 +766,6 @@
   color: #0f172a;
   text-align: right;
   white-space: nowrap;
-  position: relative;
-  z-index: 4;
   background: var(--vc-head) !important;
 }
 
@@ -955,6 +945,186 @@
   background: #fff;
   border-color: #cbd5e1;
   color: #475569;
+}
+
+/* Attachment document viewer */
+.vc-docv {
+  position: fixed;
+  inset: 0;
+  z-index: 11250;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.vc-docv.open {
+  display: flex;
+}
+
+.vc-docv-panel {
+  width: min(1120px, 96vw);
+  height: min(860px, 92vh);
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.vc-docv-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+  flex: none;
+}
+
+.vc-docv-hd-l {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.vc-docv-ico {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.vc-docv-titles {
+  min-width: 0;
+}
+
+.vc-docv-name {
+  font: 700 14px/1.25 Inter, system-ui, sans-serif;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vc-docv-meta {
+  margin-top: 2px;
+  font: 500 11.5px/1.35 Inter, system-ui, sans-serif;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vc-docv-hd-r {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.vc-docv-dl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #3b82f6;
+  color: #2563eb;
+  background: #fff;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font: 600 12.5px Inter, system-ui, sans-serif;
+  text-decoration: none;
+}
+
+.vc-docv-dl:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.vc-docv-x {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vc-docv-x:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.vc-docv-body {
+  flex: 1;
+  min-height: 0;
+  background: #525659;
+  position: relative;
+}
+
+.vc-docv-body iframe,
+.vc-docv-body embed,
+.vc-docv-body object {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: #525659;
+}
+
+.vc-docv-body img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0 auto;
+  object-fit: contain;
+  background: #fff;
+}
+
+.vc-docv-body .vc-docv-fallback {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  color: #e2e8f0;
+  text-align: center;
+  padding: 24px;
+  font: 500 13px Inter, system-ui, sans-serif;
+}
+
+.vc-docv-body .vc-docv-fallback a {
+  color: #93c5fd;
+  font-weight: 700;
+}
+
+.vc-docv-note {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  background: #1e3a8a;
+  color: #fff;
+  border-radius: 999px;
+  padding: 9px 16px;
+  font: 600 12.5px Inter, system-ui, sans-serif;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
+  pointer-events: none;
+  z-index: 2;
+  white-space: nowrap;
 }
 
 /* Toast */

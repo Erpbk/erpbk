@@ -68,9 +68,10 @@ class VouchersController extends Controller
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
-    $approvalTab = strtolower((string) $request->input('approval_tab', 'all'));
+    // Landing default: Pending vouchers tab
+    $approvalTab = strtolower((string) $request->input('approval_tab', 'pending'));
     if (! in_array($approvalTab, ['all', 'pending', 'approved', 'rejected', 'cashp'], true)) {
-      $approvalTab = 'all';
+      $approvalTab = 'pending';
     }
 
     // Shared filters (status tab / type applied after card + tab counts as needed)

@@ -889,15 +889,11 @@
       });
     });
 
-    // Status tabs — full-page filter via approval_tab
+    // Status tabs — full-page filter via approval_tab (default landing tab is pending)
     $('#vcTabs').on('click', 'button[data-tab]', function () {
-      var tab = $(this).data('tab') || 'all';
+      var tab = $(this).data('tab') || 'pending';
       var url = new URL(window.location.href);
-      if (tab === 'all') {
-        url.searchParams.delete('approval_tab');
-      } else {
-        url.searchParams.set('approval_tab', tab);
-      }
+      url.searchParams.set('approval_tab', tab);
       url.searchParams.delete('page');
       window.location.href = url.toString();
     });
@@ -992,6 +988,103 @@
           $btn.prop('disabled', false);
         }
       });
+    });
+
+    // Attachment document viewer (header + iframe preview + note)
+    var vcDocNoteTimer = null;
+    function vcDocExt(name) {
+      var m = String(name || '').toLowerCase().match(/\.([a-z0-9]+)(?:\?|$)/);
+      return m ? m[1] : '';
+    }
+    function vcCloseDocViewer() {
+      var ov = document.getElementById('vcDocViewer');
+      if (!ov) return;
+      ov.classList.remove('open');
+      ov.hidden = true;
+      ov.setAttribute('aria-hidden', 'true');
+      var body = document.getElementById('vcDocVBody');
+      if (body) body.innerHTML = '';
+      var note = document.getElementById('vcDocVNote');
+      if (note) {
+        note.hidden = true;
+        note.textContent = '';
+      }
+      if (vcDocNoteTimer) {
+        clearTimeout(vcDocNoteTimer);
+        vcDocNoteTimer = null;
+      }
+    }
+    function vcOpenDocViewer(opts) {
+      var ov = document.getElementById('vcDocViewer');
+      if (!ov) return;
+      var url = String(opts.url || '');
+      if (!url) return;
+      var name = String(opts.name || 'Document');
+      var meta = String(opts.meta || '');
+      var context = String(opts.context || 'this voucher');
+      var ext = vcDocExt(name) || vcDocExt(url);
+      var isImg = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].indexOf(ext) !== -1;
+      var isPdf = ext === 'pdf';
+
+      $('#vcDocVTitle').text(name);
+      $('#vcDocVMeta').text(meta);
+      $('#vcDocVDownload').attr({ href: url, download: name });
+
+      var body = document.getElementById('vcDocVBody');
+      if (!body) return;
+      body.innerHTML = '';
+      if (isImg) {
+        body.innerHTML = '<div style="height:100%;display:grid;place-items:center;background:#0f172a;padding:16px"><img src="'+url.replace(/"/g, '&quot;')+'" alt="'+String(name).replace(/"/g, '&quot;')+'"></div>';
+      } else if (isPdf) {
+        var src = url + (url.indexOf('#') === -1 ? '#toolbar=1&navpanes=1' : '');
+        body.innerHTML = '<iframe title="Document preview" src="'+src.replace(/"/g, '&quot;')+'"></iframe>';
+      } else {
+        body.innerHTML = '<div class="vc-docv-fallback"><div>Preview is not available for this file type.</div><a href="'+url.replace(/"/g, '&quot;')+'" target="_blank" rel="noopener">Open / Download</a></div>';
+      }
+
+      var note = document.getElementById('vcDocVNote');
+      if (note) {
+        note.hidden = false;
+        note.textContent = '1 document(s) attached to ' + context;
+        if (vcDocNoteTimer) clearTimeout(vcDocNoteTimer);
+        vcDocNoteTimer = setTimeout(function () {
+          note.hidden = true;
+        }, 4200);
+      }
+
+      ov.hidden = false;
+      ov.classList.add('open');
+      ov.setAttribute('aria-hidden', 'false');
+    }
+    window.vcOpenDocViewer = vcOpenDocViewer;
+    window.vcCloseDocViewer = vcCloseDocViewer;
+
+    $(document).on('click', '.js-vc-doc-view, a.vc-fbtn', function (e) {
+      var $a = $(this);
+      var url = $a.attr('data-file-url') || $a.attr('href');
+      if (!url || url === '#' || url.indexOf('javascript:') === 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      vcOpenDocViewer({
+        url: url,
+        name: $a.attr('data-file-name') || ($a.attr('title') || 'Document'),
+        meta: $a.attr('data-file-meta') || '',
+        context: $a.attr('data-file-context') || 'this voucher'
+      });
+    });
+
+    $(document).on('click', '#vcDocVClose', function (e) {
+      e.preventDefault();
+      vcCloseDocViewer();
+    });
+    $(document).on('click', '#vcDocViewer', function (e) {
+      if (e.target === this) vcCloseDocViewer();
+    });
+    $(document).on('keydown', function (e) {
+      var ov = document.getElementById('vcDocViewer');
+      if (e.key === 'Escape' && ov && ov.classList.contains('open')) {
+        vcCloseDocViewer();
+      }
     });
 
     // Row ⋯ menu (#vcRowMenu lives outside .vc-demo with modals; CSS targets #vcRowMenu)

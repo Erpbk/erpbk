@@ -163,17 +163,39 @@ $dh = '<svg class="vc-dh" viewBox="0 0 20 18" width="11" height="10"><path d="M4
       <td class="vc-file-cell">
         @if($voucher->attach_file)
           @php
-            $fileUrl = in_array($voucher->voucher_type, ['RFV', 'LV', 'VR'], true)
-              ? url('storage/' . $voucher->attach_file)
-              : url('storage/vouchers/' . $voucher->attach_file);
-            $fileName = basename((string) $voucher->attach_file);
+            $attachRel = ltrim((string) $voucher->attach_file, '/');
+            $storageRel = in_array($voucher->voucher_type, ['RFV', 'LV', 'VR'], true)
+              ? $attachRel
+              : (str_contains($attachRel, '/') ? $attachRel : 'vouchers/'.$attachRel);
+            $fileUrl = url('storage/'.$storageRel);
+            $fileName = basename($attachRel);
+            $diskPath = storage_path('app/public/'.$storageRel);
+            $sizeLabel = null;
+            if (is_file($diskPath)) {
+              $bytes = (int) filesize($diskPath);
+              $sizeLabel = $bytes >= 1048576
+                ? round($bytes / 1048576, 1).' MB'
+                : max(1, (int) round($bytes / 1024)).' KB';
+            }
+            $uploadedAt = $voucher->updated_at ?? $voucher->created_at ?? null;
+            $uploadedLabel = $uploadedAt
+              ? 'uploaded '.\Carbon\Carbon::parse($uploadedAt)->format('d M Y')
+              : null;
+            $fileMetaParts = array_values(array_filter([
+              $typeLabel,
+              $voucherId,
+              $sizeLabel,
+              $uploadedLabel,
+            ]));
+            $fileMeta = implode(' · ', $fileMetaParts);
           @endphp
           <a href="{{ $fileUrl }}"
-             class="vc-fbtn"
-             target="_blank"
+             class="vc-fbtn js-vc-doc-view"
              rel="noopener"
              data-file-url="{{ $fileUrl }}"
              data-file-name="{{ $fileName }}"
+             data-file-meta="{{ $fileMeta }}"
+             data-file-context="{{ $typeLabel }}"
              title="{{ $fileName }}"><span class="vc-fico" aria-hidden="true">📄</span> View</a>
         @else
           <span style="color:#94a3b8">-</span>

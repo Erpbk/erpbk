@@ -93,7 +93,7 @@
             <option value="oth" {{ request('account_kind') === 'oth' ? 'selected' : '' }}>Account</option>
           </select>
         </div>
-        <input type="hidden" name="approval_tab" id="approval_tab" value="{{ $approvalTab ?? request('approval_tab', 'all') }}">
+        <input type="hidden" name="approval_tab" id="approval_tab" value="{{ $approvalTab ?? request('approval_tab', 'pending') }}">
         @if(field_visible('voucher', 'billing_month'))
         <div class="form-group col-md-12">
           <label for="billing_month">Billing Month</label>
@@ -185,7 +185,7 @@
     @include('vouchers.partials.demo_toolbar', [
       'data' => $data ?? collect(),
       'tabCounts' => $tabCounts ?? [],
-      'approvalTab' => $approvalTab ?? request('approval_tab', 'all'),
+      'approvalTab' => $approvalTab ?? request('approval_tab', 'pending'),
     ])
 
     @include('vouchers.partials.bulk_bar')

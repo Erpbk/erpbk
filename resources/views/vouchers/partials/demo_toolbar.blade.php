@@ -1,5 +1,5 @@
 @php
-  $activeTab = $approvalTab ?? request('approval_tab', 'all');
+  $activeTab = $approvalTab ?? request('approval_tab', 'pending');
   $tabCounts = array_merge([
     'all' => 0,
     'pending' => 0,

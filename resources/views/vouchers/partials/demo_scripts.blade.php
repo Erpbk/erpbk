@@ -1000,23 +1000,29 @@
       var ov = document.getElementById('vcDocViewer');
       if (!ov) return;
       ov.classList.remove('open');
-      ov.hidden = true;
+      ov.setAttribute('hidden', 'hidden');
       ov.setAttribute('aria-hidden', 'true');
+      ov.style.display = 'none';
       var body = document.getElementById('vcDocVBody');
       if (body) body.innerHTML = '';
       var note = document.getElementById('vcDocVNote');
       if (note) {
-        note.hidden = true;
+        note.setAttribute('hidden', 'hidden');
         note.textContent = '';
       }
       if (vcDocNoteTimer) {
         clearTimeout(vcDocNoteTimer);
         vcDocNoteTimer = null;
       }
+      document.body.classList.remove('vc-docv-open');
     }
     function vcOpenDocViewer(opts) {
       var ov = document.getElementById('vcDocViewer');
       if (!ov) return;
+      // Escape layout overflow/transform parents (common on live servers)
+      if (ov.parentElement !== document.body) {
+        document.body.appendChild(ov);
+      }
       var url = String(opts.url || '');
       if (!url) return;
       var name = String(opts.name || 'Document');
@@ -1034,9 +1040,10 @@
       if (!body) return;
       body.innerHTML = '';
       if (isImg) {
-        body.innerHTML = '<div style="height:100%;display:grid;place-items:center;background:#0f172a;padding:16px"><img src="'+url.replace(/"/g, '&quot;')+'" alt="'+String(name).replace(/"/g, '&quot;')+'"></div>';
+        body.innerHTML = '<div class="vc-docv-img-wrap"><img src="'+url.replace(/"/g, '&quot;')+'" alt="'+String(name).replace(/"/g, '&quot;')+'"></div>';
       } else if (isPdf) {
-        var src = url + (url.indexOf('#') === -1 ? '#toolbar=1&navpanes=1' : '');
+        // view=FitH helps long PDFs; browser PDF UI scrolls inside the iframe
+        var src = url + (url.indexOf('#') === -1 ? '#toolbar=1&navpanes=1&scrollbar=1&view=FitH' : '');
         body.innerHTML = '<iframe title="Document preview" src="'+src.replace(/"/g, '&quot;')+'"></iframe>';
       } else {
         body.innerHTML = '<div class="vc-docv-fallback"><div>Preview is not available for this file type.</div><a href="'+url.replace(/"/g, '&quot;')+'" target="_blank" rel="noopener">Open / Download</a></div>';
@@ -1044,17 +1051,20 @@
 
       var note = document.getElementById('vcDocVNote');
       if (note) {
-        note.hidden = false;
+        note.removeAttribute('hidden');
         note.textContent = '1 document(s) attached to ' + context;
         if (vcDocNoteTimer) clearTimeout(vcDocNoteTimer);
         vcDocNoteTimer = setTimeout(function () {
-          note.hidden = true;
+          note.setAttribute('hidden', 'hidden');
         }, 4200);
       }
 
-      ov.hidden = false;
+      ov.removeAttribute('hidden');
       ov.classList.add('open');
       ov.setAttribute('aria-hidden', 'false');
+      // Inline fallback if cached CSS on server is missing .vc-docv rules
+      ov.style.cssText = 'position:fixed;inset:0;z-index:200000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,0.55);box-sizing:border-box;';
+      document.body.classList.add('vc-docv-open');
     }
     window.vcOpenDocViewer = vcOpenDocViewer;
     window.vcCloseDocViewer = vcCloseDocViewer;

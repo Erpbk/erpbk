@@ -22,7 +22,7 @@ class NotificationLogsSettingsController extends Controller
         abort_if($companyId <= 0, 403);
 
         $validated = $request->validate([
-            'channel' => ['nullable', 'string', Rule::in(['in_app', 'email'])],
+            'channel' => ['nullable', 'string', Rule::in(['in_app', 'email', 'whatsapp'])],
             'status' => ['nullable', 'string', Rule::in([
                 NotificationDelivery::STATUS_PENDING,
                 NotificationDelivery::STATUS_SENT,
@@ -52,6 +52,7 @@ class NotificationLogsSettingsController extends Controller
             $q = trim($validated['q']);
             $query->where(function ($builder) use ($q) {
                 $builder->where('to_email', 'like', '%'.$q.'%')
+                    ->orWhere('to_phone', 'like', '%'.$q.'%')
                     ->orWhereHas('notification', function ($n) use ($q) {
                         $n->where('title', 'like', '%'.$q.'%')
                             ->orWhere('type', 'like', '%'.$q.'%')
@@ -85,6 +86,7 @@ class NotificationLogsSettingsController extends Controller
             'channelLabels' => [
                 'in_app' => __('In-App'),
                 'email' => __('Email'),
+                'whatsapp' => __('WhatsApp'),
             ],
             'statusLabels' => [
                 NotificationDelivery::STATUS_PENDING => __('Pending'),
@@ -103,6 +105,10 @@ class NotificationLogsSettingsController extends Controller
 
         if (! empty($delivery->to_email)) {
             return (string) $delivery->to_email;
+        }
+
+        if (! empty($delivery->to_phone)) {
+            return (string) $delivery->to_phone;
         }
 
         $user = $delivery->notification?->user;

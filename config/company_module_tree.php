@@ -19,6 +19,8 @@ return [
 
     ['key' => 'leads'],
 
+    ['key' => 'whatsapp'],
+
     ['key' => 'customers', 'children' => ['customer_list', 'customer_invoices', 'customer_receipts']],
 
     ['key' => 'vendors'],

@@ -24,8 +24,6 @@ class Payment extends BaseModel
         'resource_links',
         'bank_charges',
         'bank_charges_account',
-        'govt_charges',
-        'govt_charges_account',
         'bank_id',
         'amount_type',
         'payment_kind',

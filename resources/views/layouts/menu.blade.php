@@ -177,6 +177,16 @@ $homeLink = $isAdminLogin
 </li>
 @endcan
 @endif
+@if(\App\Support\WhatsApp\WhatsAppCompanyAccess::menuVisible((int) (\App\Support\CompanyContext::id() ?? 0)))
+@can('whatsapp_view')
+<li class="menu-item {{ Route::is('whatsapp.inbox.*') ? 'active' : '' }}">
+  <a href="{{ route('whatsapp.inbox.index') }}" class="menu-link">
+    @include('layouts.partials.module_menu_icon', ['key' => 'whatsapp'])
+    <div>{{ $menuLabels['whatsapp'] ?? 'WhatsApp' }}</div>
+  </a>
+</li>
+@endcan
+@endif
 @if(\App\Support\CompanyModuleVisibility::enabled('customers'))
 @canany(['customers_customer_view', 'customers_invoices_view', 'customers_payments_view'])
 <li class="menu-item {{ (Route::is('customer*') || Route::is('customers*') || Route::is('customer_invoice*') || Route::is('customer_invoices*')) ? 'open' : '' }}">
@@ -801,6 +811,33 @@ $homeLink = $isAdminLogin
   <a href="{{ route('admin.companies.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-building-community"></i>
     <div>{{ __('Companies') }}</div>
+  </a>
+</li>
+@endif
+
+@if($isAdminLogin && $canAccessSuperAdminPanel)
+<li class="menu-item {{ Route::is('admin.whatsapp-inbox*') ? 'active' : '' }}">
+  <a href="{{ route('admin.whatsapp-inbox.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-messages"></i>
+    <div>{{ __('WhatsApp Inbox') }}</div>
+  </a>
+</li>
+<li class="menu-item {{ Route::is('admin.whatsapp-numbers*') ? 'active' : '' }}">
+  <a href="{{ route('admin.whatsapp-numbers.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-device-mobile"></i>
+    <div>{{ __('WhatsApp Numbers') }}</div>
+  </a>
+</li>
+<li class="menu-item {{ Route::is('admin.whatsapp-templates*') ? 'active' : '' }}">
+  <a href="{{ route('admin.whatsapp-templates.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-template"></i>
+    <div>{{ __('WhatsApp Templates') }}</div>
+  </a>
+</li>
+<li class="menu-item {{ Route::is('admin.whatsapp-compose*') ? 'active' : '' }}">
+  <a href="{{ route('admin.whatsapp-compose.create') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-brand-whatsapp"></i>
+    <div>{{ __('Send WhatsApp') }}</div>
   </a>
 </li>
 @endif

@@ -159,6 +159,8 @@
     cursor: pointer;
   }
   .nr-user-item:hover { background: rgba(105, 108, 255, 0.06); }
+  .nr-user-item.is-disabled { opacity: 0.55; cursor: not-allowed; }
+  .nr-user-item.is-disabled:hover { background: transparent; }
   .nr-user-item .form-check-input { margin-top: 0.2rem; flex-shrink: 0; }
   .nr-user-meta { min-width: 0; }
   .nr-user-meta .name { font-weight: 500; line-height: 1.25; }
@@ -170,6 +172,10 @@
     padding: 0.85rem;
     height: 100%;
     background: rgba(67, 89, 113, 0.02);
+  }
+  .nr-panel.is-disabled {
+    opacity: 0.75;
+    background: rgba(67, 89, 113, 0.04);
   }
   .nr-panel-title {
     font-size: 0.875rem;
@@ -183,6 +189,12 @@
     font-size: 0.75rem;
     color: #a1acb8;
     margin-bottom: 0.65rem;
+  }
+  .nr-panel-blocked {
+    font-size: 0.8125rem;
+    color: #a1acb8;
+    line-height: 1.45;
+    padding: 0.55rem 0.1rem 0.25rem;
   }
 </style>
 
@@ -295,32 +307,43 @@
                                 $recipientConfig = \App\Services\Notifications\RecipientBuckets::normalize(
                                     is_array($rule->recipient_config) ? $rule->recipient_config : []
                                 );
-                                $bothIds = $recipientConfig['both_user_ids'];
-                                $inAppOnlyIds = $recipientConfig['in_app_only_user_ids'];
-                                $emailOnlyIds = $recipientConfig['email_only_user_ids'];
+                                $inAppIds = $recipientConfig['in_app_user_ids'];
+                                $emailIds = $recipientConfig['email_user_ids'];
+                                $whatsappIds = $recipientConfig['whatsapp_user_ids'];
                                 $externalEmails = $recipientConfig['emails'];
                                 $moduleUsers = $usersByModule[$moduleKey] ?? collect();
                                 $selectedAccountId = array_key_exists('email_account_id', $config)
                                     ? (int) $config['email_account_id']
                                     : null;
-                                $trigger = $typeDef['trigger'] ?? 'event';
-                                $selectedAccount = $selectedAccountId
-                                    ? $emailAccounts->firstWhere('id', $selectedAccountId)
+                                $selectedWhatsAppConnectionId = array_key_exists('whatsapp_connection_id', $config)
+                                    ? (int) $config['whatsapp_connection_id']
                                     : null;
-                                if ($selectedAccountId === null) {
-                                    $fromSummary = __('Not set');
-                                } elseif ($selectedAccountId === 0) {
-                                    $fromSummary = __('System default') . ($defaultFromEmail ? ' ('.$defaultFromEmail.')' : '');
-                                } elseif ($selectedAccount) {
-                                    $accName = trim((string) ($selectedAccount->display_name ?? ''));
-                                    $accEmail = trim((string) ($selectedAccount->email ?? ''));
-                                    $fromSummary = $accName !== '' ? $accName.' ('.$accEmail.')' : $accEmail;
-                                } else {
-                                    $fromSummary = __('Not set');
+                                $inAppEntitled = ! empty($inAppEntitled);
+                                $emailEntitled = ! empty($emailEntitled);
+                                $whatsappEntitled = ! empty($whatsappEntitled);
+                                $emailAccounts = $emailAccounts ?? collect();
+                                $whatsappConnections = $whatsappConnections ?? collect();
+                                $whatsappBindingsByTrigger = $whatsappBindingsByTrigger ?? [];
+                                $waTriggerKey = 'notification:'.(string) $rule->type_key;
+                                $waBinding = $whatsappEntitled ? ($whatsappBindingsByTrigger[$waTriggerKey] ?? null) : null;
+                                $waTemplateBound = $whatsappEntitled && ! empty($waBinding['bound']);
+                                $trigger = $typeDef['trigger'] ?? 'event';
+                                $fromSummary = __('Not set');
+                                if ($emailEntitled) {
+                                    $selectedAccount = $selectedAccountId
+                                        ? $emailAccounts->firstWhere('id', $selectedAccountId)
+                                        : null;
+                                    if ($selectedAccountId === 0) {
+                                        $fromSummary = __('System default') . ($defaultFromEmail ? ' ('.$defaultFromEmail.')' : '');
+                                    } elseif ($selectedAccount) {
+                                        $accName = trim((string) ($selectedAccount->display_name ?? ''));
+                                        $accEmail = trim((string) ($selectedAccount->email ?? ''));
+                                        $fromSummary = $accName !== '' ? $accName.' ('.$accEmail.')' : $accEmail;
+                                    }
                                 }
-                                $bothCount = count($bothIds);
-                                $inAppOnlyCount = count($inAppOnlyIds);
-                                $emailOnlyCount = count($emailOnlyIds) + count($externalEmails);
+                                $inAppCount = count($inAppIds ?? []);
+                                $emailCount = count($emailIds ?? []) + count($externalEmails ?? []);
+                                $whatsappCount = count($whatsappIds ?? []);
                                 $ruleCollapseId = 'nr-rule-' . $rule->id;
                             @endphp
                             <div class="nr-rule {{ $rule->enabled ? '' : 'is-disabled' }}" data-rule-card="{{ $rule->id }}">
@@ -372,19 +395,19 @@
                                                             <i class="ti ti-flag me-1"></i>{{ implode(', ', $ruleStatuses) }}
                                                         </span>
                                                     @endif
-                                                    @if($bothCount)
-                                                        <span class="badge bg-label-primary">
-                                                            <i class="ti ti-bell me-1"></i><i class="ti ti-mail me-1"></i>{{ $bothCount }}
-                                                        </span>
-                                                    @endif
-                                                    @if($inAppOnlyCount)
+                                                    @if($inAppCount)
                                                         <span class="badge bg-label-info">
-                                                            <i class="ti ti-bell me-1"></i>{{ $inAppOnlyCount }}
+                                                            <i class="ti ti-bell me-1"></i>{{ $inAppCount }}
                                                         </span>
                                                     @endif
-                                                    @if($emailOnlyCount)
+                                                    @if($emailCount)
                                                         <span class="badge bg-label-warning">
-                                                            <i class="ti ti-mail me-1"></i>{{ $emailOnlyCount }}
+                                                            <i class="ti ti-mail me-1"></i>{{ $emailCount }}
+                                                        </span>
+                                                    @endif
+                                                    @if($whatsappCount)
+                                                        <span class="badge bg-label-success">
+                                                            <i class="ti ti-brand-whatsapp me-1"></i>{{ $whatsappCount }}
                                                         </span>
                                                     @endif
                                                     @if($emailEntitled)
@@ -496,7 +519,28 @@
                                                         @endforeach
                                                     </select>
                                                     <div class="nr-hint">
-                                                        {{ __('Used for Email and In-app & email recipients. System default uses MAIL_FROM_ADDRESS.') }}
+                                                        {{ __('Used for Email recipients. System default uses MAIL_FROM_ADDRESS.') }}
+                                                    </div>
+                                                </div>
+                                            @endif
+
+                                            @if($whatsappEntitled)
+                                                <div class="col-12 col-lg-6">
+                                                    <div class="nr-section-title">{{ __('WhatsApp number') }}</div>
+                                                    <select class="form-select" name="whatsapp_connection_id" id="whatsapp_connection_{{ $rule->id }}">
+                                                        <option value="" @selected($selectedWhatsAppConnectionId === null || $selectedWhatsAppConnectionId === 0)>
+                                                            {{ __('None — do not send WhatsApp') }}
+                                                        </option>
+                                                        @forelse($whatsappConnections as $waConnection)
+                                                            <option value="{{ $waConnection->id }}" @selected($selectedWhatsAppConnectionId !== null && $selectedWhatsAppConnectionId === (int) $waConnection->id)>
+                                                                {{ $waConnection->displayLabel() }}
+                                                            </option>
+                                                        @empty
+                                                            <option value="" disabled>{{ __('No WhatsApp numbers available') }}</option>
+                                                        @endforelse
+                                                    </select>
+                                                    <div class="nr-hint mt-1">
+                                                        {{ __('WhatsApp is sent only when a number is selected here.') }}
                                                     </div>
                                                 </div>
                                             @endif
@@ -504,69 +548,41 @@
                                             <div class="col-12">
                                                 <div class="nr-section-title">{{ __('Recipients') }}</div>
                                                 <div class="nr-hint mb-2">
-                                                    {{ __('A user can only be in one panel. At least one recipient is required to enable this rule.') }}
+                                                    {{ __('Pick users per channel. The same user can be selected on more than one card. At least one recipient is required to enable this rule.') }}
                                                 </div>
+                                                @php
+                                                    $recipientCol = collect([$inAppEntitled, $emailEntitled, $whatsappEntitled])->filter()->count() >= 3
+                                                        ? 'col-md-4'
+                                                        : 'col-md-6';
+                                                @endphp
                                                 <div class="row g-3" data-recipient-panels>
-                                                    @if($inAppEntitled && $emailEntitled)
-                                                        <div class="col-md-4">
-                                                            <div class="nr-panel">
-                                                                <div class="nr-panel-title">
-                                                                    <i class="ti ti-bell"></i><i class="ti ti-mail"></i>
-                                                                    {{ __('In-app & email') }}
-                                                                </div>
-                                                                <div class="nr-panel-desc">{{ __('Inbox alert plus email') }}</div>
-                                                                @include('settings.notification_rules._user_picker', [
-                                                                    'ruleId' => $rule->id,
-                                                                    'panel' => 'both',
-                                                                    'inputName' => 'both_user_ids[]',
-                                                                    'moduleUsers' => $moduleUsers,
-                                                                    'selectedIds' => $bothIds,
-                                                                ])
-                                                            </div>
-                                                        </div>
-                                                    @elseif($inAppEntitled)
-                                                        <div class="col-md-6">
+                                                    @if($inAppEntitled)
+                                                        <div class="{{ $recipientCol }}">
                                                             <div class="nr-panel">
                                                                 <div class="nr-panel-title"><i class="ti ti-bell"></i> {{ __('In-app') }}</div>
-                                                                <div class="nr-panel-desc">{{ __('Inbox alert only') }}</div>
-                                                                @include('settings.notification_rules._user_picker', [
-                                                                    'ruleId' => $rule->id,
-                                                                    'panel' => 'both',
-                                                                    'inputName' => 'both_user_ids[]',
-                                                                    'moduleUsers' => $moduleUsers,
-                                                                    'selectedIds' => $bothIds,
-                                                                ])
-                                                            </div>
-                                                        </div>
-                                                    @endif
-
-                                                    @if($inAppEntitled && $emailEntitled)
-                                                        <div class="col-md-4">
-                                                            <div class="nr-panel">
-                                                                <div class="nr-panel-title"><i class="ti ti-bell"></i> {{ __('In-app only') }}</div>
-                                                                <div class="nr-panel-desc">{{ __('No email') }}</div>
+                                                                <div class="nr-panel-desc">{{ __('Inbox alert') }}</div>
                                                                 @include('settings.notification_rules._user_picker', [
                                                                     'ruleId' => $rule->id,
                                                                     'panel' => 'in_app',
-                                                                    'inputName' => 'in_app_only_user_ids[]',
+                                                                    'inputName' => 'in_app_user_ids[]',
                                                                     'moduleUsers' => $moduleUsers,
-                                                                    'selectedIds' => $inAppOnlyIds,
+                                                                    'selectedIds' => $inAppIds,
                                                                 ])
                                                             </div>
                                                         </div>
                                                     @endif
 
                                                     @if($emailEntitled)
-                                                        <div class="{{ ($inAppEntitled && $emailEntitled) ? 'col-md-4' : 'col-md-6' }}">
+                                                        <div class="{{ $recipientCol }}">
                                                             <div class="nr-panel">
-                                                                <div class="nr-panel-title"><i class="ti ti-mail"></i> {{ __('Email only') }}</div>
-                                                                <div class="nr-panel-desc">{{ __('Users and external addresses — no inbox') }}</div>
+                                                                <div class="nr-panel-title"><i class="ti ti-mail"></i> {{ __('Email') }}</div>
+                                                                <div class="nr-panel-desc">{{ __('Users and external addresses') }}</div>
                                                                 @include('settings.notification_rules._user_picker', [
                                                                     'ruleId' => $rule->id,
                                                                     'panel' => 'email',
-                                                                    'inputName' => 'email_only_user_ids[]',
+                                                                    'inputName' => 'email_user_ids[]',
                                                                     'moduleUsers' => $moduleUsers,
-                                                                    'selectedIds' => $emailOnlyIds,
+                                                                    'selectedIds' => $emailIds,
                                                                 ])
                                                                 <label class="form-label small mt-2 mb-1" for="emails_text_{{ $rule->id }}">{{ __('Extra emails') }}</label>
                                                                 <textarea class="form-control form-control-sm"
@@ -575,6 +591,31 @@
                                                                           rows="2"
                                                                           placeholder="{{ __('one@example.com two@example.com') }}">{{ implode(' ', $externalEmails) }}</textarea>
                                                                 <div class="nr-hint">{{ __('Separate addresses with spaces only.') }}</div>
+                                                            </div>
+                                                        </div>
+                                                    @endif
+
+                                                    @if($whatsappEntitled)
+                                                        <div class="{{ $recipientCol }}">
+                                                            <div class="nr-panel{{ $waTemplateBound ? '' : ' is-disabled' }}">
+                                                                <div class="nr-panel-title"><i class="ti ti-brand-whatsapp"></i> {{ __('WhatsApp') }}</div>
+                                                                @if($waTemplateBound)
+                                                                    <div class="nr-panel-desc">{{ __('Users with a phone number') }}</div>
+                                                                    @include('settings.notification_rules._user_picker', [
+                                                                        'ruleId' => $rule->id,
+                                                                        'panel' => 'whatsapp',
+                                                                        'inputName' => 'whatsapp_user_ids[]',
+                                                                        'moduleUsers' => $moduleUsers,
+                                                                        'selectedIds' => $whatsappIds,
+                                                                    ])
+                                                                @else
+                                                                    <div class="nr-panel-blocked">
+                                                                        {{ __('No Whatsapp message set for this notification. Contact FleetValu Support') }}
+                                                                    </div>
+                                                                    @foreach($whatsappIds as $preservedWaUserId)
+                                                                        <input type="hidden" name="whatsapp_user_ids[]" value="{{ (int) $preservedWaUserId }}">
+                                                                    @endforeach
+                                                                @endif
                                                             </div>
                                                         </div>
                                                     @endif
@@ -617,22 +658,6 @@
     });
   }
 
-  function initMutualExclusive(root) {
-    root.querySelectorAll('[data-recipient-panels]').forEach(function (group) {
-      group.addEventListener('change', function (e) {
-        var target = e.target;
-        if (!target || target.type !== 'checkbox' || !target.value) return;
-        if (!target.checked) return;
-        var uid = String(target.value);
-        group.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
-          if (cb !== target && String(cb.value) === uid) {
-            cb.checked = false;
-          }
-        });
-      });
-    });
-  }
-
   function initEnableToggles(root) {
     root.querySelectorAll('[data-rule-enable]').forEach(function (toggle) {
       toggle.addEventListener('change', function () {
@@ -648,12 +673,22 @@
     });
   }
 
+  function refreshSelect2(scope) {
+    if (typeof window.initSettingsSelect2 === 'function') {
+      window.initSettingsSelect2(scope || document, true);
+    }
+  }
+
   function initRuleCollapse(root) {
     root.querySelectorAll('[data-rule-collapse]').forEach(function (panel) {
       var card = panel.closest('[data-rule-card]');
       if (!card) return;
       panel.addEventListener('show.bs.collapse', function () {
         card.classList.add('is-open');
+      });
+      panel.addEventListener('shown.bs.collapse', function () {
+        // Select2 breaks if first initialized while the panel was display:none.
+        refreshSelect2(panel);
       });
       panel.addEventListener('hide.bs.collapse', function () {
         card.classList.remove('is-open');
@@ -665,20 +700,27 @@
     root.querySelectorAll('[data-module-key]').forEach(function (btn) {
       btn.addEventListener('shown.bs.tab', function () {
         var key = btn.getAttribute('data-module-key') || '';
-        if (!key || !window.history || !window.history.replaceState) return;
-        var url = new URL(window.location.href);
-        url.searchParams.set('module', key);
-        window.history.replaceState({}, '', url.toString());
+        if (key && window.history && window.history.replaceState) {
+          var url = new URL(window.location.href);
+          url.searchParams.set('module', key);
+          window.history.replaceState({}, '', url.toString());
+        }
+        var target = btn.getAttribute('data-bs-target') || btn.getAttribute('href');
+        var pane = target ? document.querySelector(target) : null;
+        refreshSelect2(pane || root);
       });
     });
   }
 
   document.addEventListener('DOMContentLoaded', function () {
     initUserSearch(document);
-    initMutualExclusive(document);
     initEnableToggles(document);
     initRuleCollapse(document);
     initModuleTabs(document);
+    // Open rule panels (and the active module tab) need a healthy Select2 pass.
+    document.querySelectorAll('[data-rule-collapse].show').forEach(function (panel) {
+      refreshSelect2(panel);
+    });
   });
 })();
 </script>

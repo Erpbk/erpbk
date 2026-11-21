@@ -20,6 +20,7 @@ return [
         'items_list' => 'ti-list-details',
         'garage_items' => 'ti-tools',
         'leads' => 'ti-user-plus',
+        'whatsapp' => 'ti-brand-whatsapp',
         'customers' => 'ti-user-star',
         'customer_list' => 'ti-users',
         'customer_invoices' => 'ti-receipt',

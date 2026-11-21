@@ -9,7 +9,7 @@ use Illuminate\Support\Collection;
 class RecipientResolver
 {
     /**
-     * Users who should receive an in-app inbox row (both + in-app-only panels).
+     * Users who should receive an inbox-backed notification (in-app and/or WhatsApp).
      *
      * @param  array<string, mixed>  $recipientConfig
      * @param  array<string, mixed>  $context
@@ -18,7 +18,7 @@ class RecipientResolver
     public function resolve(int $companyId, array $recipientConfig, array $context = []): Collection
     {
         $buckets = RecipientBuckets::normalize($recipientConfig);
-        $userIds = RecipientBuckets::inAppUserIds($buckets);
+        $userIds = RecipientBuckets::inboxUserIds($buckets);
         if ($userIds === []) {
             return collect();
         }
@@ -38,10 +38,7 @@ class RecipientResolver
     public function resolveEmailOnlyUsers(int $companyId, array $recipientConfig): Collection
     {
         $buckets = RecipientBuckets::normalize($recipientConfig);
-        $userIds = array_values(array_diff(
-            $buckets['email_only_user_ids'],
-            $buckets['exclude_user_ids']
-        ));
+        $userIds = RecipientBuckets::emailOnlyUserIds($buckets);
         if ($userIds === []) {
             return collect();
         }

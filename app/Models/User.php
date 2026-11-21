@@ -29,6 +29,7 @@ class User extends Authenticatable
     'first_name',
     'last_name',
     'phone',
+    'company_contact',
     'address',
     'city',
     'country',
@@ -55,6 +56,7 @@ class User extends Authenticatable
     'bio' => 'nullable|string|max:255',
     'image_name' => 'nullable|string|max:100',
     'phone' => 'nullable|string|max:50',
+    'company_contact' => 'nullable|string|max:50',
     'roles' => 'required',
     'employee_id' => 'nullable|exists:employees,id'
   ];
@@ -106,6 +108,17 @@ class User extends Authenticatable
     return $this->emailAccounts()->where('email_accounts.status', EmailAccount::STATUS_ACTIVE);
   }
 
+  public function whatsappConnections()
+  {
+    return $this->belongsToMany(WhatsAppConnection::class, 'whatsapp_connection_user', 'user_id', 'whatsapp_connection_id')
+      ->withTimestamps();
+  }
+
+  public function activeWhatsAppConnections()
+  {
+    return $this->whatsappConnections()->where('whatsapp_connections.status', WhatsAppConnection::STATUS_ACTIVE);
+  }
+
   public function getBranchesAttribute()
   {
     $branchIds = $this->branch_ids;
@@ -150,5 +163,39 @@ class User extends Authenticatable
   public function isAdmin()
   {
     return $this->hasAnyRole(['Administrator', 'Super Admin']);
+  }
+
+  /**
+   * Preferred WhatsApp digits: company_contact, then phone.
+   */
+  public function whatsappPhone(): ?string
+  {
+    foreach ([$this->company_contact ?? null, $this->phone ?? null] as $raw) {
+      $digits = \App\Support\PhoneNumber::toWhatsAppDigits(is_string($raw) ? $raw : null);
+      if (\App\Support\PhoneNumber::isValidWhatsAppDigits($digits)) {
+        return $digits;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Display string for WhatsApp recipient picker (raw preferred contact).
+   */
+  public function whatsappPhoneDisplay(): ?string
+  {
+    foreach ([$this->company_contact ?? null, $this->phone ?? null] as $raw) {
+      $raw = is_string($raw) ? trim($raw) : '';
+      if ($raw === '') {
+        continue;
+      }
+      $digits = \App\Support\PhoneNumber::toWhatsAppDigits($raw);
+      if (\App\Support\PhoneNumber::isValidWhatsAppDigits($digits)) {
+        return $raw;
+      }
+    }
+
+    return null;
   }
 }

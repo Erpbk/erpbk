@@ -38,17 +38,18 @@ class NotificationRuleService
             'config' => $def['default_config'] ?? [],
             'recipient_config' => [
                 'strategies' => ['explicit_users'],
-                'both_user_ids' => [],
-                'in_app_only_user_ids' => [],
-                'email_only_user_ids' => [],
+                'in_app_user_ids' => [],
+                'email_user_ids' => [],
+                'whatsapp_user_ids' => [],
                 'emails' => [],
+                'exclude_user_ids' => [],
             ],
             'channels' => $defaultChannels,
         ]);
     }
 
     /**
-     * Migrate legacy recipient shapes to three-panel buckets; drop built-in strategies.
+     * Migrate legacy recipient shapes to channel buckets; drop built-in strategies.
      */
     private function normalizeExplicitRecipients(NotificationRule $rule): NotificationRule
     {
@@ -65,12 +66,15 @@ class NotificationRuleService
 
         $hasLegacy = array_key_exists('user_ids', $config)
             || array_key_exists('include_defaults', $config)
+            || array_key_exists('both_user_ids', $config)
+            || array_key_exists('in_app_only_user_ids', $config)
+            || array_key_exists('email_only_user_ids', $config)
             || ($strategies !== ['explicit_users'] && $strategies !== []);
 
         $alreadyNormalized = ! $hasLegacy
-            && array_key_exists('both_user_ids', $config)
-            && array_key_exists('in_app_only_user_ids', $config)
-            && array_key_exists('email_only_user_ids', $config)
+            && array_key_exists('in_app_user_ids', $config)
+            && array_key_exists('email_user_ids', $config)
+            && array_key_exists('whatsapp_user_ids', $config)
             && array_key_exists('emails', $config)
             && ($strategies === ['explicit_users'] || $strategies === []);
 
@@ -92,7 +96,10 @@ class NotificationRuleService
 
         $implied = RecipientBuckets::impliedChannels($buckets);
         $entitled = CompanyNotificationChannels::enabledFor((int) $rule->company_id);
-        $channels = array_values(array_intersect($implied !== [] ? $implied : (is_array($rule->channels) ? $rule->channels : []), $entitled));
+        $channels = array_values(array_intersect(
+            $implied !== [] ? $implied : (is_array($rule->channels) ? $rule->channels : []),
+            $entitled
+        ));
         if ($channels !== [] && $rule->channels != $channels) {
             $rule->channels = $channels;
             $dirty = true;

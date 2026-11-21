@@ -22,6 +22,7 @@ return [
         'items_list'           => 'Items List',
         'garage_items'         => 'Garage Items',
         'leads'                => 'Leads',
+        'whatsapp'             => 'WhatsApp',
         'customers'            => 'Customers',
         'customer_list'        => 'customer list',
         'customer_invoices'    => 'Invoices',

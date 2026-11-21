@@ -32,14 +32,118 @@ class RiderActivitiesController extends AppBaseController
     public function __construct(RiderActivitiesRepository $riderActivitiesRepo)
     {
         $this->riderActivitiesRepository = $riderActivitiesRepo;
-        $this->middleware('permission:riders_activities_view')->only('index', 'show');
+        $this->middleware('permission:riders_activities_view')->only('index', 'show', 'whatsappFilter', 'whatsappSend');
         $this->middleware('permission:riders_activities_create')->only('create', 'store');
         $this->middleware('permission:riders_activities_edit')->only('edit', 'update');
         $this->middleware('permission:riders_activities_edit|riders_activities_create')->only('import', 'importErrors', 'importPage');
         $this->middleware('permission:riders_activities_delete')->only('destroy');
-        $this->middleware('permission:riders_live_activities_view')->only('liveactivities', 'liveimportactivities', 'liveImportPage');
+        $this->middleware('permission:riders_live_activities_view')->only('liveactivities', 'liveimportactivities', 'liveImportPage', 'whatsappFilter', 'whatsappSend');
         $this->middleware('permission:riders_live_activities_create')->only('liveimportactivities', 'liveimportErrors', 'liveImportPage');
         $this->middleware('permission:riders_activities_edit|riders_activities_create|riders_live_activities_create')->only('previewImport');
+    }
+
+    /**
+     * WhatsApp alerts drawer: load all riders for filter params (browser filters by alert type).
+     */
+    public function whatsappFilter(Request $request, \App\Services\RiderActivities\RiderActivityWhatsAppAlertService $alerts)
+    {
+        $mode = (string) $request->input('mode', 'activities');
+        $payload = $alerts->filterPayload($request, $mode);
+
+        return response()->json($payload);
+    }
+
+    /**
+     * WhatsApp alerts drawer: queue Meta template sends for selected riders.
+     */
+    public function whatsappSend(Request $request, \App\Services\RiderActivities\RiderActivityWhatsAppAlertService $alerts)
+    {
+        $validated = $request->validate([
+            'mode' => 'required|in:activities,summary,live',
+            'alert_type' => 'required|string|max:32',
+            'rider_ids' => 'required|array|min:1',
+            'rider_ids.*' => 'integer',
+            'whatsapp_connection_id' => 'required|integer|min:1',
+            'project_id' => 'nullable|integer',
+            'fleet_supervisor' => 'nullable|string|max:255',
+            'alert_date' => 'nullable|date',
+            'days_threshold' => 'nullable|integer|min:1|max:30',
+            'hours_target' => 'nullable|numeric|min:0.5|max:24',
+            'orders_target' => 'nullable|integer|min:1|max:200',
+        ]);
+
+        $mode = $validated['mode'];
+        $alertType = $validated['alert_type'];
+        $triggerKey = 'rider_activity:'.$alertType;
+
+        $payload = $alerts->filterPayload($request, $mode);
+        $allowed = collect($payload['types'][$alertType] ?? [])->keyBy('id');
+        $binding = $payload['bindings'][$alertType] ?? null;
+        if (empty($binding['bound'])) {
+            return response()->json([
+                'ok' => false,
+                'message' => __('No Message template found for this alert type. Contact FleetValue Support team to resolve this issue.'),
+            ], 422);
+        }
+
+        $companyId = (int) (\App\Support\CompanyContext::id() ?? 0);
+        if ($companyId <= 0) {
+            return response()->json(['ok' => false, 'message' => __('Company context required.')], 403);
+        }
+
+        $connectionId = (int) $validated['whatsapp_connection_id'];
+        $actor = $request->user();
+        $allowedIds = app(\App\Services\WhatsApp\WhatsAppConnectionService::class)
+            ->getConnectionsForUserSend($actor, $companyId)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        if ($allowedIds === []) {
+            return response()->json([
+                'ok' => false,
+                'message' => __('No WhatsApp number is allotted to you. Ask an admin to assign a number.'),
+            ], 403);
+        }
+        if (! in_array($connectionId, $allowedIds, true)) {
+            return response()->json([
+                'ok' => false,
+                'message' => __('Selected WhatsApp number is not allotted to you.'),
+            ], 422);
+        }
+
+        $queued = 0;
+        $skipped = 0;
+        foreach ($validated['rider_ids'] as $riderId) {
+            $row = $allowed->get((int) $riderId);
+            if (! $row) {
+                $skipped++;
+                continue;
+            }
+            if (empty($row['phone'])) {
+                $skipped++;
+                continue;
+            }
+
+            \App\Jobs\WhatsApp\SendRiderActivityWhatsAppJob::dispatch(
+                $companyId,
+                $triggerKey,
+                (int) $riderId,
+                $row,
+                $connectionId,
+                (int) (auth()->id() ?? 0) ?: null
+            )->onQueue('notifications');
+            $queued++;
+        }
+
+        return response()->json([
+            'ok' => true,
+            'queued' => $queued,
+            'skipped' => $skipped,
+            'message' => __('Queued :queued message(s); skipped :skipped.', [
+                'queued' => $queued,
+                'skipped' => $skipped,
+            ]),
+        ]);
     }
 
     /**

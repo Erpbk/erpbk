@@ -8,6 +8,7 @@ class CompanyNotificationChannels
 {
     public const CHANNEL_IN_APP = 'in_app';
     public const CHANNEL_EMAIL = 'email';
+    public const CHANNEL_WHATSAPP = 'whatsapp';
 
     /** @return list<string> */
     public static function allChannels(): array

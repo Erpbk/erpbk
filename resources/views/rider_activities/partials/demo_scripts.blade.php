@@ -27,7 +27,6 @@
   var q = document.getElementById('raQ');
   var qForm = document.getElementById('raQuickSearchForm');
   if (q && qForm) {
-    var t;
     q.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -109,21 +108,16 @@
 
   bindTicker('raTicker', 'raTkTrack', 20);
 
-  // WhatsApp drawer (UI only)
+  // WhatsApp alerts drawer — per-tab filters + Filter + Send
   var waBtn = document.getElementById('raWaBtn');
   var waOv = document.getElementById('raWaOv');
   var waDr = document.getElementById('raWaDrawer');
   var waX = document.getElementById('raWaX');
-  var waPayload = { types: {}, all: [], date: '' };
-  try {
-    waPayload = JSON.parse(waDr && waDr.getAttribute('data-wa-payload') || '{}');
-  } catch (e) {}
-  var waType = (document.querySelector('#raWaTypes button.on') || {}).getAttribute
-    ? document.querySelector('#raWaTypes button.on').getAttribute('data-type')
-    : 'abs';
+  var waPayload = { types: {}, bindings: {}, mode: (waDr && waDr.getAttribute('data-wa-mode')) || 'activities' };
+  var waTypeBtn = document.querySelector('#raWaTypes button.on');
+  var waType = waTypeBtn ? (waTypeBtn.getAttribute('data-type') || 'abs') : 'abs';
   var waSelected = null;
-  var waUsingAll = false;
-  var waChannel = 'wa';
+  var waLoadedType = null;
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -131,216 +125,255 @@
     });
   }
 
-  function fmtDateLabel(ymd) {
-    if (!ymd) return '—';
-    var p = ymd.split('-');
-    if (p.length !== 3) return ymd;
-    var d = new Date(+p[0], +p[1] - 1, +p[2]);
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  }
-
-  function waMode() {
-    var el = document.getElementById('raWaMode');
-    return (el && el.value) || 'rider';
-  }
-
-  function isGroupMode() {
-    return waMode() === 'group';
-  }
-
   function currentList() {
-    var list = (waPayload.types && waPayload.types[waType]) ? waPayload.types[waType].slice() : [];
-    waUsingAll = false;
-    if (!list.length) {
-      list = (waPayload.all || []).slice();
-      waUsingAll = true;
-    }
-    return list;
+    if (waLoadedType !== waType) return [];
+    return (waPayload.types && waPayload.types[waType]) ? waPayload.types[waType].slice() : [];
   }
 
-  function setAvatar(el, r, fallbackIni) {
+  function currentBinding() {
+    return (waPayload.bindings && waPayload.bindings[waType]) ? waPayload.bindings[waType] : null;
+  }
+
+  function setAvatar(el, r) {
     if (!el) return;
-    var ini = (r && r.ini) || fallbackIni || 'R';
-    var photo = r && r.photo ? String(r.photo) : '';
+    var ini = (r && r.ini) || 'R';
     el.setAttribute('data-ini', ini);
     el.classList.remove('has-img');
-    if (photo) {
-      el.innerHTML = '<span class="ra-av-ini">' + esc(ini) + '</span>' +
-        '<img src="' + esc(photo) + '" alt="" onload="this.parentElement.classList.add(\'has-img\')" onerror="this.remove()">';
-    } else {
-      el.innerHTML = '<span class="ra-av-ini">' + esc(ini) + '</span>';
+    el.innerHTML = '<span class="ra-av-ini">' + esc(ini) + '</span>';
+  }
+
+  var UNBOUND_MSG = 'No Message template found for this alert type. Contact FleetValue Support team to resolve this issue.';
+
+  function missingLabels(r) {
+    if (!r) return [];
+    if (Array.isArray(r.missing_inject_labels) && r.missing_inject_labels.length) {
+      return r.missing_inject_labels.map(String);
     }
+    if (Array.isArray(r.missing_injects) && r.missing_injects.length) {
+      return r.missing_injects.map(String);
+    }
+    return [];
   }
 
-  function photoEnabled() {
-    var photoChk = document.getElementById('raWaPhoto');
-    return !!(photoChk && photoChk.checked);
+  function hasPreviewError(r) {
+    var b = currentBinding();
+    if (!b || !b.bound || !r) return false;
+    if (r.preview_ok === true || r.preview_text) return false;
+    return true;
   }
 
-  function personalMessage(r) {
-    var tpl = document.getElementById('raWaTpl');
+  function previewText(r) {
+    var b = currentBinding();
+    if (!b || !b.bound) return UNBOUND_MSG;
+    if (r && r.preview_text) return String(r.preview_text);
+    var missing = missingLabels(r);
+    if (missing.length) {
+      return 'Cannot send — missing: ' + missing.join(', ') + '.';
+    }
+    if (r && r.preview_error) return String(r.preview_error);
+    return 'Template bound, but preview could not be built for this rider (missing inject values).';
+  }
+
+  function selectedFromId() {
+    var el = document.getElementById('raWaFrom');
+    var v = el ? String(el.value || '').trim() : '';
+    return v !== '' ? parseInt(v, 10) : 0;
+  }
+
+  function syncFilterFields() {
+    var btn = document.querySelector('#raWaTypes button.on');
+    var fields = ((btn && btn.getAttribute('data-fields')) || 'project,supervisor').split(',');
+    var allowed = {};
+    fields.forEach(function (f) { allowed[String(f).trim()] = true; });
+    document.querySelectorAll('#raWaSet [data-wa-field]').forEach(function (el) {
+      var key = el.getAttribute('data-wa-field');
+      el.hidden = !allowed[key];
+    });
     var dateEl = document.getElementById('raWaDate');
-    var daysEl = document.getElementById('raWaDays');
-    var hrsEl = document.getElementById('raWaHrs');
-    var ordEl = document.getElementById('raWaOrd');
-    var projEl = document.getElementById('raWaProj');
-    var dateVal = (dateEl && dateEl.value) || waPayload.date || '';
-    var projectLabel = '';
-    if (projEl && projEl.selectedIndex > 0) {
-      projectLabel = projEl.options[projEl.selectedIndex].text || '';
+    if (dateEl && allowed.date) {
+      var mode = (waDr && waDr.getAttribute('data-wa-mode')) || 'activities';
+      var lockToday = mode === 'live' && (waType === 'lhrs' || waType === 'lord');
+      var isOff = waType === 'off' || waType === 'off2' || waType === 'off4' || waType === 'off6';
+      var today = dateEl.getAttribute('data-default-today') || dateEl.value;
+      var def = lockToday || isOff
+        ? today
+        : (dateEl.getAttribute('data-default-yesterday') || dateEl.value);
+      if (!dateEl._waType || dateEl._waType !== waType) {
+        dateEl.value = def;
+        dateEl._waType = waType;
+      }
+      if (lockToday) {
+        dateEl.value = today;
+        dateEl.readOnly = true;
+        dateEl.disabled = true;
+        dateEl.title = 'Live hours/orders are always for today';
+      } else {
+        dateEl.readOnly = false;
+        dateEl.disabled = false;
+        dateEl.removeAttribute('title');
+      }
     }
-    var raw = (tpl && tpl.value) || '';
-    return raw
-      .replace(/\{name\}/g, (r && r.name) || '')
-      .replace(/\{id\}/g, (r && r.code) || '')
-      .replace(/\{mobile\}/g, '')
-      .replace(/\{days\}/g, (daysEl && daysEl.value) || '2')
-      .replace(/\{last_date\}/g, fmtDateLabel(dateVal))
-      .replace(/\{supervisor\}/g, (r && r.sup) || 'your supervisor')
-      .replace(/\{project\}/g, projectLabel)
-      .replace(/\{hours\}/g, (hrsEl && hrsEl.value) || '10')
-      .replace(/\{orders\}/g, '0')
-      .replace(/\{target\}/g, (ordEl && ordEl.value) || '15')
-      .replace(/\{date\}/g, fmtDateLabel(dateVal));
   }
 
-  function messageBubbleHtml(r, opts) {
-    opts = opts || {};
-    var showPhoto = !!(photoEnabled() && r && r.photo);
-    var highlight = opts.highlight ? ' sel-msg' : '';
-    var photo = showPhoto
-      ? '<div class="ra-wa-photo"><img src="' + esc(r.photo) + '" alt="' + esc((r.name || 'Rider') + ' photo') + '"><span>' + esc(r.name || 'Rider') + ' photo</span></div>'
-      : '';
-    var who = opts.showName
-      ? '<div class="who">' + esc(r.name || 'Rider') + ' · ' + esc(r.code || '') + '</div>'
-      : '';
-    return '<div class="ra-wa-msg' + highlight + '" data-id="' + (r && r.id ? r.id : '') + '">' +
-      who + photo +
-      '<div class="txt">' + esc(personalMessage(r)) + '</div>' +
-      '<div class="meta"><span>Preview</span></div>' +
-      '</div>';
+  function selectableCount() {
+    return document.querySelectorAll('#raWaRows .ra-wa-row:not([data-blocked]) input[type=checkbox]:checked').length;
   }
 
-  function syncModeUi() {
-    var group = isGroupMode();
-    var gWrap = document.getElementById('raWaGWrap');
-    var note = document.getElementById('raWaNote');
-    if (gWrap) gWrap.hidden = !(waChannel === 'wa' && group);
-    if (note && waChannel === 'wa') {
-      note.textContent = group
-        ? 'Each rider message is posted separately into the WhatsApp group.'
-        : 'Each rider gets a separate message on their own WhatsApp number.';
+  function syncListHeader() {
+    var lh = document.getElementById('raWaLh');
+    if (!lh) return;
+    var loaded = waLoadedType === waType;
+    if (!loaded) {
+      lh.textContent = 'Hit Filter to load riders';
+      return;
+    }
+    var total = currentList().length;
+    var selected = selectableCount();
+    lh.textContent = 'Riders in this alert (' + total + ') · Selected ' + selected;
+  }
+
+  function syncSendUi() {
+    var b = currentBinding();
+    var sendBtn = document.getElementById('raWaSend');
+    var fromOk = selectedFromId() > 0;
+    var loaded = waLoadedType === waType;
+    syncListHeader();
+    if (sendBtn) {
+      sendBtn.disabled = !(b && b.bound && loaded && selectableCount() > 0 && fromOk);
     }
   }
 
   function fillPreview(r) {
+    waSelected = r || null;
     var nameEl = document.getElementById('raWaPName');
     var subEl = document.getElementById('raWaPSub');
     var av = document.getElementById('raWaPAv');
-    var stack = document.getElementById('raWaMsgStack');
-    var chat = document.getElementById('raWaChat');
-    var groupEl = document.getElementById('raWaGroup');
-    var list = currentList();
-    var group = isGroupMode();
-    if (!stack) return;
-
-    if (group) {
-      var gName = (groupEl && groupEl.value.trim()) || 'Express – Fleet Supervisors';
-      if (nameEl) nameEl.textContent = gName;
-      if (subEl) subEl.textContent = 'Group · separate messages';
-      if (av) {
-        av.textContent = 'GR';
-        av.classList.remove('has-img');
-      }
-      var checked = [];
-      document.querySelectorAll('#raWaRows .ra-wa-row').forEach(function (row) {
-        var cb = row.querySelector('input[type=checkbox]');
-        if (cb && !cb.checked) return;
-        var id = +row.getAttribute('data-id');
-        var found = list.find(function (x) { return x.id === id; });
-        if (found) checked.push(found);
-      });
-      if (!checked.length) checked = list.slice();
-      var focusId = r && r.id ? r.id : (waSelected && waSelected.id);
-      var previewList = checked.slice(0, 12);
-      var more = checked.length > previewList.length
-        ? '<div class="ra-wa-more">+' + (checked.length - previewList.length) + ' more rider messages in group…</div>'
-        : '';
-      stack.innerHTML = previewList.map(function (item) {
-        return messageBubbleHtml(item, { showName: true, highlight: item.id === focusId });
-      }).join('') + more;
-      if (chat) {
-        var selMsg = stack.querySelector('.ra-wa-msg.sel-msg') || stack.querySelector('.ra-wa-msg');
-        if (selMsg) selMsg.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-      return;
+    var textEl = document.getElementById('raWaMsgText');
+    var msgEl = document.getElementById('raWaMsgPreview');
+    var loaded = waLoadedType === waType;
+    var broken = hasPreviewError(r);
+    if (msgEl) msgEl.classList.toggle('is-err', broken);
+    if (r) {
+      if (nameEl) nameEl.textContent = r.name || '—';
+      if (subEl) subEl.textContent = (r.phone ? ('+' + r.phone) : 'No phone') + ' · WhatsApp';
+      setAvatar(av, r);
+      if (textEl) textEl.textContent = previewText(r);
+    } else {
+      if (nameEl) nameEl.textContent = '—';
+      if (subEl) subEl.textContent = 'Rider · WhatsApp';
+      if (textEl) textEl.textContent = loaded
+        ? 'Select a rider to preview the message.'
+        : 'Hit Filter to load riders for this alert.';
     }
-
-    if (!r) {
-      stack.innerHTML = '<div class="ra-wa-empty">Select a rider to preview.</div>';
-      return;
-    }
-    if (nameEl) nameEl.textContent = r.name;
-    if (subEl) subEl.textContent = 'Rider · WhatsApp';
-    setAvatar(av, r, 'R');
-    stack.innerHTML = messageBubbleHtml(r, { showName: false, highlight: false });
+    syncSendUi();
   }
 
   function renderWaRows() {
     var rows = document.getElementById('raWaRows');
     var lh = document.getElementById('raWaLh');
     if (!rows) return;
-    syncModeUi();
+    var loaded = waLoadedType === waType;
     var list = currentList();
-    var dateEl = document.getElementById('raWaDate');
-    var dateLabel = fmtDateLabel((dateEl && dateEl.value) || waPayload.date || '');
-    if (lh) {
-      lh.textContent = waUsingAll
-        ? ('No matches for this alert on ' + dateLabel + ' — showing all riders (' + list.length + ')')
-        : ('Preview list · ' + list.length + ' riders · ' + dateLabel);
+    document.querySelectorAll('#raWaTypes [data-cnt]').forEach(function (el) {
+      var k = el.getAttribute('data-cnt');
+      if (waLoadedType === k && waPayload.types && waPayload.types[k]) {
+        el.textContent = String(waPayload.types[k].length);
+      } else if (waLoadedType !== k) {
+        // keep previous count for other tabs until they are re-filtered
+      }
+    });
+    if (!loaded) {
+      if (lh) lh.textContent = 'Hit Filter to load riders';
+      rows.innerHTML = '<div class="ra-wa-empty">Set parameters and press Filter.</div>';
+      fillPreview(null);
+      return;
     }
     if (!list.length) {
-      rows.innerHTML = '<div class="ra-wa-empty">No riders available to preview.</div>';
-      waSelected = null;
+      if (lh) lh.textContent = 'Riders in this alert (0) · Selected 0';
+      rows.innerHTML = '<div class="ra-wa-empty">No riders match these filters.</div>';
       fillPreview(null);
       return;
     }
     rows.innerHTML = list.map(function (r, i) {
-      var avHtml = r.photo
-        ? '<div class="av" data-ini="' + esc(r.ini) + '"><span class="ra-av-ini">' + esc(r.ini) + '</span><img src="' + esc(r.photo) + '" alt="" onload="this.parentElement.classList.add(\'has-img\')" onerror="this.remove()"></div>'
-        : '<div class="av" data-ini="' + esc(r.ini) + '"><span class="ra-av-ini">' + esc(r.ini) + '</span></div>';
-      return '<div class="ra-wa-row' + (i === 0 ? ' sel' : '') + '" data-id="' + r.id + '">' +
-        '<input type="checkbox" checked aria-label="Select">' +
-        avHtml +
-        '<div><b>' + esc(r.name) + '</b><small>' + esc(r.code) + (r.sup ? ' · ' + esc(r.sup) : '') + '</small></div>' +
-        '<div class="rt"><span class="off' + (waUsingAll ? ' is-all' : '') + '">' + (waUsingAll ? 'All' : 'Alert') + '</span></div>' +
-        '</div>';
+      var details = [esc(r.code)];
+      details.push(r.phone ? ('+' + esc(r.phone)) : 'no phone');
+      if (r.sup) details.push(esc(r.sup));
+      if (r.days_absent != null && r.days_absent !== '' && (waType === 'off' || waType === 'off2' || waType === 'off4' || waType === 'off6' || waType === 'abs')) {
+        details.push(esc(r.days_absent) + 'd off');
+      }
+      if (r.hours != null && r.hours !== '') details.push(esc(r.hours) + 'h');
+      if (r.orders != null && r.orders !== '') details.push(esc(r.orders) + ' orders');
+      var broken = hasPreviewError(r);
+      var tip = broken
+        ? ('Cannot send — missing: ' + (missingLabels(r).join(', ') || 'required values'))
+        : '';
+      var errIcon = broken
+        ? '<span class="ra-wa-err" title="' + esc(tip) + '" aria-label="' + esc(tip) + '">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+          '</span>'
+        : '';
+      return '<div class="ra-wa-row' + (i === 0 ? ' sel' : '') + (broken ? ' is-err' : '') + '" data-id="' + r.id + '"' + (broken ? ' data-blocked="1"' : '') + '>' +
+        '<input type="checkbox"' + (broken ? ' disabled title="' + esc(tip) + '"' : ' checked') + '>' +
+        '<div class="av" data-ini="' + esc(r.ini || 'R') + '"><span class="ra-av-ini">' + esc(r.ini || 'R') + '</span></div>' +
+        '<div><b>' + esc(r.name) + '</b><small>' + details.join(' · ') + '</small></div>' +
+        '<div class="rt">' + errIcon + '</div></div>';
     }).join('');
-    waSelected = list[0];
-    fillPreview(waSelected);
     rows.querySelectorAll('.ra-wa-row').forEach(function (row) {
       row.addEventListener('click', function (e) {
-        if (e.target && e.target.matches('input[type=checkbox]')) return;
+        if (e.target && e.target.tagName === 'INPUT') return;
         rows.querySelectorAll('.ra-wa-row').forEach(function (x) { x.classList.remove('sel'); });
         row.classList.add('sel');
         var id = +row.getAttribute('data-id');
-        waSelected = list.find(function (r) { return r.id === id; }) || list[0];
-        fillPreview(waSelected);
+        var found = list.find(function (x) { return x.id === id; });
+        fillPreview(found || null);
       });
       var cb = row.querySelector('input[type=checkbox]');
-      if (cb) {
+      if (cb && !cb.disabled) {
         cb.addEventListener('change', function () {
-          if (isGroupMode()) fillPreview(waSelected);
+          if (waAll) {
+            var selectable = rows.querySelectorAll('.ra-wa-row:not([data-blocked]) input[type=checkbox]');
+            waAll.checked = selectable.length > 0 && Array.prototype.every.call(selectable, function (c) { return c.checked; });
+          }
+          syncSendUi();
         });
       }
     });
+    if (waAll) {
+      var selectable = rows.querySelectorAll('.ra-wa-row:not([data-blocked]) input[type=checkbox]');
+      waAll.checked = selectable.length > 0 && Array.prototype.every.call(selectable, function (c) { return c.checked; });
+      waAll.disabled = selectable.length === 0;
+    }
+    syncListHeader();
+    fillPreview(list[0] || null);
+  }
+
+  function appendFilterParams(body) {
+    body.append('alert_type', waType);
+    body.append('project_id', (document.getElementById('raWaProj') || {}).value || '');
+    body.append('fleet_supervisor', (document.getElementById('raWaSup') || {}).value || '');
+    if (waType === 'abs' || waType === 'off' || waType === 'off2' || waType === 'off4' || waType === 'off6'
+      || waType === 'hrs' || waType === 'ord' || waType === 'lhrs' || waType === 'lord') {
+      var dateEl = document.getElementById('raWaDate');
+      var mode = (waDr && waDr.getAttribute('data-wa-mode')) || 'activities';
+      var alertDate = (dateEl && dateEl.value) || '';
+      if (mode === 'live' && (waType === 'lhrs' || waType === 'lord') && dateEl) {
+        alertDate = dateEl.getAttribute('data-default-today') || alertDate;
+      }
+      body.append('alert_date', alertDate);
+    }
+    body.append('days_threshold', (document.getElementById('raWaDays') || {}).value || '2');
+    body.append('hours_target', (document.getElementById('raWaHrs') || {}).value || '10');
+    body.append('orders_target', (document.getElementById('raWaOrd') || {}).value || '15');
   }
 
   function openWa(o) {
     if (!waDr || !waOv) return;
     waDr.hidden = !o;
     waOv.hidden = !o;
-    if (o) renderWaRows();
+    if (o) {
+      syncFilterFields();
+      renderWaRows();
+    }
   }
   if (waBtn) waBtn.addEventListener('click', function () { openWa(true); });
   var waMenuBtn = document.getElementById('raWaMenuBtn');
@@ -357,110 +390,95 @@
     b.addEventListener('click', function () {
       document.querySelectorAll('#raWaTypes button').forEach(function (x) { x.classList.toggle('on', x === b); });
       waType = b.getAttribute('data-type') || waType;
+      syncFilterFields();
       renderWaRows();
     });
   });
-
-  var waDate = document.getElementById('raWaDate');
-  if (waDate) {
-    waDate.addEventListener('change', function () {
-      // UI preview only: when insight list is empty for yesterday, keep showing all riders
-      // and refresh template tokens with the selected date.
-      renderWaRows();
-      toast(waUsingAll
-        ? 'No alert matches for this date — showing all riders'
-        : 'Alert date updated to ' + fmtDateLabel(waDate.value));
-    });
-  }
-
-  var waModeEl = document.getElementById('raWaMode');
-  if (waModeEl) {
-    waModeEl.addEventListener('change', function () {
-      syncModeUi();
-      fillPreview(waSelected);
-      toast(isGroupMode()
-        ? 'Group mode: each rider message posts separately'
-        : 'Preview switched to each rider (1-to-1)');
-    });
-  }
-
-  var waGroupEl = document.getElementById('raWaGroup');
-  if (waGroupEl) {
-    waGroupEl.addEventListener('input', function () {
-      if (isGroupMode()) fillPreview(waSelected);
-    });
-  }
-
-  var waPhotoChk = document.getElementById('raWaPhoto');
-  if (waPhotoChk) {
-    waPhotoChk.addEventListener('change', function () {
-      fillPreview(waSelected);
-      toast(waPhotoChk.checked
-        ? 'Rider photo attached on each message preview'
-        : 'Rider photo hidden from preview');
-    });
-  }
-
-  ['raWaDays', 'raWaHrs', 'raWaOrd', 'raWaProj'].forEach(function (id) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('change', function () {
-      fillPreview(waSelected);
-    });
-  });
+  syncFilterFields();
 
   var waAll = document.getElementById('raWaAll');
   if (waAll) {
     waAll.addEventListener('change', function () {
-      document.querySelectorAll('#raWaRows input[type=checkbox]').forEach(function (c) {
+      document.querySelectorAll('#raWaRows .ra-wa-row:not([data-blocked]) input[type=checkbox]').forEach(function (c) {
         c.checked = waAll.checked;
       });
-      if (isGroupMode()) fillPreview(waSelected);
+      syncSendUi();
     });
   }
 
-  document.querySelectorAll('#raChSw button').forEach(function (b) {
-    b.addEventListener('click', function () {
-      document.querySelectorAll('#raChSw button').forEach(function (x) { x.classList.toggle('on', x === b); });
-      var em = b.getAttribute('data-ch') === 'em';
-      waChannel = em ? 'em' : 'wa';
-      if (waDr) waDr.classList.toggle('em', em);
-      var title = document.getElementById('raChTitle');
-      if (title) title.textContent = em ? 'Email Alerts' : 'WhatsApp Alerts';
-      var phone = document.getElementById('raWaPhone');
-      var emPrev = document.getElementById('raEmPrev');
-      if (phone) phone.hidden = em;
-      if (emPrev) emPrev.hidden = !em;
-      var note = document.getElementById('raWaNote');
-      if (note) {
-        note.textContent = em
-          ? 'One summary email to a list (preview only).'
-          : (isGroupMode()
-            ? 'Each rider message is posted separately into the WhatsApp group.'
-            : 'Each rider gets a separate message on their own WhatsApp number.');
+  var filterBtn = document.getElementById('raWaFilter');
+  if (filterBtn && waDr) {
+    filterBtn.addEventListener('click', function () {
+      var url = waDr.getAttribute('data-wa-filter-url');
+      var csrf = waDr.getAttribute('data-wa-csrf');
+      var body = new FormData();
+      body.append('_token', csrf || '');
+      body.append('mode', waDr.getAttribute('data-wa-mode') || 'activities');
+      appendFilterParams(body);
+      filterBtn.disabled = true;
+      var rows = document.getElementById('raWaRows');
+      var lh = document.getElementById('raWaLh');
+      if (lh) lh.textContent = 'Loading riders…';
+      if (rows) {
+        rows.innerHTML = '<div class="ra-wa-empty ra-wa-loading" role="status" aria-live="polite">' +
+          '<span class="ra-wa-spin" aria-hidden="true"></span>' +
+          '<span>Loading riders…</span>' +
+          '</div>';
       }
-      var emTo = document.getElementById('raEmToWrap');
-      if (emTo) emTo.hidden = !em;
-      syncModeUi();
-      if (!em) fillPreview(waSelected);
-    });
-  });
-
-  var tpl = document.getElementById('raWaTpl');
-  if (tpl) {
-    tpl.addEventListener('input', function () {
-      fillPreview(waSelected);
+      fetch(url, { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          waPayload = data || { types: {}, bindings: {} };
+          waLoadedType = waType;
+          var cnt = document.querySelector('#raWaTypes [data-cnt="' + waType + '"]');
+          if (cnt) cnt.textContent = String((waPayload.types && waPayload.types[waType]) ? waPayload.types[waType].length : 0);
+          renderWaRows();
+          toast('Filter applied');
+        })
+        .catch(function () {
+          if (rows) rows.innerHTML = '<div class="ra-wa-empty">Filter failed. Try again.</div>';
+          if (lh) lh.textContent = 'Hit Filter to load riders';
+          toast('Filter failed');
+        })
+        .finally(function () { filterBtn.disabled = false; });
     });
   }
 
-  function previewOnly(e) {
-    if (e) e.preventDefault();
-    toast('Preview only – no messages are sent');
+  var fromSel = document.getElementById('raWaFrom');
+  if (fromSel) fromSel.addEventListener('change', syncSendUi);
+
+  var sendBtn = document.getElementById('raWaSend');
+  if (sendBtn && waDr) {
+    sendBtn.addEventListener('click', function () {
+      var b = currentBinding();
+      if (!b || !b.bound) { toast(UNBOUND_MSG); return; }
+      var fromId = selectedFromId();
+      if (!fromId) { toast('Select a WhatsApp number to send from'); return; }
+      if (waLoadedType !== waType) { toast('Hit Filter for this alert type first'); return; }
+      var ids = [];
+      document.querySelectorAll('#raWaRows .ra-wa-row:not([data-blocked])').forEach(function (row) {
+        var cb = row.querySelector('input[type=checkbox]');
+        if (cb && !cb.disabled && cb.checked) ids.push(+row.getAttribute('data-id'));
+      });
+      if (!ids.length) { toast('Select at least one sendable rider'); return; }
+      var url = waDr.getAttribute('data-wa-send-url');
+      var csrf = waDr.getAttribute('data-wa-csrf');
+      var body = new FormData();
+      body.append('_token', csrf || '');
+      body.append('mode', waDr.getAttribute('data-wa-mode') || 'activities');
+      body.append('whatsapp_connection_id', String(fromId));
+      appendFilterParams(body);
+      ids.forEach(function (id) { body.append('rider_ids[]', String(id)); });
+      sendBtn.disabled = true;
+      fetch(url, { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          toast((res.j && res.j.message) ? res.j.message : (res.ok ? 'Queued' : 'Send failed'));
+        })
+        .catch(function () { toast('Send failed'); })
+        .finally(function () { syncSendUi(); });
+    });
   }
-  var send = document.getElementById('raWaSend');
-  var runAuto = document.getElementById('raWaRunAuto');
-  if (send) send.addEventListener('click', previewOnly);
-  if (runAuto) runAuto.addEventListener('click', previewOnly);
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {

@@ -3,56 +3,79 @@
 namespace App\Services\Notifications;
 
 /**
- * Normalizes notification rule recipient panels into explicit buckets.
+ * Normalizes notification rule recipient panels into explicit channel buckets.
  */
 class RecipientBuckets
 {
     /**
      * @param  array<string, mixed>  $config
      * @return array{
-     *   both_user_ids: list<int>,
-     *   in_app_only_user_ids: list<int>,
-     *   email_only_user_ids: list<int>,
+     *   in_app_user_ids: list<int>,
+     *   email_user_ids: list<int>,
+     *   whatsapp_user_ids: list<int>,
      *   emails: list<string>,
      *   exclude_user_ids: list<int>
      * }
      */
     public static function normalize(array $config): array
     {
-        $both = self::intIds($config['both_user_ids'] ?? null);
-        $inAppOnly = self::intIds($config['in_app_only_user_ids'] ?? null);
-        $emailOnly = self::intIds($config['email_only_user_ids'] ?? null);
+        $inApp = self::intIds($config['in_app_user_ids'] ?? null);
+        $email = self::intIds($config['email_user_ids'] ?? null);
+        $whatsapp = self::intIds($config['whatsapp_user_ids'] ?? null);
         $emails = self::emails($config['emails'] ?? null);
         $exclude = self::intIds($config['exclude_user_ids'] ?? null);
 
+        // Legacy three-panel shape → channel lists.
+        $both = self::intIds($config['both_user_ids'] ?? null);
+        $inAppOnly = self::intIds($config['in_app_only_user_ids'] ?? null);
+        $emailOnly = self::intIds($config['email_only_user_ids'] ?? null);
+
         // Legacy single list → treat as in-app & email.
-        if ($both === [] && $inAppOnly === [] && $emailOnly === [] && isset($config['user_ids'])) {
+        if ($both === [] && $inAppOnly === [] && $emailOnly === []
+            && $inApp === [] && $email === [] && isset($config['user_ids'])) {
             $both = self::intIds($config['user_ids']);
         }
 
-        // Enforce mutual exclusivity (both wins, then in-app-only).
-        $inAppOnly = array_values(array_diff($inAppOnly, $both));
-        $emailOnly = array_values(array_diff($emailOnly, $both, $inAppOnly));
+        if ($both !== [] || $inAppOnly !== [] || $emailOnly !== []) {
+            $inApp = array_values(array_unique(array_merge($inApp, $both, $inAppOnly)));
+            $email = array_values(array_unique(array_merge($email, $both, $emailOnly)));
+        }
+
+        $inApp = array_values(array_diff($inApp, $exclude));
+        $email = array_values(array_diff($email, $exclude));
+        $whatsapp = array_values(array_diff($whatsapp, $exclude));
 
         return [
-            'both_user_ids' => $both,
-            'in_app_only_user_ids' => $inAppOnly,
-            'email_only_user_ids' => $emailOnly,
+            'in_app_user_ids' => $inApp,
+            'email_user_ids' => $email,
+            'whatsapp_user_ids' => $whatsapp,
             'emails' => $emails,
             'exclude_user_ids' => $exclude,
         ];
     }
 
     /**
+     * Users who should get an inbox-backed notification row (in-app and/or WhatsApp).
+     *
+     * @param  array<string, mixed>  $normalized
+     * @return list<int>
+     */
+    public static function inboxUserIds(array $normalized): array
+    {
+        return array_values(array_unique(array_merge(
+            $normalized['in_app_user_ids'] ?? [],
+            $normalized['whatsapp_user_ids'] ?? []
+        )));
+    }
+
+    /**
+     * @deprecated Use inboxUserIds()
      * @param  array<string, mixed>  $normalized
      * @return list<int>
      */
     public static function inAppUserIds(array $normalized): array
     {
-        $ids = array_merge($normalized['both_user_ids'], $normalized['in_app_only_user_ids']);
-        $ids = array_values(array_diff(array_unique($ids), $normalized['exclude_user_ids']));
-
-        return $ids;
+        return self::inboxUserIds($normalized);
     }
 
     /**
@@ -61,10 +84,21 @@ class RecipientBuckets
      */
     public static function emailUserIds(array $normalized): array
     {
-        $ids = array_merge($normalized['both_user_ids'], $normalized['email_only_user_ids']);
-        $ids = array_values(array_diff(array_unique($ids), $normalized['exclude_user_ids']));
+        return array_values(array_unique($normalized['email_user_ids'] ?? []));
+    }
 
-        return $ids;
+    /**
+     * Email-only users: on email list but not receiving an inbox-backed row.
+     *
+     * @param  array<string, mixed>  $normalized
+     * @return list<int>
+     */
+    public static function emailOnlyUserIds(array $normalized): array
+    {
+        return array_values(array_diff(
+            self::emailUserIds($normalized),
+            self::inboxUserIds($normalized)
+        ));
     }
 
     /**
@@ -73,14 +107,18 @@ class RecipientBuckets
      */
     public static function channelsForUser(int $userId, array $normalized): array
     {
-        if (in_array($userId, $normalized['both_user_ids'], true)) {
-            return ['in_app', 'email'];
+        $channels = [];
+        if (in_array($userId, $normalized['in_app_user_ids'] ?? [], true)) {
+            $channels[] = 'in_app';
         }
-        if (in_array($userId, $normalized['in_app_only_user_ids'], true)) {
-            return ['in_app'];
+        if (in_array($userId, $normalized['email_user_ids'] ?? [], true)) {
+            $channels[] = 'email';
+        }
+        if (in_array($userId, $normalized['whatsapp_user_ids'] ?? [], true)) {
+            $channels[] = 'whatsapp';
         }
 
-        return [];
+        return $channels;
     }
 
     /**
@@ -92,11 +130,14 @@ class RecipientBuckets
     public static function impliedChannels(array $normalized): array
     {
         $channels = [];
-        if (self::inAppUserIds($normalized) !== []) {
+        if (($normalized['in_app_user_ids'] ?? []) !== []) {
             $channels[] = 'in_app';
         }
-        if (self::emailUserIds($normalized) !== [] || $normalized['emails'] !== []) {
+        if (($normalized['email_user_ids'] ?? []) !== [] || ($normalized['emails'] ?? []) !== []) {
             $channels[] = 'email';
+        }
+        if (($normalized['whatsapp_user_ids'] ?? []) !== []) {
+            $channels[] = 'whatsapp';
         }
 
         return $channels;
@@ -104,9 +145,10 @@ class RecipientBuckets
 
     public static function hasAnyRecipient(array $normalized): bool
     {
-        return self::inAppUserIds($normalized) !== []
-            || self::emailUserIds($normalized) !== []
-            || $normalized['emails'] !== [];
+        return ($normalized['in_app_user_ids'] ?? []) !== []
+            || ($normalized['email_user_ids'] ?? []) !== []
+            || ($normalized['whatsapp_user_ids'] ?? []) !== []
+            || ($normalized['emails'] ?? []) !== [];
     }
 
     /**

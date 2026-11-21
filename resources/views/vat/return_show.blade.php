@@ -1,12 +1,12 @@
 {{-- Loaded in #rightSideModal (AJAX) or as a standalone page --}}
 <link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
-<link rel="stylesheet" href="{{ asset('css/vat-demo.css') }}?v=20261107d">
+<link rel="stylesheet" href="{{ asset('css/vat-demo.css') }}?v=20261113d">
+@include('invoices.partials.status_badge_styles')
 @php
   $money = fn ($n) => strip_tags(\App\Helpers\Currency::format((float) $n));
   $returnNo = 'VTR-' . str_pad($vat_return->id, 4, '0', STR_PAD_LEFT);
   $period = ($vat_return->quarter_label ?? ('Q' . $vat_return->quarter_slot)) . ' ' . $vat_return->year;
   $statusKey = $vat_return->statusBadgeKey();
-  $statusLabel = strtoupper(str_replace('_', ' ', $vat_return->statusLabel()));
   $hasPayments = $vat_return->hasLivePayments();
   $isUnpaid = (int) $vat_return->status === \App\Models\VatReturn::STATUS_UNPAID && ! $hasPayments;
   $linkedPayments = $linkedPayments ?? collect();
@@ -15,7 +15,10 @@
   <div class="vat-head" style="margin-bottom:12px">
     <i class="ti ti-receipt-tax" style="font-size:18px;color:#3b3fd8"></i>
     <h5 style="margin:0">{{ $returnNo }} · {{ $period }}</h5>
-    <span class="vat-rb {{ $statusKey === 'paid' ? 'paid' : ($statusKey === 'partial' ? 'unpaid' : 'unpaid') }}">{{ $statusLabel }}</span>
+    @include('invoices.partials.status_badge', [
+      'status' => $statusKey,
+      'label' => $statusKey === 'partial' ? 'Partially Paid' : ($statusKey === 'paid' ? 'Paid' : 'Unpaid'),
+    ])
   </div>
 
   <div class="totals-cards" aria-label="VAT return detail" style="margin-bottom:14px">
@@ -80,8 +83,21 @@
             @php
               $alloc = (float) (($vat_return->partial_paid_amount[$payment->id] ?? $vat_return->partial_paid_amount[(string) $payment->id] ?? $payment->amount) ?? 0);
             @endphp
+            @php
+              $payment->loadMissing('voucher');
+              $vpLabel = $payment->voucher
+                ? ($payment->voucher->formatted_id ?: ('VP-' . str_pad((string) $payment->voucher->id, 4, '0', STR_PAD_LEFT)))
+                : ('PAY-' . str_pad((string) $payment->id, 4, '0', STR_PAD_LEFT));
+            @endphp
             <tr>
-              <td>PAY-{{ str_pad($payment->id, 4, '0', STR_PAD_LEFT) }}</td>
+              <td>
+                <a href="javascript:void(0);"
+                   class="vat-rid show-voucher-panel"
+                   data-collapse-sidebar="1"
+                   data-title="VAT Payment {{ $vpLabel }}"
+                   data-action="{{ route('payments.show', $payment->id) }}"
+                   data-list-url="{{ route('vouchers.list-sidebar') }}">{{ $vpLabel }}</a>
+              </td>
               <td>{{ $payment->date_of_payment ? \App\Helpers\Common::DateFormat($payment->date_of_payment) : '—' }}</td>
               <td>{{ $payment->reference ?: '—' }}</td>
               <td class="r">{{ number_format($alloc, 2) }}</td>
@@ -122,7 +138,7 @@
     @endif
   </div>
 
-  <div class="rl-tbox">
+  <div class="rl-tbox vat-ent-scroll">
     <table class="table table-hover mb-0">
       <thead>
         <tr>

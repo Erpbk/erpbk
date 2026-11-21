@@ -1,9 +1,10 @@
 @php
-    $panelKey = $panel ?? 'both';
-    $name = $inputName ?? 'both_user_ids[]';
+    $panelKey = $panel ?? 'in_app';
+    $name = $inputName ?? 'in_app_user_ids[]';
     $selected = array_map('intval', $selectedIds ?? []);
     $emailFirst = $panelKey === 'email';
-    $showEmails = ($showEmails ?? true) && $panelKey !== 'in_app' && ! $emailFirst;
+    $whatsappMode = $panelKey === 'whatsapp';
+    $showEmails = ($showEmails ?? true) && $panelKey !== 'in_app' && ! $emailFirst && ! $whatsappMode;
 @endphp
 <div class="nr-user-box" data-user-picker data-panel="{{ $panelKey }}">
     <input type="search"
@@ -22,7 +23,15 @@
                     $displayName = $user->username ?: __('User #'.$user->id);
                 }
                 $userEmail = trim((string) ($user->email ?? ''));
-                if ($emailFirst) {
+                $waDisplay = $whatsappMode ? $user->whatsappPhoneDisplay() : null;
+                $waDigits = $whatsappMode ? $user->whatsappPhone() : null;
+                $waDisabled = $whatsappMode && $waDigits === null;
+
+                if ($whatsappMode) {
+                    $primary = $displayName;
+                    $secondary = $waDisplay;
+                    $label = strtolower(trim($displayName . ' ' . ($waDisplay ?? '') . ' ' . ($waDigits ?? '') . ' ' . ($user->username ?: '')));
+                } elseif ($emailFirst) {
                     $primary = $userEmail !== '' ? $userEmail : $displayName;
                     $secondary = ($userEmail !== '' && $displayName !== '') ? $displayName : null;
                     $label = strtolower(trim($userEmail . ' ' . $displayName . ' ' . ($user->username ?: '')));
@@ -32,18 +41,22 @@
                     $label = strtolower(trim($displayName . ' ' . ($showEmails ? $userEmail : '') . ' ' . ($user->username ?: '')));
                 }
             @endphp
-            <label class="nr-user-item" data-user-label="{{ $label }}">
+            <label class="nr-user-item{{ $waDisabled ? ' is-disabled' : '' }}" data-user-label="{{ $label }}">
                 <input class="form-check-input" type="checkbox"
                        name="{{ $name }}" value="{{ $user->id }}"
-                       @checked(in_array((int) $user->id, $selected, true))>
+                       @checked(! $waDisabled && in_array((int) $user->id, $selected, true))
+                       @disabled($waDisabled)>
                 <span class="nr-user-meta">
                     <span class="name d-block">
-                        @if($emailFirst && $secondary)
+                        @if(($emailFirst || $whatsappMode) && $secondary)
                             {{ $primary }} <span class="text-muted fw-normal">({{ $secondary }})</span>
                         @else
                             {{ $primary }}
                         @endif
                     </span>
+                    @if($whatsappMode && $waDisabled)
+                        <span class="email d-block text-danger">{{ __('No phone number') }}</span>
+                    @endif
                     @if($showEmails && $userEmail !== '')
                         <span class="email d-block">{{ $userEmail }}</span>
                     @endif

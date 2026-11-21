@@ -340,9 +340,7 @@
     }
 
     function extraChargesTotal() {
-      var bankCharges = parseFloat($ctx.find('#bank_charges').val()) || 0;
-      var govtCharges = parseFloat($ctx.find('#govt_charges').val()) || 0;
-      return bankCharges + govtCharges;
+      return parseFloat($ctx.find('#bank_charges').val()) || 0;
     }
 
     function applyPrimaryAmountDisplay(amount) {
@@ -1076,7 +1074,7 @@
       }
     });
 
-    $ctx.on('keyup.paymentFields change.paymentFields', '#bank_charges, #govt_charges', function () {
+    $ctx.on('keyup.paymentFields change.paymentFields', '#bank_charges', function () {
       var paymentAmount = parseFloat($ctx.find('#payment_amount').val()) || 0;
       var charges = extraChargesTotal();
 

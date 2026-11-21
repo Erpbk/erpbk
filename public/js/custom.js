@@ -1307,12 +1307,14 @@ function unblock() {
   if (!window.jQuery || !$.fn || !$.fn.unblock) return;
   $('#modalTopbody').unblock();
 }
-/* $('.select2').select2({
+/* $('select.select2').select2({
   dropdownParent: $('#modalTop'),
             allowClear: true
 }); */
+// Only native <select class="select2"> — never `.select2` alone (Select2 containers
+// also have that class; enhancing them creates an empty duplicate dropdown).
 if (window.jQuery && $.fn && $.fn.select2) {
-  $('.select2').select2({
+  $('select.select2').select2({
     /* dropdownParent: $('.card ') */
     allowClear: true
   });
@@ -1444,7 +1446,7 @@ function setTotal() {
 $(document).ready(function () {
   // Initialize select2 for the existing select elements
   if (window.jQuery && $.fn && $.fn.select2) {
-    $('.select2').select2({
+    $('select.select2').select2({
       allowClear: true
     });
   }

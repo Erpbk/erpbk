@@ -561,6 +561,15 @@ class RolePermissionController extends AppBaseController
                 && ($row['name'] ?? '') !== self::VOUCHER_APPROVAL_MODULE
         ));
 
+        // WhatsApp CRUD only when channel enabled and company has assigned numbers.
+        $waCompanyId = (int) (\App\Support\CompanyContext::id() ?? 0);
+        if (! \App\Support\WhatsApp\WhatsAppCompanyAccess::available($waCompanyId)) {
+            $moduleRows = array_values(array_filter(
+                $moduleRows,
+                static fn(array $row): bool => ($row['name'] ?? '') !== 'WhatsApp'
+            ));
+        }
+
         usort($moduleRows, static fn(array $a, array $b): int => strcasecmp((string) ($a['name'] ?? ''), (string) ($b['name'] ?? '')));
         usort($dynamicPermissionRows, static function (array $a, array $b): int {
             $rank = static function (array $row): int {

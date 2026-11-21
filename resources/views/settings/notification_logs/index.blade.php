@@ -46,7 +46,7 @@
         <div>
             <h4 class="mb-1">{{ __('Notification logs') }}</h4>
             <p class="text-muted mb-0">
-                {{ __('Delivery attempts for in-app and email notifications in this company.') }}
+                {{ __('Delivery attempts for in-app, email, and WhatsApp notifications in this company.') }}
             </p>
         </div>
         <div class="d-flex flex-wrap gap-2">
@@ -55,6 +55,9 @@
             </a>
             <a href="{{ route('settings-panel.email-accounts.index') }}" class="btn btn-sm btn-outline-secondary">
                 <i class="ti ti-mail me-1"></i>{{ __('Email accounts') }}
+            </a>
+            <a href="{{ route('settings-panel.whatsapp-settings.index') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="ti ti-brand-whatsapp me-1"></i>{{ __('WhatsApp') }}
             </a>
             <a href="{{ route('notifications.index') }}" class="btn btn-sm btn-outline-primary">
                 <i class="ti ti-bell me-1"></i>{{ __('Open inbox') }}

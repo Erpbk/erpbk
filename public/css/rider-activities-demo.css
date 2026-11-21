@@ -1495,6 +1495,8 @@
   flex-direction: column;
   min-height: 0;
   background: #f8fafc;
+  /* Extra room stays below send fields; preview only grows to content when space allows. */
+  justify-content: flex-start;
 }
 
 .ra-wa-phone {
@@ -1504,8 +1506,9 @@
   border: 1px solid #d1d5db;
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 180px;
+  /* Size to preview content; shrink (and scroll chat) when the drawer is short. */
+  flex: 0 1 auto;
+  min-height: 0;
   background: #efeae2;
 }
 
@@ -1516,6 +1519,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
+  flex-shrink: 0;
 }
 
 .ra-wa-top .av {
@@ -1568,8 +1572,10 @@
 }
 
 .ra-wa-chat {
-  flex: 1;
-  overflow: auto;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 14px 12px;
   display: flex;
   flex-direction: column;
@@ -1669,6 +1675,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 0 0 auto;
 }
 
 .ra-wa-send-panel label {
@@ -1767,6 +1774,28 @@
   color: #64748b;
 }
 
+.ra-wa-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 140px;
+}
+
+.ra-wa-spin {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #cbd5e1;
+  border-top-color: #16a34a;
+  border-radius: 50%;
+  animation: ra-wa-spin 0.7s linear infinite;
+}
+
+@keyframes ra-wa-spin {
+  to { transform: rotate(360deg); }
+}
+
 #raEmPrev {
   margin: 14px 14px 8px;
   border: 1px solid #d1d5db;
@@ -1824,8 +1853,19 @@
 @media (max-width: 820px) {
   .ra-wa-body {
     grid-template-columns: 1fr !important;
+    grid-template-rows: auto minmax(160px, 1fr);
   }
   .ra-wa-side {
-    display: none;
+    order: -1;
+    max-height: min(52vh, 420px);
+    overflow: auto;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .ra-wa-list {
+    border-right: 0;
+    min-height: 0;
+  }
+  .ra-wa-phone {
+    margin-bottom: 8px;
   }
 }

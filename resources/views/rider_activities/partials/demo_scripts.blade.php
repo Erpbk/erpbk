@@ -416,6 +416,15 @@
       body.append('mode', waDr.getAttribute('data-wa-mode') || 'activities');
       appendFilterParams(body);
       filterBtn.disabled = true;
+      var rows = document.getElementById('raWaRows');
+      var lh = document.getElementById('raWaLh');
+      if (lh) lh.textContent = 'Loading riders…';
+      if (rows) {
+        rows.innerHTML = '<div class="ra-wa-empty ra-wa-loading" role="status" aria-live="polite">' +
+          '<span class="ra-wa-spin" aria-hidden="true"></span>' +
+          '<span>Loading riders…</span>' +
+          '</div>';
+      }
       fetch(url, { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
         .then(function (r) { return r.json(); })
         .then(function (data) {
@@ -426,7 +435,11 @@
           renderWaRows();
           toast('Filter applied');
         })
-        .catch(function () { toast('Filter failed'); })
+        .catch(function () {
+          if (rows) rows.innerHTML = '<div class="ra-wa-empty">Filter failed. Try again.</div>';
+          if (lh) lh.textContent = 'Hit Filter to load riders';
+          toast('Filter failed');
+        })
         .finally(function () { filterBtn.disabled = false; });
     });
   }

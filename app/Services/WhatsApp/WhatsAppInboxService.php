@@ -276,13 +276,13 @@ class WhatsAppInboxService
         ?int $participantId = null
     ): array {
         $peerPhone = PhoneNumber::toWhatsAppDigits($peerPhone) ?? $peerPhone;
-        $isAdmin = $this->isCompanyAdmin($user);
         $participantType = $participantType ?: null;
         $participantId = $participantId ?: null;
 
         $messagesQuery = WhatsAppMessage::query()
             ->where('company_id', $companyId)
             ->where('peer_phone', $peerPhone)
+            ->where('user_id', $user->id)
             ->with(['user:id,name', 'participant', 'connection'])
             ->when($afterId, fn ($q) => $q->where('id', '>', $afterId));
         $this->applyParticipantScope($messagesQuery, $participantType, $participantId);
@@ -304,9 +304,7 @@ class WhatsAppInboxService
             });
         }
 
-        $items = $isAdmin
-            ? $messages->map(fn (WhatsAppMessage $m) => $this->serializeBubble($m, true))->all()
-            : $this->buildGapAwareTimeline($messages, (int) $user->id);
+        $items = $this->buildGapAwareTimeline($messages, (int) $user->id);
 
         $latest = $messages->last();
         $conflict = null;
@@ -413,7 +411,7 @@ class WhatsAppInboxService
             ->where('status', '!=', WhatsAppMessage::STATUS_READ);
         $this->applyParticipantScope($query, $participantType, $participantId);
 
-        if ($companyId !== null && ! $this->isCompanyAdmin($user)) {
+        if ($companyId !== null) {
             $query->where('user_id', $user->id);
         }
 
@@ -530,13 +528,9 @@ class WhatsAppInboxService
 
     private function visiblePeersQuery(User $user, int $companyId): Builder
     {
-        $q = WhatsAppMessage::query()->where('company_id', $companyId);
-
-        if (! $this->isCompanyAdmin($user)) {
-            $q->where('user_id', $user->id);
-        }
-
-        return $q;
+        return WhatsAppMessage::query()
+            ->where('company_id', $companyId)
+            ->where('user_id', $user->id);
     }
 
     /**
@@ -627,6 +621,7 @@ class WhatsAppInboxService
         $latestQuery = WhatsAppMessage::query()
             ->where('company_id', $companyId)
             ->where('peer_phone', $peerPhone)
+            ->where('user_id', $actor->id)
             ->when($connectionId, fn ($q) => $q->where('whatsapp_connection_id', $connectionId));
         $this->applyParticipantScope($latestQuery, $participantType, $participantId);
         $latest = $latestQuery
@@ -634,25 +629,20 @@ class WhatsAppInboxService
             ->orderByDesc('id')
             ->first();
 
-        $isAdmin = $this->isCompanyAdmin($actor);
-        if (! $isAdmin) {
-            abort_unless($latest && (int) $latest->user_id === (int) $actor->id, 403);
-        }
+        abort_unless($latest, 403);
 
         $pType = $participantType ?: $latest?->participant_type;
         $pId = $participantId ?: ($latest?->participant_id ? (int) $latest->participant_id : null);
 
-        return DB::transaction(function () use ($actor, $companyId, $peerPhone, $toUserId, $reason, $historyMode, $connectionId, $latest, $isAdmin, $pType, $pId) {
+        return DB::transaction(function () use ($actor, $companyId, $peerPhone, $toUserId, $reason, $historyMode, $connectionId, $latest, $pType, $pId) {
             if ($historyMode === 'full') {
                 $q = WhatsAppMessage::query()
                     ->where('company_id', $companyId)
-                    ->where('peer_phone', $peerPhone);
+                    ->where('peer_phone', $peerPhone)
+                    ->where('user_id', $actor->id);
                 $this->applyParticipantScope($q, $pType, $pId);
                 if ($connectionId) {
                     $q->where('whatsapp_connection_id', $connectionId);
-                }
-                if (! $isAdmin) {
-                    $q->where('user_id', $actor->id);
                 }
                 $q->update(['user_id' => $toUserId]);
             }

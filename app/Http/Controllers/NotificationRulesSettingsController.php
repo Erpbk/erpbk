@@ -10,6 +10,7 @@ use App\Services\Notifications\NotificationModuleAccess;
 use App\Services\Notifications\NotificationRuleService;
 use App\Services\Notifications\NotificationTypeRegistry;
 use App\Services\Notifications\RecipientBuckets;
+use App\Services\WhatsApp\WhatsAppTemplateBindingService;
 use App\Support\CompanyContext;
 use App\Support\RoleFieldAccess;
 use Illuminate\Http\Request;
@@ -37,15 +38,17 @@ class NotificationRulesSettingsController extends Controller
         $channelLabels = [
             'in_app' => __('In-App'),
             'email' => __('Email'),
+            'whatsapp' => __('WhatsApp'),
         ];
         $emailEntitled = in_array('email', $availableChannels, true);
         $inAppEntitled = in_array('in_app', $availableChannels, true);
+        $whatsappEntitled = in_array('whatsapp', $availableChannels, true);
 
         $companyUsers = User::query()
             ->where('company_id', $companyId)
             ->with(['roles.permissions', 'permissions'])
             ->orderByRaw("COALESCE(NULLIF(name, ''), email, username, id)")
-            ->get(['id', 'name', 'email', 'username', 'first_name', 'last_name']);
+            ->get(['id', 'name', 'email', 'username', 'first_name', 'last_name', 'phone', 'company_contact']);
 
         $usersByModule = [];
         foreach ($typesByModule as $moduleKey => $moduleTypes) {
@@ -56,11 +59,33 @@ class NotificationRulesSettingsController extends Controller
             );
         }
 
-        $emailAccounts = EmailAccount::query()
-            ->where('company_id', $companyId)
-            ->active()
-            ->orderBy('email')
-            ->get(['id', 'email', 'display_name', 'status']);
+        $emailAccounts = $emailEntitled
+            ? EmailAccount::query()
+                ->where('company_id', $companyId)
+                ->active()
+                ->orderBy('email')
+                ->get(['id', 'email', 'display_name', 'status'])
+            : collect();
+
+        $whatsappConnections = $whatsappEntitled
+            ? app(\App\Services\WhatsApp\WhatsAppConnectionService::class)
+                ->getConnectionsVisibleToCompany($companyId)
+            : collect();
+
+        $whatsappBindingsByTrigger = [];
+        if ($whatsappEntitled) {
+            $bindingService = app(WhatsAppTemplateBindingService::class);
+            foreach ($rulesByKey as $typeKey => $rule) {
+                $trigger = 'notification:'.(string) $typeKey;
+                $resolved = $bindingService->resolve($trigger);
+                $whatsappBindingsByTrigger[$trigger] = [
+                    'trigger' => $trigger,
+                    'bound' => (bool) ($resolved['ready'] ?? false),
+                    'template_label' => $resolved['template']?->displayLabel(),
+                    'message' => $resolved['message'] ?? null,
+                ];
+            }
+        }
 
         $defaultFromEmail = (string) config('mail.from.address');
         $defaultFromName = (string) config('mail.from.name');
@@ -73,8 +98,11 @@ class NotificationRulesSettingsController extends Controller
             'channelLabels',
             'emailEntitled',
             'inAppEntitled',
+            'whatsappEntitled',
             'usersByModule',
             'emailAccounts',
+            'whatsappConnections',
+            'whatsappBindingsByTrigger',
             'defaultFromEmail',
             'defaultFromName'
         ));
@@ -95,23 +123,45 @@ class NotificationRulesSettingsController extends Controller
         $availableChannels = CompanyNotificationChannels::enabledFor($companyId);
         $emailEntitled = in_array('email', $availableChannels, true);
         $inAppEntitled = in_array('in_app', $availableChannels, true);
+        $whatsappEntitled = in_array('whatsapp', $availableChannels, true);
         $typeDef = $registry->get($notificationRule->type_key) ?? [];
         $moduleKey = (string) ($typeDef['module'] ?? '');
+
+        $waTriggerKey = 'notification:'.(string) $notificationRule->type_key;
+        $waTemplateBound = $whatsappEntitled
+            && (bool) (app(WhatsAppTemplateBindingService::class)->resolve($waTriggerKey)['ready'] ?? false);
 
         $companyUsers = User::query()
             ->where('company_id', $companyId)
             ->with(['roles.permissions', 'permissions'])
-            ->get(['id', 'name', 'email', 'username', 'first_name', 'last_name']);
+            ->get(['id', 'name', 'email', 'username', 'first_name', 'last_name', 'phone', 'company_contact']);
 
-        $allowedUserIds = $this->usersWithModuleAccess(
+        $moduleUsers = $this->usersWithModuleAccess(
             $companyUsers,
             $moduleKey,
             [$notificationRule->type_key => $typeDef]
-        )->pluck('id')->map(fn ($id) => (int) $id)->all();
+        );
+        $allowedUserIds = $moduleUsers->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        // Only resolve WhatsApp-capable phones when a template is bound for this rule.
+        $whatsappCapableIds = [];
+        if ($waTemplateBound) {
+            $whatsappCapableIds = $moduleUsers
+                ->filter(fn (User $u) => $u->whatsappPhone() !== null)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        }
 
         $accountIds = EmailAccount::query()
             ->where('company_id', $companyId)
             ->active()
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $whatsappConnectionIds = app(\App\Services\WhatsApp\WhatsAppConnectionService::class)
+            ->getConnectionsVisibleToCompany($companyId)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
@@ -128,23 +178,36 @@ class NotificationRulesSettingsController extends Controller
             'days_before.*' => 'integer|min:0|max:365',
             'remind_intervals' => 'nullable|array',
             'remind_intervals.*' => ['string', Rule::in($remindOptionKeys)],
-            'both_user_ids' => 'nullable|array',
-            'both_user_ids.*' => ['integer', Rule::in($allowedUserIds)],
-            'in_app_only_user_ids' => 'nullable|array',
-            'in_app_only_user_ids.*' => ['integer', Rule::in($allowedUserIds)],
-            'email_only_user_ids' => 'nullable|array',
-            'email_only_user_ids.*' => ['integer', Rule::in($allowedUserIds)],
+            'in_app_user_ids' => 'nullable|array',
+            'in_app_user_ids.*' => ['integer', Rule::in($allowedUserIds)],
+            'email_user_ids' => 'nullable|array',
+            'email_user_ids.*' => ['integer', Rule::in($allowedUserIds)],
+            'whatsapp_user_ids' => 'nullable|array',
+            'whatsapp_user_ids.*' => $waTemplateBound
+                ? ['integer', Rule::in($whatsappCapableIds)]
+                : ['integer', Rule::in($allowedUserIds)],
             'emails' => 'nullable|array',
             'emails.*' => 'nullable|string|max:255',
             'email_account_id' => ['nullable', Rule::in(array_merge(['', '0', 0], $accountIds))],
+            'whatsapp_connection_id' => ['nullable', Rule::in(array_merge(['', '0', 0], $whatsappConnectionIds))],
             'statuses' => 'nullable|array',
             'statuses.*' => ['string', Rule::in($typeDef['status_options'] ?? [])],
         ]);
 
+        $existingBuckets = RecipientBuckets::normalize(
+            is_array($notificationRule->recipient_config) ? $notificationRule->recipient_config : []
+        );
+        $whatsappUserIds = ! $whatsappEntitled
+            ? []
+            : ($waTemplateBound
+                ? ($validated['whatsapp_user_ids'] ?? [])
+                // Card is disabled — keep previously saved WhatsApp recipients.
+                : ($validated['whatsapp_user_ids'] ?? $existingBuckets['whatsapp_user_ids']));
+
         $buckets = RecipientBuckets::normalize([
-            'both_user_ids' => $inAppEntitled || $emailEntitled ? ($validated['both_user_ids'] ?? []) : [],
-            'in_app_only_user_ids' => $inAppEntitled ? ($validated['in_app_only_user_ids'] ?? []) : [],
-            'email_only_user_ids' => $emailEntitled ? ($validated['email_only_user_ids'] ?? []) : [],
+            'in_app_user_ids' => $inAppEntitled ? ($validated['in_app_user_ids'] ?? []) : [],
+            'email_user_ids' => $emailEntitled ? ($validated['email_user_ids'] ?? []) : [],
+            'whatsapp_user_ids' => $whatsappUserIds,
             'emails' => $emailEntitled ? ($validated['emails'] ?? []) : [],
         ]);
 
@@ -158,7 +221,7 @@ class NotificationRulesSettingsController extends Controller
 
         if ($enabled && ! RecipientBuckets::hasAnyRecipient($buckets)) {
             throw ValidationException::withMessages([
-                'both_user_ids' => __('Select at least one recipient before enabling this rule.'),
+                'in_app_user_ids' => __('Select at least one recipient before enabling this rule.'),
             ]);
         }
 
@@ -186,10 +249,24 @@ class NotificationRulesSettingsController extends Controller
                 : ($typeDef['default_config']['statuses'] ?? ['Issued']);
         }
 
-        if (! array_key_exists('email_account_id', $validated) || $validated['email_account_id'] === null || $validated['email_account_id'] === '') {
-            unset($config['email_account_id']);
-        } else {
-            $config['email_account_id'] = (int) $validated['email_account_id'];
+        if ($emailEntitled) {
+            if (! array_key_exists('email_account_id', $validated) || $validated['email_account_id'] === null || $validated['email_account_id'] === '') {
+                unset($config['email_account_id']);
+            } else {
+                $config['email_account_id'] = (int) $validated['email_account_id'];
+            }
+        }
+
+        if ($whatsappEntitled) {
+            if (! array_key_exists('whatsapp_connection_id', $validated) || $validated['whatsapp_connection_id'] === null || $validated['whatsapp_connection_id'] === '') {
+                unset($config['whatsapp_connection_id']);
+            } else {
+                $config['whatsapp_connection_id'] = (int) $validated['whatsapp_connection_id'];
+            }
+
+            // Template selection is owned by Admin → WhatsApp Templates bindings
+            // (trigger notification:{type_key}). Strip legacy free-text / catalog picks.
+            unset($config['whatsapp_template_id'], $config['template_name'], $config['template_language']);
         }
 
         $config['display_banner'] = $displayBanner;

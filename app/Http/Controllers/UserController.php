@@ -277,7 +277,10 @@ class UserController extends AppBaseController
 
       $user->address = $input['address'];
       $user->bio = $input['bio'];
-      $user->phone = $input['phone'];
+      $user->phone = $input['phone'] ?? $user->phone;
+      if (array_key_exists('company_contact', $input)) {
+        $user->company_contact = $input['company_contact'];
+      }
 
       if (isset($input['password']) && !empty($input['password'])) {
         $input['password'] = Hash::make($input['password']);

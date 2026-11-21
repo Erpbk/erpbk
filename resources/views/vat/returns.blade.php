@@ -7,14 +7,20 @@
     'paid_total' => 0, 'paid_count' => 0,
     'vp_total' => 0, 'vp_count' => 0,
   ];
-  $pane = $pane ?? 'unpaid';
+  $returns = $returns ?? collect();
+  $paymentsById = $paymentsById ?? collect();
+  $purchaseAccountId = (int) ($purchaseAccountId ?? 0);
+  $salesAccountId = (int) ($salesAccountId ?? 0);
+  $quarters = $quarters ?? [];
+  $activeFilterCount = (int) ($activeFilterCount ?? 0);
   $money = fn ($n) => strip_tags(\App\Helpers\Currency::format((float) $n));
 @endphp
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
 <link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
-<link rel="stylesheet" href="{{ asset('css/vat-demo.css') }}?v=20261107d">
+<link rel="stylesheet" href="{{ asset('css/vat-demo.css') }}?v=20261113d">
+@include('invoices.partials.status_badge_styles')
 @endpush
 
 @section('content')
@@ -28,17 +34,17 @@
     </div>
 
     <div class="totals-cards" aria-label="VAT return stats">
-      <div class="total-card total-amber vat-pane-tile {{ $pane === 'unpaid' ? 'is-on' : '' }}" data-pane="unpaid" role="button" tabindex="0">
+      <div class="total-card total-amber">
         <div class="label"><i class="ti ti-clock"></i> Unpaid Returns</div>
         <div class="value unpaid-due">{{ $money($returnStats['unpaid_total'] ?? 0) }}</div>
         <div class="meta">{{ number_format((int) ($returnStats['unpaid_count'] ?? 0)) }} return(s) to pay</div>
       </div>
-      <div class="total-card total-green vat-pane-tile {{ $pane === 'paid' ? 'is-on' : '' }}" data-pane="paid" role="button" tabindex="0">
+      <div class="total-card total-green">
         <div class="label"><i class="ti ti-circle-check"></i> Paid Returns</div>
         <div class="value unpaid-zero">{{ $money($returnStats['paid_total'] ?? 0) }}</div>
         <div class="meta">{{ number_format((int) ($returnStats['paid_count'] ?? 0)) }} return(s) paid</div>
       </div>
-      <div class="total-card total-blue vat-pane-tile {{ $pane === 'vp' ? 'is-on' : '' }}" data-pane="vp" role="button" tabindex="0">
+      <div class="total-card total-blue">
         <div class="label"><i class="ti ti-file-invoice"></i> VAT Payment Vouchers</div>
         <div class="value">{{ number_format((int) ($returnStats['vp_count'] ?? 0)) }} voucher(s)</div>
         <div class="meta">Total {{ $money($returnStats['vp_total'] ?? 0) }}</div>
@@ -73,273 +79,327 @@
       </div>
       <div class="rl-tb-right">
         <input class="rl-search" id="rq" type="search" placeholder="Quick Search..." aria-label="Quick search">
+        <button type="button" class="rl-btn openFilterSidebar" id="filterBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          Filter Returns
+          @if($activeFilterCount > 0)
+            <span class="cnt">{{ $activeFilterCount }}</span>
+          @endif
+        </button>
       </div>
     </div>
 
-    {{-- Unpaid --}}
-    <div class="vat-pane {{ $pane === 'unpaid' ? 'is-active' : '' }}" id="pane-unpaid" data-pane="unpaid">
-      @if($unpaidReturns->isEmpty())
-        <div class="vat-rempty">No unpaid returns. Tick entries in the VAT Ledger and click Return File.</div>
-      @else
-        <div class="rl-tbox">
-          <table class="table table-hover mb-0" id="vatUnpaidTable">
-            <thead>
-              <tr>
-                <th>Return #</th>
-                <th>Quarter</th>
-                <th>Filed On</th>
-                <th>Entries</th>
-                <th class="r">Output VAT</th>
-                <th class="r">Input VAT</th>
-                <th class="r">Net Payable</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              @foreach($unpaidReturns as $r)
-                @php
-                  $hasEntries = $r->relationLoaded('entries');
-                  $output = 0; $input = 0; $debit = 0; $credit = 0;
-                  if ($hasEntries) {
-                    foreach ($r->entries as $entry) {
-                      if (!$entry->transaction) continue;
-                      $t = $entry->transaction;
-                      $debit += (float) $t->debit;
-                      $credit += (float) $t->credit;
-                      if ((float) $t->credit > 0) $output += (float) $t->credit - (float) $t->debit;
-                      else $input += (float) $t->debit - (float) $t->credit;
-                    }
-                  }
-                  $net = $credit - $debit;
-                  $returnNo = 'VTR-' . str_pad($r->id, 4, '0', STR_PAD_LEFT);
-                  $period = ($r->quarter_label ?? ('Q' . $r->quarter_slot)) . ' ' . $r->year;
-                  $searchBlob = strtolower($returnNo . ' ' . $period . ' ' . ($r->quarter_label ?? ''));
-                  $showTitle = 'VAT Return ' . $returnNo . ' · ' . $period;
-                  $statusKey = $r->statusBadgeKey();
-                  $statusLabel = strtoupper(str_replace('_', ' ', $r->statusLabel()));
-                  $canDeleteReturn = ! $r->hasLivePayments() && (int) $r->status === \App\Models\VatReturn::STATUS_UNPAID;
-                @endphp
-                <tr class="vat-ret-row" data-search="{{ e($searchBlob) }}">
-                  <td>
-                    <a href="javascript:void(0);"
-                       class="vat-rid show-modal-right"
-                       data-size="xl"
-                       data-title="{{ $showTitle }}"
-                       data-action="{{ route('vat.returns.show', $r) }}">{{ $returnNo }}</a>
-                  </td>
-                  <td>
-                    <b>{{ $r->quarter_label ?? ('Q' . $r->quarter_slot) }}</b>
-                    <div style="font-size:11px;color:#6b7280">{{ $r->year }}</div>
-                  </td>
-                  <td>{{ $r->filed_at ? $r->filed_at->format('d M Y') : '—' }}</td>
-                  <td>{{ $hasEntries ? $r->entries->count() : ($r->entries_count ?? 0) }}</td>
-                  <td class="r" style="color:#15803d">{{ $hasEntries ? number_format($output, 2) : '—' }}</td>
-                  <td class="r" style="color:#c2410c">{{ $hasEntries ? number_format($input, 2) : '—' }}</td>
-                  <td class="r" style="font-weight:700;color:{{ $hasEntries ? ($net >= 0 ? '#dc2626' : '#059669') : '#64748b' }}">{{ $hasEntries ? $money($net) : '—' }}</td>
-                  <td><span class="vat-rb unpaid">{{ $statusLabel }}</span></td>
-                  <td>
-                    <div class="vat-actions">
-                      @canany(['vat_create', 'vat_edit'])
-                      <a href="javascript:void(0);"
-                         class="vat-sb pay show-modal"
-                         data-size="xl"
-                         data-title="New VAT Payment"
-                         data-action="{{ route('payments.create', ['invoice_type' => 'vat_return', 'vat_payment' => 1, 'invoice_id' => $r->id]) }}">Pay</a>
-                      @endcanany
-                      @if($canDeleteReturn)
-                      <form action="{{ route('vat.returns.destroy', $r) }}" method="post" class="d-inline" onsubmit="return confirm('Delete this return? Its entries will show again in the VAT ledger.');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="vat-sb rd" title="Delete" aria-label="Delete">
-                          <i class="ti ti-trash"></i>
-                        </button>
-                      </form>
-                      @else
-                      <a href="javascript:void(0);"
-                         class="vat-sb ol show-modal-right"
-                         data-size="xl"
-                         data-title="{{ $showTitle }}"
-                         data-action="{{ route('vat.returns.show', $r) }}"
-                         title="Manage linked payments">Payments</a>
-                      @endif
-                    </div>
-                  </td>
-                </tr>
-              @endforeach
-            </tbody>
-          </table>
-        </div>
-      @endif
-    </div>
-
-    {{-- Paid --}}
-    <div class="vat-pane {{ $pane === 'paid' ? 'is-active' : '' }}" id="pane-paid" data-pane="paid">
-      @if($paidReturns->isEmpty())
-        <div class="vat-rempty">No paid returns yet.</div>
-      @else
-        <div class="rl-tbox">
-          <table class="table table-hover mb-0" id="vatPaidTable">
-            <thead>
-              <tr>
-                <th>Return #</th>
-                <th>Quarter</th>
-                <th>Filed On</th>
-                <th>Entries</th>
-                <th class="r">Output VAT</th>
-                <th class="r">Input VAT</th>
-                <th class="r">Net Payable</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              @foreach($paidReturns as $r)
-                @php
-                  $hasEntries = $r->relationLoaded('entries');
-                  $output = 0; $input = 0; $debit = 0; $credit = 0;
-                  if ($hasEntries) {
-                    foreach ($r->entries as $entry) {
-                      if (!$entry->transaction) continue;
-                      $t = $entry->transaction;
-                      $debit += (float) $t->debit;
-                      $credit += (float) $t->credit;
-                      if ((float) $t->credit > 0) $output += (float) $t->credit - (float) $t->debit;
-                      else $input += (float) $t->debit - (float) $t->credit;
-                    }
-                  }
-                  $net = $credit - $debit;
-                  $returnNo = 'VTR-' . str_pad($r->id, 4, '0', STR_PAD_LEFT);
-                  $period = ($r->quarter_label ?? ('Q' . $r->quarter_slot)) . ' ' . $r->year;
-                  $searchBlob = strtolower($returnNo . ' ' . $period . ' ' . ($r->quarter_label ?? ''));
-                  $showTitle = 'VAT Return ' . $returnNo . ' · ' . $period;
-                @endphp
-                <tr class="vat-ret-row" data-search="{{ e($searchBlob) }}">
-                  <td>
-                    <a href="javascript:void(0);"
-                       class="vat-rid show-modal-right"
-                       data-size="xl"
-                       data-title="{{ $showTitle }}"
-                       data-action="{{ route('vat.returns.show', $r) }}">{{ $returnNo }}</a>
-                  </td>
-                  <td>
-                    <b>{{ $r->quarter_label ?? ('Q' . $r->quarter_slot) }}</b>
-                    <div style="font-size:11px;color:#6b7280">{{ $r->year }}</div>
-                  </td>
-                  <td>{{ $r->filed_at ? $r->filed_at->format('d M Y') : '—' }}</td>
-                  <td>{{ $hasEntries ? $r->entries->count() : ($r->entries_count ?? 0) }}</td>
-                  <td class="r" style="color:#15803d">{{ $hasEntries ? number_format($output, 2) : '—' }}</td>
-                  <td class="r" style="color:#c2410c">{{ $hasEntries ? number_format($input, 2) : '—' }}</td>
-                  <td class="r" style="font-weight:700;color:{{ $hasEntries ? ($net >= 0 ? '#dc2626' : '#059669') : '#64748b' }}">{{ $hasEntries ? $money($net) : '—' }}</td>
-                  <td><span class="vat-rb paid">PAID</span></td>
-                  <td>
-                    <div class="vat-actions">
-                      <a href="javascript:void(0);"
-                         class="vat-sb ol show-modal-right"
-                         data-size="xl"
-                         data-title="{{ $showTitle }}"
-                         data-action="{{ route('vat.returns.show', $r) }}">View</a>
-                    </div>
-                  </td>
-                </tr>
-              @endforeach
-            </tbody>
-          </table>
-        </div>
-      @endif
-    </div>
-
-    {{-- VP vouchers --}}
-    <div class="vat-pane {{ $pane === 'vp' ? 'is-active' : '' }}" id="pane-vp" data-pane="vp">
-      <div class="rl-tbox">
-        <table class="table table-hover mb-0" id="vatVpTable">
+    @if($returns->isEmpty())
+      <div class="vat-rempty">
+        @if($activeFilterCount > 0)
+          No returns match the selected filters.
+        @else
+          No returns yet. Tick entries in the VAT Ledger and click Return File.
+        @endif
+      </div>
+    @else
+      <div class="rl-tbox vat-returns-tbox">
+        <table class="table table-hover mb-0" id="vatReturnsTable">
           <thead>
             <tr>
-              <th>Voucher ID</th>
-              <th>Date</th>
-              <th>Billing Month</th>
-              <th>Reference</th>
-              <th class="r">Amount</th>
-              <th>Created By</th>
-              <th style="width:90px">Action</th>
+              <th>Return #</th>
+              <th>Quarter</th>
+              <th>Filed On</th>
+              <th>Entries</th>
+              <th class="r">Output VAT</th>
+              <th class="r">Input VAT</th>
+              <th class="r">Net Payable</th>
+              <th>Status</th>
+              <th>Voucher</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            @forelse($vpVouchers as $vp)
+            @foreach($returns as $r)
               @php
-                $voucherId = $vp->voucher_type . '-' . str_pad($vp->id, 4, '0', STR_PAD_LEFT);
-                $searchBlob = strtolower($voucherId . ' ' . ($vp->reference_number ?? '') . ' ' . ($vp->amount ?? ''));
+                $totals = $totalsByReturnId[$r->id] ?? ['output' => 0, 'input' => 0, 'net' => 0];
+                $output = (float) ($totals['output'] ?? 0);
+                $input = (float) ($totals['input'] ?? 0);
+                $net = (float) ($totals['net'] ?? 0);
+                $returnNo = 'VTR-' . str_pad($r->id, 4, '0', STR_PAD_LEFT);
+                $period = ($r->quarter_label ?? ('Q' . $r->quarter_slot)) . ' ' . $r->year;
+                $statusKey = $r->statusBadgeKey();
+                $canDeleteReturn = ! $r->hasLivePayments() && (int) $r->status === \App\Models\VatReturn::STATUS_UNPAID;
+                $linkedPayments = collect($r->livePaymentIds())
+                  ->map(fn ($id) => $paymentsById->get($id))
+                  ->filter();
+                $vpLabelFor = function ($p) {
+                  $v = $p?->voucher;
+                  if (! $v) {
+                    return 'PAY-' . str_pad((string) $p->id, 4, '0', STR_PAD_LEFT);
+                  }
+
+                  return $v->formatted_id ?: (($v->voucher_type ?: 'VP') . '-' . str_pad((string) $v->id, 4, '0', STR_PAD_LEFT));
+                };
+                $vpSearch = $linkedPayments->map($vpLabelFor)->implode(' ');
+                $searchBlob = strtolower($returnNo . ' ' . $period . ' ' . ($r->quarter_label ?? '') . ' ' . $statusKey . ' ' . $vpSearch);
+                $colspan = 10;
+                $entriesUrl = route('vat.returns.entries', $r);
               @endphp
-              <tr class="vat-ret-row" data-search="{{ e($searchBlob) }}">
+              <tr class="vat-ret-row" data-search="{{ e($searchBlob) }}" data-return-id="{{ $r->id }}">
                 <td>
-                  <a href="javascript:void(0);" class="vat-rid show-modal" data-size="xl" data-title="{{ \App\Helpers\General::VoucherType($vp->voucher_type) ?? 'VP' }} #{{ $voucherId }}" data-action="{{ route('vouchers.show', $vp->id) }}">{{ $voucherId }}</a>
+                  <a href="javascript:void(0);"
+                     class="vat-rid vat-toggle-entries"
+                     data-target="ent-{{ $r->id }}"
+                     data-entries-url="{{ $entriesUrl }}">{{ $returnNo }}</a>
                 </td>
-                <td>{{ $vp->trans_date ? \App\Helpers\Common::DateFormat($vp->trans_date) : '—' }}</td>
-                <td>{{ $vp->billing_month ? \App\Helpers\Common::MonthFormat($vp->billing_month) : '—' }}</td>
-                <td>{{ $vp->reference_number ?? '—' }}</td>
-                <td class="r"><b>{{ $money($vp->amount ?? 0) }}</b></td>
-                <td>{{ \App\Helpers\Common::UserName($vp->Created_By) }}</td>
                 <td>
-                  <a href="javascript:void(0);" class="vat-sb ol show-modal" data-size="xl" data-title="{{ \App\Helpers\General::VoucherType($vp->voucher_type) ?? 'VP' }} #{{ $voucherId }}" data-action="{{ route('vouchers.show', $vp->id) }}">View</a>
+                  <b>{{ $r->quarter_label ?? ('Q' . $r->quarter_slot) }}</b>
+                  <div style="font-size:11px;color:#6b7280">{{ $r->year }}</div>
+                </td>
+                <td>{{ $r->filed_at ? $r->filed_at->format('d M Y') : '—' }}</td>
+                <td>{{ (int) ($r->entries_count ?? 0) }}</td>
+                <td class="r" style="color:#15803d">{{ number_format($output, 2) }}</td>
+                <td class="r" style="color:#c2410c">{{ number_format($input, 2) }}</td>
+                <td class="r" style="font-weight:700;color:{{ $net >= 0 ? '#dc2626' : '#059669' }}">{{ $money($net) }}</td>
+                <td>
+                  @include('invoices.partials.status_badge', [
+                    'status' => $statusKey,
+                    'label' => $statusKey === 'partial' ? 'Partially Paid' : ($statusKey === 'paid' ? 'Paid' : 'Unpaid'),
+                  ])
+                </td>
+                <td>
+                  @if($linkedPayments->isEmpty())
+                    <span style="color:#94a3b8">—</span>
+                  @else
+                    <div class="vat-vp-links">
+                      @foreach($linkedPayments as $payment)
+                        @php $voucherId = $vpLabelFor($payment); @endphp
+                        <a href="javascript:void(0);"
+                           class="vat-rid show-voucher-panel"
+                           data-collapse-sidebar="1"
+                           data-title="VAT Payment {{ $voucherId }}"
+                           data-action="{{ route('payments.show', $payment->id) }}"
+                           data-list-url="{{ route('vouchers.list-sidebar') }}">{{ $voucherId }}</a>
+                      @endforeach
+                    </div>
+                  @endif
+                </td>
+                <td>
+                  <div class="dropdown">
+                    <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect"
+                            type="button"
+                            id="vatRetAction_{{ $r->id }}"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false"
+                            title="Actions">
+                      <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="vatRetAction_{{ $r->id }}">
+                      <a href="javascript:void(0);"
+                         class="dropdown-item waves-effect vat-toggle-entries"
+                         data-target="ent-{{ $r->id }}"
+                         data-entries-url="{{ $entriesUrl }}">
+                        <i class="fa fa-list mx-1"></i> View Entries
+                      </a>
+                      @if(in_array((int) $r->status, [\App\Models\VatReturn::STATUS_UNPAID, \App\Models\VatReturn::STATUS_PARTIAL], true))
+                        @canany(['vat_create', 'vat_edit'])
+                        <a href="javascript:void(0);"
+                           class="dropdown-item waves-effect show-modal"
+                           data-size="xl"
+                           data-title="New VAT Payment"
+                           data-action="{{ route('payments.create', ['invoice_type' => 'vat_return', 'vat_payment' => 1, 'invoice_id' => $r->id]) }}">
+                          <i class="fa fa-money mx-1 text-success"></i>
+                          {{ (int) $r->status === \App\Models\VatReturn::STATUS_PARTIAL ? 'Pay Remaining' : 'Pay' }}
+                        </a>
+                        @endcanany
+                      @endif
+                      @foreach($linkedPayments as $payment)
+                        @php $vpActionLabel = $vpLabelFor($payment); @endphp
+                        @canany(['payments_edit', 'vat_edit', 'cash_&_banks_payments_edit'])
+                        <a href="javascript:void(0);"
+                           class="dropdown-item waves-effect show-modal"
+                           data-size="xl"
+                           data-title="Edit {{ $vpActionLabel }}"
+                           data-action="{{ route('payments.edit', $payment->id) }}">
+                          <i class="fa fa-edit mx-1 text-success"></i> Edit {{ $vpActionLabel }}
+                        </a>
+                        @endcanany
+                        @canany(['payments_delete', 'vat_delete', 'cash_&_banks_payments_delete'])
+                        <a href="javascript:void(0);"
+                           class="dropdown-item waves-effect text-danger"
+                           onclick="if(confirm('Delete {{ $vpActionLabel }}? The return status will be recalculated.')){ document.getElementById('vat-del-pay-{{ $payment->id }}').submit(); }">
+                          <i class="fa fa-trash mx-1"></i> Delete {{ $vpActionLabel }}
+                        </a>
+                        <form id="vat-del-pay-{{ $payment->id }}" action="{{ route('payments.destroy', $payment->id) }}" method="post" class="d-none">
+                          @csrf
+                          @method('DELETE')
+                        </form>
+                        @endcanany
+                      @endforeach
+                      @if($canDeleteReturn)
+                        @can('vat_delete')
+                        <a href="javascript:void(0);"
+                           class="dropdown-item waves-effect text-danger"
+                           onclick="if(confirm('Delete this return? Its entries will show again in the VAT ledger.')){ document.getElementById('vat-del-ret-{{ $r->id }}').submit(); }">
+                          <i class="fa fa-trash mx-1"></i> Delete Return
+                        </a>
+                        <form id="vat-del-ret-{{ $r->id }}" action="{{ route('vat.returns.destroy', $r) }}" method="post" class="d-none">
+                          @csrf
+                          @method('DELETE')
+                        </form>
+                        @endcan
+                      @endif
+                    </div>
+                  </div>
                 </td>
               </tr>
-            @empty
-              <tr>
-                <td colspan="7" class="vat-rempty">No VAT Payment vouchers yet. Create one from an unpaid return or from VAT Actions.</td>
+              <tr class="vat-ent"
+                  id="ent-{{ $r->id }}"
+                  style="display:none"
+                  data-search="{{ e($searchBlob) }}"
+                  data-loaded="0"
+                  data-entries-url="{{ $entriesUrl }}">
+                <td colspan="{{ $colspan }}">
+                  <div class="vat-ent-body text-center text-muted py-3">Loading entries…</div>
+                </td>
               </tr>
-            @endforelse
+            @endforeach
           </tbody>
         </table>
       </div>
-      @if(method_exists($vpVouchers, 'hasPages') && $vpVouchers->hasPages())
-        <div class="d-flex justify-content-center mt-2" id="vpPager">
-          {{ $vpVouchers->links('pagination') }}
+    @endif
+  </div>
+</div>
+
+<div id="filterOverlay" class="filter-overlay"></div>
+<div id="filterSidebar" class="filter-sidebar riders-filter-sidebar">
+  <div class="filter-header">
+    <h5>Filter Returns</h5>
+    <button type="button" class="btn-close" id="closeSidebar" aria-label="Close"></button>
+  </div>
+  <div class="filter-body" id="searchTopbody">
+    <form id="filterForm" action="{{ route('vat.returns.index') }}" method="GET">
+      <div class="row">
+        <div class="form-group col-md-12">
+          <label for="year">Year</label>
+          @include('vat.partials.year_picker_input', [
+            'id' => 'year',
+            'name' => 'year',
+            'value' => request('year'),
+            'placeholder' => 'Select year',
+          ])
         </div>
-      @endif
-    </div>
+        <div class="form-group col-md-12">
+          <label for="quarter_slot">Quarter</label>
+          <select class="form-control select2" id="quarter_slot" name="quarter_slot" data-placeholder="All Quarters">
+            <option value="">All Quarters</option>
+            @foreach($quarters as $slot => $label)
+              <option value="{{ $slot }}" {{ (string) request('quarter_slot') === (string) $slot ? 'selected' : '' }}>{{ $label }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div class="form-group col-md-12">
+          <label for="status">Status</label>
+          <select class="form-control select2" id="status" name="status" data-placeholder="All Statuses">
+            <option value="">All Statuses</option>
+            <option value="unpaid" {{ request('status') === 'unpaid' ? 'selected' : '' }}>Unpaid</option>
+            <option value="partial" {{ request('status') === 'partial' ? 'selected' : '' }}>Partially Paid</option>
+            <option value="paid" {{ request('status') === 'paid' ? 'selected' : '' }}>Paid</option>
+          </select>
+        </div>
+        <div class="form-group col-md-12">
+          <label for="filed_from">Filed From</label>
+          <input type="date" class="form-control" id="filed_from" name="filed_from" value="{{ request('filed_from') }}">
+        </div>
+        <div class="form-group col-md-12">
+          <label for="filed_to">Filed To</label>
+          <input type="date" class="form-control" id="filed_to" name="filed_to" value="{{ request('filed_to') }}">
+        </div>
+      </div>
+      <div class="col-md-12 form-group text-center mt-3 vat-filter-actions">
+        <button type="button" class="btn btn-outline-secondary me-2" id="vatFilterCancelBtn">Cancel</button>
+        <a href="{{ route('vat.returns.index') }}" class="btn btn-outline-primary me-2">Reset</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="fa fa-filter mx-2"></i> Filter Data
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 @endsection
 
 @push('third_party_scripts')
+@include('vat.partials.filter_widgets_script')
 <script>
 (function () {
-  const tiles = document.querySelectorAll('.vat-pane-tile');
-  const panes = document.querySelectorAll('.vat-pane');
   const actBtn = document.getElementById('actBtn');
   const actMenu = document.getElementById('actMenu');
   const rq = document.getElementById('rq');
+  const filterBtn = document.getElementById('filterBtn');
+  const filterSidebar = document.getElementById('filterSidebar');
+  const filterOverlay = document.getElementById('filterOverlay');
+  const closeSidebar = document.getElementById('closeSidebar');
 
-  function setPane(name) {
-    const url = new URL(window.location.href);
-    if ((url.searchParams.get('pane') || 'unpaid') === name) {
-      tiles.forEach((t) => t.classList.toggle('is-on', t.dataset.pane === name));
-      panes.forEach((p) => p.classList.toggle('is-active', p.dataset.pane === name));
-      if (rq) filterRows(rq.value);
-      return;
-    }
-    // Reload so the controller can eager-load only the active pane's entry trees.
-    url.searchParams.set('pane', name);
-    window.location.href = url.toString();
+  function openFilter() {
+    if (filterSidebar) filterSidebar.classList.add('open');
+    if (filterOverlay) filterOverlay.classList.add('show');
+    document.body.classList.add('filter-open');
   }
-
-  tiles.forEach((t) => {
-    t.addEventListener('click', () => setPane(t.dataset.pane));
-    t.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPane(t.dataset.pane); }
-    });
-  });
+  function closeFilter() {
+    if (filterSidebar) filterSidebar.classList.remove('open');
+    if (filterOverlay) filterOverlay.classList.remove('show');
+    document.body.classList.remove('filter-open');
+  }
+  if (filterBtn) filterBtn.addEventListener('click', openFilter);
+  if (closeSidebar) closeSidebar.addEventListener('click', closeFilter);
+  if (filterOverlay) filterOverlay.addEventListener('click', closeFilter);
+  const vatFilterCancelBtn = document.getElementById('vatFilterCancelBtn');
+  if (vatFilterCancelBtn) vatFilterCancelBtn.addEventListener('click', closeFilter);
 
   function filterRows(q) {
     const needle = (q || '').toLowerCase().trim();
-    const active = document.querySelector('.vat-pane.is-active');
-    if (!active) return;
-    active.querySelectorAll('tr.vat-ret-row').forEach((tr) => {
+    document.querySelectorAll('#vatReturnsTable tr.vat-ret-row').forEach((tr) => {
       const blob = (tr.dataset.search || '').toLowerCase();
-      tr.style.display = (!needle || blob.indexOf(needle) !== -1) ? '' : 'none';
+      const match = !needle || blob.indexOf(needle) !== -1;
+      tr.style.display = match ? '' : 'none';
+      const ent = document.getElementById('ent-' + (tr.dataset.returnId || ''));
+      if (ent && !match) {
+        ent.style.display = 'none';
+      }
     });
   }
   if (rq) rq.addEventListener('input', () => filterRows(rq.value));
+
+  document.addEventListener('click', function (e) {
+    const toggle = e.target.closest('.vat-toggle-entries');
+    if (!toggle) return;
+    e.preventDefault();
+    const id = toggle.getAttribute('data-target');
+    const row = id ? document.getElementById(id) : null;
+    if (!row) return;
+    const opening = row.style.display === 'none';
+    row.style.display = opening ? 'table-row' : 'none';
+    if (!opening) return;
+    const parent = document.querySelector('tr.vat-ret-row[data-return-id="' + id.replace('ent-', '') + '"]');
+    if (parent) parent.style.display = '';
+
+    if (row.dataset.loaded === '1') return;
+    const url = toggle.getAttribute('data-entries-url') || row.getAttribute('data-entries-url');
+    const body = row.querySelector('.vat-ent-body');
+    if (!url || !body) return;
+    body.innerHTML = '<div class="text-center text-muted py-3">Loading entries…</div>';
+    fetch(url, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' },
+      credentials: 'same-origin',
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error('Failed to load entries');
+        return res.text();
+      })
+      .then(function (html) {
+        body.innerHTML = html;
+        row.dataset.loaded = '1';
+      })
+      .catch(function () {
+        body.innerHTML = '<div class="text-center text-danger py-3">Could not load entries. Try again.</div>';
+      });
+  });
 
   if (actBtn && actMenu) {
     actBtn.addEventListener('click', function (e) {

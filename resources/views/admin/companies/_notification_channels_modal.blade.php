@@ -3,6 +3,7 @@
     $ncLabels = $notificationChannelLabels ?? [
         'in_app' => __('In-App'),
         'email' => __('Email'),
+        'whatsapp' => __('WhatsApp'),
     ];
     $ncEnabled = \App\Services\Notifications\CompanyNotificationChannels::enabledFromSettings(
         $company->notification_channels_settings ?? null

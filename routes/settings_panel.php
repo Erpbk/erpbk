@@ -50,6 +50,11 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::post('/email-settings', [\App\Http\Controllers\UserEmailSettingsController::class, 'update'])->name('settings-panel.email-settings.update');
     Route::resource('email-accounts', \App\Http\Controllers\EmailAccountController::class)->names('settings-panel.email-accounts');
 
+    Route::get('whatsapp-settings', [\App\Http\Controllers\WhatsAppInboxSettingsController::class, 'index'])->name('settings-panel.whatsapp-settings.index');
+    Route::post('whatsapp-settings', [\App\Http\Controllers\WhatsAppInboxSettingsController::class, 'update'])->name('settings-panel.whatsapp-settings.update');
+    Route::get('whatsapp-compose', [\App\Http\Controllers\WhatsAppComposeController::class, 'create'])->name('settings-panel.whatsapp-compose.create');
+    Route::post('whatsapp-compose', [\App\Http\Controllers\WhatsAppComposeController::class, 'send'])->name('settings-panel.whatsapp-compose.send');
+
     Route::get('vat-settings', [App\Http\Controllers\VatSettingsController::class, 'index'])->name('settings-panel.vat-settings.index');
     Route::post('vat-settings/module-label', [App\Http\Controllers\VatSettingsController::class, 'storeModuleLabel'])->name('settings-panel.vat-settings.store-module-label');
     Route::post('vat-settings/module-icon', [App\Http\Controllers\VatSettingsController::class, 'storeModuleIcon'])->name('settings-panel.vat-settings.store-module-icon');

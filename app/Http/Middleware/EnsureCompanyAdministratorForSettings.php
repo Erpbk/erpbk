@@ -51,6 +51,13 @@ class EnsureCompanyAdministratorForSettings
             return true;
         }
 
+        if (in_array($name, [
+            'settings-panel.whatsapp-compose.create',
+            'settings-panel.whatsapp-compose.send',
+        ], true)) {
+            return true;
+        }
+
         if ($name === 'users.password') {
             $id = $request->route('id');
             return (int) $id === (int) $user->id;

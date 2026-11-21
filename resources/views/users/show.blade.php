@@ -61,6 +61,10 @@
               <span class="fw-medium me-1">Contact:</span>
               <span>{{$user->phone}}</span>
             </li>
+            <li class="mb-2 pt-1">
+              <span class="fw-medium me-1">Company contact:</span>
+              <span>{{ $user->company_contact ?: '—' }}</span>
+            </li>
           
             <li class="pt-1">
               <span class="fw-medium me-1">Country:</span>

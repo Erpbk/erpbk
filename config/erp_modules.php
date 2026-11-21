@@ -19,6 +19,7 @@ return [
         'attendance' => 'Attendance',
         'items' => 'Items',
         'leads' => 'Leads',
+        'whatsapp' => 'WhatsApp',
         'customers' => 'Customers',
         'customer_invoices' => 'Customer Invoices',
         'vendors' => 'Vendors',

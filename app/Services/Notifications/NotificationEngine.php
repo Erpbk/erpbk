@@ -80,6 +80,20 @@ class NotificationEngine
         );
 
         $buckets = RecipientBuckets::normalize($recipientConfig);
+        // Skip WhatsApp entirely when no template is bound for this notification type.
+        if (($buckets['whatsapp_user_ids'] ?? []) !== []) {
+            $resolvedBinding = app(\App\Services\WhatsApp\WhatsAppTemplateBindingService::class)
+                ->resolve('notification:'.$typeKey);
+            if (! ($resolvedBinding['ready'] ?? false)) {
+                $buckets['whatsapp_user_ids'] = [];
+                Log::info('notification.whatsapp_skipped_no_template', [
+                    'company_id' => $companyId,
+                    'type_key' => $typeKey,
+                    'message' => $resolvedBinding['message'] ?? null,
+                ]);
+            }
+        }
+
         $fingerprintParts = $input['dedupe_context'] ?? [];
         $fingerprint = $this->fingerprint($fingerprintParts);
 
@@ -119,7 +133,8 @@ class NotificationEngine
             return $created;
         }
 
-        $inAppRecipients = $this->recipientResolver->resolve($companyId, $recipientConfig, $context);
+        // Use buckets (WhatsApp stripped when unbound) so WA-only recipients are not loaded.
+        $inAppRecipients = $this->recipientResolver->resolve($companyId, $buckets, $context);
         foreach ($inAppRecipients as $user) {
             $channels = RecipientBuckets::channelsForUser((int) $user->id, $buckets);
             if ($channels === []) {
@@ -149,7 +164,7 @@ class NotificationEngine
         }
 
         // Email-only users: send mail without creating an inbox row.
-        $emailOnlyUsers = $this->recipientResolver->resolveEmailOnlyUsers($companyId, $recipientConfig);
+        $emailOnlyUsers = $this->recipientResolver->resolveEmailOnlyUsers($companyId, $buckets);
         foreach ($emailOnlyUsers as $user) {
             if (! $this->preferenceResolver->channelEnabled($companyId, $user, $typeKey, 'email')) {
                 Log::info('notification.email_only_skipped_pref', [
@@ -175,7 +190,7 @@ class NotificationEngine
             $this->emailOutbound->send($companyId, $rule, $externalEmail, $title, $body, $actionUrl, $fingerprint);
         }
 
-        if ($created === [] && $emailOnlyUsers->isEmpty() && $buckets['emails'] === []) {
+        if ($created === [] && $emailOnlyUsers->isEmpty() && ($buckets['emails'] ?? []) === []) {
             Log::info('notification.recipient_empty', [
                 'company_id' => $companyId,
                 'type_key' => $typeKey,

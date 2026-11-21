@@ -224,10 +224,17 @@ class AppServiceProvider extends ServiceProvider
       $view->with('appFontFamily', $globalPreferences['font_family'] ?? 'Public Sans');
     });
 
-    Relation::morphMap([
+    // Never map User to a short alias here — Spatie model_has_roles uses App\Models\User.
+    Relation::morphMap(array_merge([
       'employee' => \App\Models\Employee::class,
       'rider' => \App\Models\Riders::class,
-    ]);
+    ], array_filter(
+      \App\Support\WhatsApp\WhatsAppRecipientTypes::morphMap(),
+      static fn (string $class, string $alias): bool => $class !== \App\Models\User::class
+        && $alias !== 'user'
+        && ! str_contains($alias, '\\'),
+      ARRAY_FILTER_USE_BOTH
+    )));
 
     // Centralized delete-approval: must use wildcard events — Model::deleting()
     // only listens on Illuminate\Database\Eloquent\Model, not subclasses.

@@ -11,6 +11,7 @@ class NotificationDelivery extends BaseModel
         'user_notification_id',
         'channel',
         'to_email',
+        'to_phone',
         'status',
         'provider_response',
         'attempts',

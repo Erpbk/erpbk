@@ -43,7 +43,14 @@
                 : ($payment->voucher ?? $payment);
             $isRiderPaymentRow = strcasecmp((string) optional($payment->payeeAccount)->ref_name, 'Rider') === 0
                 || (bool) preg_match('/RINV/i', (string) ($payment->reference ?? '').' '.($payment->description ?? ''));
-            $viewVoucherAction = $isRiderPaymentRow
+            $isEmployeePaymentRow = strcasecmp((string) optional($payment->payeeAccount)->ref_name, 'employee') === 0
+                || (($payment->resource_links['invoice_type'] ?? null) === 'employee')
+                || (bool) preg_match('/EMP[_-]?INV/i', (string) ($payment->reference ?? '').' '.($payment->description ?? ''));
+            $isVatPaymentRow = (($payment->resource_links['invoice_type'] ?? null) === 'vat_return')
+                || strcasecmp((string) optional($payment->voucher)->voucher_type, 'VP') === 0
+                || (bool) preg_match('/VTR-?/i', (string) ($payment->reference ?? '').' '.($payment->description ?? ''));
+            $usesPaymentDocument = $isRiderPaymentRow || $isEmployeePaymentRow || $isVatPaymentRow;
+            $viewVoucherAction = $usesPaymentDocument
                 ? route('payments.show', array_filter(['payment' => $payment->id, 'company_slug' => $__companySlug]))
                 : ($voucherId ? route('vouchers.show', $voucherShowParams($voucherId)) : null);
             $riderVoucherLabel = match ((string) ($payment->payment_kind ?? '')) {
@@ -52,9 +59,13 @@
                 'advance_payment', 'advance_loan' => 'Advance Payment',
                 default => 'Payment Voucher',
             };
-            $viewVoucherTitle = $isRiderPaymentRow
-                ? ($riderVoucherLabel.' '.($payment->reference ?: $voucherLabel))
-                : ('Payment Voucher '.$voucherLabel);
+            $viewVoucherTitle = $isVatPaymentRow
+                ? ('VAT Payment '.($payment->reference ?: $voucherLabel))
+                : ($isEmployeePaymentRow
+                    ? ($riderVoucherLabel.' '.($payment->reference ?: $voucherLabel))
+                    : ($isRiderPaymentRow
+                        ? ($riderVoucherLabel.' '.($payment->reference ?: $voucherLabel))
+                        : ('Payment Voucher '.$voucherLabel)));
         @endphp
         <tr class="{{ $paymentPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $payment->id }}">
             <td>

@@ -1,6 +1,9 @@
 {{-- Shared blinking Paid / Unpaid / Partially Paid badge --}}
 @php
-$status = $status ?? 'unpaid'; // paid|unpaid|partial
+$status = $status ?? 'unpaid'; // paid|unpaid|partial|partially_paid
+if ($status === 'partially_paid') {
+    $status = 'partial';
+}
 $label = $label ?? match ($status) {
     'paid' => 'Paid',
     'partial' => 'Partially Paid',

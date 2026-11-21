@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'channels' => ['in_app', 'email'],
+    'channels' => ['in_app', 'email', 'whatsapp'],
 
     'default_enabled_channels' => ['in_app', 'email'],
 

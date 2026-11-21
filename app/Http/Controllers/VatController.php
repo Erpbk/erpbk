@@ -17,7 +17,6 @@ use App\Models\Transactions;
 use App\Models\Payment;
 use App\Models\VatReturn;
 use App\Models\VatReturnEntry;
-use App\Models\Vouchers;
 use App\Support\CompanyQuery;
 use App\Support\GlobalAccounts;
 use Carbon\Carbon;
@@ -63,7 +62,6 @@ class VatController extends Controller
         $quarters = VatSettingsController::getQuartersForDropdown();
         $years = $this->getYearsForDropdown();
         $rows = [];
-        $filterMonths = [];
         $filterModules = [];
         $stats = [
             'output' => 0.0,
@@ -83,7 +81,12 @@ class VatController extends Controller
         // Default load: current calendar year. Explicit vat_year in the query (even empty = All years)
         // must use exists(), because has() treats "" as missing and would re-apply the default.
         $yearProvided = $request->exists('vat_year');
-        $year = $yearProvided ? (string) $request->input('vat_year', '') : (string) date('Y');
+        $rawYear = $yearProvided ? (string) $request->input('vat_year', '') : (string) date('Y');
+        if ($rawYear !== '' && preg_match('/^(\d{4})/', $rawYear, $yearMatch)) {
+            $year = $yearMatch[1];
+        } else {
+            $year = $yearProvided ? '' : (string) date('Y');
+        }
         $quarterSlot = $request->input('vat_quarter_slot');
 
         if (!empty($accountIds)) {
@@ -118,17 +121,6 @@ class VatController extends Controller
                 ->whereNotIn('id', VatReturnEntry::filedTransactionIdsQuery());
 
             $stats['total_count'] = (clone $baseQuery)->count();
-            $filterMonths = (clone $baseQuery)
-                ->whereNotNull('billing_month')
-                ->distinct()
-                ->orderBy('billing_month')
-                ->pluck('billing_month')
-                ->filter()
-                ->map(fn ($m) => date('Y-m', strtotime((string) $m)))
-                ->unique()
-                ->sort()
-                ->values()
-                ->all();
             $filterModules = (clone $baseQuery)
                 ->whereNotNull('reference_type')
                 ->distinct()
@@ -156,8 +148,9 @@ class VatController extends Controller
             }
             if ($request->filled('billing_month')) {
                 $bm = (string) $request->input('billing_month');
-                if (preg_match('/^\d{4}-\d{2}$/', $bm)) {
-                    $start = $bm . '-01';
+                // type="month" sends YYYY-MM; tolerate YYYY-MM-DD from older bookmarks.
+                if (preg_match('/^(\d{4}-\d{2})/', $bm, $m)) {
+                    $start = $m[1] . '-01';
                     $end = date('Y-m-d', strtotime($start . ' +1 month'));
                     $query->where('billing_month', '>=', $start)->where('billing_month', '<', $end);
                 }
@@ -312,7 +305,6 @@ class VatController extends Controller
             'years',
             'year',
             'stats',
-            'filterMonths',
             'filterModules',
             'activeFilterCount',
             'purchaseAccountId',
@@ -321,7 +313,7 @@ class VatController extends Controller
     }
 
     /**
-     * Show list of VAT returns (Paid and Unpaid).
+     * Show list of VAT returns (headers only; entries load on demand).
      */
     public function returnsIndex(Request $request)
     {
@@ -329,65 +321,82 @@ class VatController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $pane = in_array($request->input('pane'), ['unpaid', 'paid', 'vp'], true)
-            ? $request->input('pane')
-            : 'unpaid';
+        $accountIds = VatSettingsController::getVatAccountIds();
+        $purchaseAccountId = (int) ($accountIds[0] ?? 0);
+        $salesAccountId = (int) ($accountIds[1] ?? $accountIds[0] ?? 0);
+        $quarters = VatSettingsController::getQuartersForDropdown();
 
-        $entryTree = ['entries.transaction.account', 'entries.transaction.voucher'];
+        $returnsQuery = VatReturn::query()->withCount('entries');
 
-        $unpaidQuery = VatReturn::query()
-            ->whereIn('status', [VatReturn::STATUS_UNPAID, VatReturn::STATUS_PARTIAL])
-            ->orderByDesc('filed_at');
-        $paidQuery = VatReturn::query()
-            ->where('status', VatReturn::STATUS_PAID)
-            ->orderByDesc('filed_at');
-
-        if ($pane === 'unpaid') {
-            $unpaidReturns = (clone $unpaidQuery)->with($entryTree)->get();
-            $paidReturns = (clone $paidQuery)->withCount('entries')->get();
-        } elseif ($pane === 'paid') {
-            $paidReturns = (clone $paidQuery)->with($entryTree)->get();
-            $unpaidReturns = (clone $unpaidQuery)->withCount('entries')->get();
-        } else {
-            // VP pane: headers only; payable totals via aggregate SQL.
-            $unpaidReturns = (clone $unpaidQuery)->withCount('entries')->get();
-            $paidReturns = (clone $paidQuery)->withCount('entries')->get();
+        $filterYear = (string) $request->input('year', '');
+        if (preg_match('/^\d{4}$/', $filterYear)) {
+            $returnsQuery->where('year', (int) $filterYear);
+        }
+        if ($request->filled('quarter_slot')) {
+            $returnsQuery->where('quarter_slot', (int) $request->input('quarter_slot'));
+        }
+        if ($request->filled('status')) {
+            $status = (string) $request->input('status');
+            if ($status === 'unpaid') {
+                $returnsQuery->where('status', VatReturn::STATUS_UNPAID);
+            } elseif ($status === 'paid') {
+                $returnsQuery->where('status', VatReturn::STATUS_PAID);
+            } elseif ($status === 'partial') {
+                $returnsQuery->where('status', VatReturn::STATUS_PARTIAL);
+            } elseif (is_numeric($status)) {
+                $returnsQuery->where('status', (int) $status);
+            }
+        }
+        if ($request->filled('filed_from')) {
+            $returnsQuery->whereDate('filed_at', '>=', $request->input('filed_from'));
+        }
+        if ($request->filled('filed_to')) {
+            $returnsQuery->whereDate('filed_at', '<=', $request->input('filed_to'));
         }
 
-        $vpVouchers = Vouchers::where('voucher_type', 'VP')
+        $returns = $returnsQuery
+            ->orderByDesc('filed_at')
             ->orderByDesc('id')
-            ->paginate(15)
-            ->withQueryString();
+            ->get();
 
-        $sumPayableFromEntries = static function ($returns): float {
-            return (float) $returns->sum(function ($r) {
-                if (!$r->relationLoaded('entries')) {
-                    return 0.0;
-                }
-                $debit = 0.0;
-                $credit = 0.0;
-                foreach ($r->entries as $entry) {
-                    if (!$entry->transaction) {
-                        continue;
-                    }
-                    $debit += (float) $entry->transaction->debit;
-                    $credit += (float) $entry->transaction->credit;
-                }
+        $activeFilterCount = collect([
+            $request->input('year'),
+            $request->input('quarter_slot'),
+            $request->input('status'),
+            $request->input('filed_from'),
+            $request->input('filed_to'),
+        ])->filter(fn ($v) => $v !== null && $v !== '')->count();
 
-                return $credit - $debit;
-            });
-        };
+        $totalsByReturnId = $this->aggregateReturnEntryTotals(
+            $returns->pluck('id')->map(fn ($id) => (int) $id)->all(),
+            $purchaseAccountId,
+            $salesAccountId
+        );
 
-        $payableAggregate = static function ($statuses): float {
+        $paymentIds = $returns
+            ->flatMap(fn (VatReturn $r) => $r->livePaymentIds())
+            ->unique()
+            ->values()
+            ->all();
+
+        $paymentsById = $paymentIds === []
+            ? collect()
+            : Payment::query()
+                ->with('voucher')
+                ->whereIn('id', $paymentIds)
+                ->get()
+                ->keyBy('id');
+
+        $payableAggregate = static function ($statuses) use ($totalsByReturnId, $returns): float {
             $statuses = is_array($statuses) ? $statuses : [$statuses];
+            $ids = $returns
+                ->filter(fn (VatReturn $r) => in_array((int) $r->status, $statuses, true))
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id);
 
-            return (float) VatReturn::query()
-                ->whereIn('vat_returns.status', $statuses)
-                ->join('vat_return_entries', 'vat_return_entries.vat_return_id', '=', 'vat_returns.id')
-                ->join('transactions', 'transactions.id', '=', 'vat_return_entries.transaction_id')
-                ->whereNull('transactions.deleted_at')
-                ->selectRaw('COALESCE(SUM(transactions.credit - transactions.debit), 0) as payable')
-                ->value('payable');
+            return round((float) $ids->sum(function ($id) use ($totalsByReturnId) {
+                return (float) ($totalsByReturnId[$id]['net'] ?? 0);
+            }), 2);
         };
 
         $vpAgg = Payment::query()
@@ -397,19 +406,139 @@ class VatController extends Controller
             ->first();
 
         $returnStats = [
-            'unpaid_total' => $pane === 'unpaid'
-                ? $sumPayableFromEntries($unpaidReturns)
-                : $payableAggregate([VatReturn::STATUS_UNPAID, VatReturn::STATUS_PARTIAL]),
-            'unpaid_count' => $unpaidReturns->count(),
-            'paid_total' => $pane === 'paid'
-                ? $sumPayableFromEntries($paidReturns)
-                : $payableAggregate(VatReturn::STATUS_PAID),
-            'paid_count' => $paidReturns->count(),
+            'unpaid_total' => $payableAggregate([VatReturn::STATUS_UNPAID, VatReturn::STATUS_PARTIAL]),
+            'unpaid_count' => $returns->filter(
+                fn (VatReturn $r) => in_array((int) $r->status, [VatReturn::STATUS_UNPAID, VatReturn::STATUS_PARTIAL], true)
+            )->count(),
+            'paid_total' => $payableAggregate(VatReturn::STATUS_PAID),
+            'paid_count' => $returns->filter(
+                fn (VatReturn $r) => (int) $r->status === VatReturn::STATUS_PAID
+            )->count(),
             'vp_total' => (float) ($vpAgg->t ?? 0),
             'vp_count' => (int) ($vpAgg->c ?? 0),
         ];
 
-        return view('vat.returns', compact('paidReturns', 'unpaidReturns', 'vpVouchers', 'returnStats', 'pane'));
+        return view('vat.returns', compact(
+            'returns',
+            'paymentsById',
+            'returnStats',
+            'totalsByReturnId',
+            'purchaseAccountId',
+            'salesAccountId',
+            'quarters',
+            'activeFilterCount'
+        ));
+    }
+
+    /**
+     * Lazy-load entries HTML for a return expand row.
+     */
+    public function returnsEntries($company_slug, VatReturn $vat_return)
+    {
+        if (! user_can('gn_ledger')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $accountIds = VatSettingsController::getVatAccountIds();
+        $purchaseAccountId = (int) ($accountIds[0] ?? 0);
+        $salesAccountId = (int) ($accountIds[1] ?? $accountIds[0] ?? 0);
+
+        $entries = $vat_return->entries()
+            ->with(['transaction.account', 'transaction.voucher'])
+            ->join('transactions', 'vat_return_entries.transaction_id', '=', 'transactions.id')
+            ->whereNull('transactions.deleted_at')
+            ->orderBy('transactions.billing_month')
+            ->orderBy('transactions.trans_date')
+            ->select('vat_return_entries.*')
+            ->get();
+
+        $transactions = $entries->map(fn ($entry) => $entry->transaction)->filter()->values();
+        $enrichment = $this->buildLedgerEnrichmentMaps($transactions);
+
+        $entryRows = [];
+        $debit = 0.0;
+        $credit = 0.0;
+        foreach ($entries as $entry) {
+            if (! $entry->transaction) {
+                continue;
+            }
+            $t = $entry->transaction;
+            $debit += (float) $t->debit;
+            $credit += (float) $t->credit;
+            $isOutput = $salesAccountId && (int) $t->account_id === $salesAccountId;
+            $voucherHtml = $this->getVoucherText($t, $enrichment);
+            if ($voucherHtml === '') {
+                $fallback = $t->voucher
+                    ? ($t->voucher->formatted_id
+                        ?: ($t->voucher->voucher_type.'-'.str_pad((string) $t->voucher->id, 4, '0', STR_PAD_LEFT)))
+                    : ($t->voucher_number ?? '—');
+                $voucherHtml = e($fallback !== '' ? $fallback : '—');
+            }
+            $module = (string) ($t->reference_type ?? '—');
+            $entryRows[] = [
+                'date' => Common::DateFormat($t->trans_date),
+                'account' => $isOutput
+                    ? ('Output · Sales '.($t->account->account_code ?? ''))
+                    : ('Input · Purchase '.($t->account->account_code ?? '')),
+                'month' => $t->billing_month ? date('M Y', strtotime($t->billing_month)) : '—',
+                'voucher' => $voucherHtml,
+                'module' => $module !== '' ? $module : '—',
+                'narration' => $t->narration ?: '—',
+                'debit' => (float) $t->debit,
+                'credit' => (float) $t->credit,
+            ];
+        }
+
+        return view('vat.partials.return_entries_table', [
+            'entryRows' => $entryRows,
+            'debit' => $debit,
+            'credit' => $credit,
+            'purchaseAccountId' => $purchaseAccountId,
+            'salesAccountId' => $salesAccountId,
+        ]);
+    }
+
+    /**
+     * Bulk output/input/net totals per return (no entry trees).
+     *
+     * @param  list<int>  $returnIds
+     * @return array<int, array{output:float,input:float,net:float,debit:float,credit:float}>
+     */
+    private function aggregateReturnEntryTotals(array $returnIds, int $purchaseAccountId, int $salesAccountId): array
+    {
+        if ($returnIds === []) {
+            return [];
+        }
+
+        $rows = DB::table('vat_return_entries')
+            ->join('transactions', 'transactions.id', '=', 'vat_return_entries.transaction_id')
+            ->whereIn('vat_return_entries.vat_return_id', $returnIds)
+            ->whereNull('transactions.deleted_at')
+            ->groupBy('vat_return_entries.vat_return_id')
+            ->selectRaw(
+                'vat_return_entries.vat_return_id as id,
+                 COALESCE(SUM(transactions.debit), 0) as debit,
+                 COALESCE(SUM(transactions.credit), 0) as credit,
+                 COALESCE(SUM(CASE WHEN transactions.account_id = ? THEN transactions.credit - transactions.debit ELSE 0 END), 0) as output_vat,
+                 COALESCE(SUM(CASE WHEN transactions.account_id = ? THEN transactions.debit - transactions.credit ELSE 0 END), 0) as input_vat',
+                [$salesAccountId, $purchaseAccountId]
+            )
+            ->get();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $debit = (float) $row->debit;
+            $credit = (float) $row->credit;
+            $out[(int) $row->id] = [
+                'debit' => $debit,
+                'credit' => $credit,
+                'output' => (float) $row->output_vat,
+                'input' => (float) $row->input_vat,
+                'net' => $credit - $debit,
+            ];
+        }
+
+        return $out;
     }
 
     /**
@@ -1321,7 +1450,9 @@ class VatController extends Controller
         if ($type === 'Bike Maintenance') {
             $maintenance = ($enrichment['maintenances'] ?? collect())->get($refId);
             if ($maintenance) {
-                return '<a href="' . route('bike-maintenance.invoice', $maintenance) . '" target="_blank" class="no-print">MA-' . $maintenance->id . '</a>';
+                $label = 'MA-' . $maintenance->id;
+
+                return '<a href="javascript:void(0);" data-action="' . route('bike-maintenance.invoice', $maintenance) . '" data-size="xl" data-title="Maintenance ' . e($label) . '" class="show-modal-right">' . e($label) . '</a>';
             }
             return '<span class="text-danger">Maintenance record not found</span>';
         }

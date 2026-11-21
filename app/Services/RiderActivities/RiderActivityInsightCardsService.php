@@ -689,7 +689,7 @@ class RiderActivityInsightCardsService
         return $yesterday;
     }
 
-    private function resolveLiveReferenceDate(Request $request): Carbon
+    public function resolveLiveReferenceDate(Request $request): Carbon
     {
         if ($request->filled('to_date')) {
             return Carbon::parse($request->to_date)->startOfDay();
@@ -734,7 +734,7 @@ class RiderActivityInsightCardsService
     /**
      * @return Collection<int, string>
      */
-    private function lastWorkedMap(): Collection
+    public function lastWorkedMap(): Collection
     {
         return RiderActivities::query()
             ->select('rider_id', DB::raw('MAX(date) as last_login'))

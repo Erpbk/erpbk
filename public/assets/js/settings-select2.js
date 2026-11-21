@@ -18,8 +18,20 @@
     return false;
   }
 
+  /**
+   * Select2 initialized while the control is display:none (collapsed accordion /
+   * inactive tab) often opens with an empty result list. Skip those until shown.
+   */
+  function isEffectivelyHidden(el) {
+    if (!el || !el.isConnected) return true;
+    var $el = window.jQuery(el);
+    if ($el.closest('.collapse').not('.show').length) return true;
+    if ($el.closest('.tab-pane').not('.active').length) return true;
+    return false;
+  }
+
   function dropdownParentFor($el) {
-    var $parent = $el.closest('.modal.show, .modal, .offcanvas.show, .offcanvas, .cd-modal, .cd-card, .dropdown-menu, .tab-pane.active, .tab-pane, .company-details-root, .content-wrapper');
+    var $parent = $el.closest('.modal.show, .offcanvas.show, .cd-modal, .cd-card, .dropdown-menu, .collapse.show, .tab-pane.active, .company-details-root, .content-wrapper');
     return $parent.length ? $parent : window.jQuery(document.body);
   }
 
@@ -35,6 +47,7 @@
     if (!hasSelect2() || !el) return;
     var $el = window.jQuery(el);
     if (shouldSkip($el)) return;
+    if (!force && isEffectivelyHidden(el)) return;
 
     if ($el.hasClass('select2-hidden-accessible')) {
       if (!force) return;
@@ -48,12 +61,14 @@
       $el.find('option[value=""]').length > 0 ||
       $el.prop('multiple') === true;
 
+    var optionCount = $el.find('option').length;
     var opts = {
       width: '100%',
       dropdownParent: dropdownParentFor($el),
       placeholder: placeholderFor($el),
       allowClear: !!allowClear && !$el.prop('required'),
-      minimumResultsForSearch: 0
+      // Hide search for short lists — avoids empty "No results found" UX noise.
+      minimumResultsForSearch: optionCount > 8 ? 0 : Infinity
     };
 
     try {

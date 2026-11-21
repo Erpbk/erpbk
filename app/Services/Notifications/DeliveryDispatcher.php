@@ -8,6 +8,7 @@ use App\Models\UserNotification;
 use App\Services\Notifications\Channels\ChannelInterface;
 use App\Services\Notifications\Channels\EmailChannel;
 use App\Services\Notifications\Channels\InAppChannel;
+use App\Services\Notifications\Channels\WhatsAppChannel;
 use Illuminate\Support\Facades\Log;
 
 class DeliveryDispatcher
@@ -20,6 +21,7 @@ class DeliveryDispatcher
         $drivers = [
             new InAppChannel(),
             new EmailChannel(),
+            new WhatsAppChannel(),
         ];
         $this->channels = [];
         foreach ($drivers as $driver) {

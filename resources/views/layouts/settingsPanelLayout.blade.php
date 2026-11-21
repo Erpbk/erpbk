@@ -116,6 +116,14 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
+        @if($settingsIsCompanyAdmin && \App\Support\WhatsApp\WhatsAppCompanyAccess::available((int) (\App\Support\CompanyContext::id() ?? 0)))
+        <li class="menu-item {{ Request::is('settings-panel/whatsapp*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.whatsapp-settings.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-brand-whatsapp"></i>
+            <div>WhatsApp Settings</div>
+          </a>
+        </li>
+        @endif
         {{-- @can('settings_roles_view')
         <li class="menu-item {{ Request::is('settings-panel/roles*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.roles.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">

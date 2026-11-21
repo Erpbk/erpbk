@@ -542,12 +542,8 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
             $this->columnMap[$field] = $col;
         }
 
-        // Keep optional fields unmapped when the sheet has no such header
-        foreach (['transaction_post_date', 'billing_month', 'admin_charges'] as $optional) {
-            if (!isset($detected[$optional])) {
-                $this->columnMap[$optional] = null;
-            }
-        }
+        // Optional fields (post date, billing month, admin charges): only overwrite when
+        // a matching header is found. Keep the user's manual mapping otherwise — do not wipe.
 
         \Log::info('Salik import column map after header reconcile', [
             'header_row' => $headerRowIndex + 1,

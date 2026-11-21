@@ -1229,8 +1229,9 @@
 .ra-wa-set {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 10px 20px;
   align-items: center;
+  justify-content: flex-start;
   padding: 12px 20px;
   background: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
@@ -1239,11 +1240,52 @@
 }
 
 .ra-wa-set label {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-weight: 600;
   margin: 0;
+  width: max-content;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.ra-wa-set label[hidden] {
+  display: none !important;
+}
+
+.ra-wa-set .ra-wa-btn-sm {
+  height: 34px;
+  min-width: 0;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  flex: 0 0 auto;
+  margin-left: 8px;
+}
+
+.ra-wa-set select {
+  width: auto;
+  min-width: 140px;
+  max-width: 200px;
+}
+
+.ra-wa-set input[type="number"] {
+  width: 64px;
+  flex: 0 0 auto;
+}
+
+.ra-wa-set input[type="date"] {
+  width: auto;
+  min-width: 148px;
+  max-width: 180px;
+  flex: 0 0 auto;
+}
+
+.ra-wa-set input[type="date"]:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+  background: #f1f5f9;
 }
 
 .ra-wa-set select,
@@ -1411,6 +1453,41 @@
 .ra-wa-row .off.is-all {
   color: #1d4ed8;
   background: #dbeafe;
+}
+
+.ra-wa-row.is-err {
+  background: #fff7f7;
+}
+
+.ra-wa-row.is-err.sel {
+  background: #ffecec;
+}
+
+.ra-wa-row.is-err input[type="checkbox"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ra-wa-row .ra-wa-err {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #b91c1c;
+  background: #fee2e2;
+  flex: 0 0 auto;
+}
+
+.ra-wa-msg.is-err {
+  border-color: #fecaca;
+  background: #fff1f2;
+}
+
+.ra-wa-msg.is-err .txt {
+  color: #991b1b;
+  white-space: pre-wrap;
 }
 
 .ra-wa-side {
@@ -1587,43 +1664,35 @@
   margin-top: 2px;
 }
 
-.ra-wa-tpl {
-  padding: 0 14px 12px;
+.ra-wa-send-panel {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.ra-wa-tpl label {
+.ra-wa-send-panel label {
   display: block;
   font-size: 12px;
   font-weight: 600;
   color: #475569;
-  margin-bottom: 5px;
 }
 
-.ra-wa-tpl textarea {
+.ra-wa-send-panel select {
+  display: block;
   width: 100%;
-  height: 96px;
-  border: 2px solid #bfdbfe;
+  margin-top: 5px;
+  height: 38px;
+  border: 1.5px solid #cbd5e1;
   border-radius: 10px;
-  padding: 8px 10px;
-  font: 12.5px/1.45 Inter, system-ui, sans-serif;
+  padding: 0 10px;
+  font: 12.5px/1.4 Inter, system-ui, sans-serif;
   color: #1e293b;
-  resize: vertical;
   background: #fff;
 }
 
-.ra-wa-tpl small {
-  display: block;
-  font-size: 11px;
-  color: #64748b;
-  margin-top: 4px;
-}
-
-.ra-wa-tpl code {
-  background: #eef4ff;
-  color: #1e3a8a;
-  border-radius: 4px;
-  padding: 0 4px;
-  font-size: 11px;
+.ra-wa-send-panel .ra-wa-btn {
+  width: 100%;
 }
 
 .ra-wa-ft {

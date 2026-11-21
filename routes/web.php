@@ -15,6 +15,9 @@ use App\Http\Controllers\Admin\AdminPolicyController;
 use App\Http\Controllers\Admin\AdminRolesController;
 use App\Http\Controllers\Admin\AdminTestimonialsController;
 use App\Http\Controllers\Admin\AdminUsersController;
+use App\Http\Controllers\Admin\AdminWhatsAppComposeController;
+use App\Http\Controllers\Admin\AdminWhatsAppNumbersController;
+use App\Http\Controllers\Admin\AdminWhatsAppTemplatesController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\BanksController;
 use App\Http\Controllers\BikeHistoryController;
@@ -120,6 +123,12 @@ Route::redirect('/register', '/company/register');
 Route::get('company/login', [CompanyAuthController::class, 'showLogin'])->name('company.login');
 Route::post('company/login', [CompanyAuthController::class, 'login'])->name('company.login.submit');
 
+// Meta WhatsApp Cloud API webhooks (public; signature verified in controller)
+Route::get('webhooks/meta/whatsapp', [\App\Http\Controllers\Webhooks\MetaWhatsAppWebhookController::class, 'verify'])
+    ->name('webhooks.meta.whatsapp.verify');
+Route::post('webhooks/meta/whatsapp', [\App\Http\Controllers\Webhooks\MetaWhatsAppWebhookController::class, 'handle'])
+    ->name('webhooks.meta.whatsapp.handle');
+
 Route::get('app/{company_slug}/login', [CompanyAuthController::class, 'showLoginForm'])->name('company.login-form');
 Route::post('app/{company_slug}/login', [CompanyAuthController::class, 'login'])->name('company.login.legacy');
 
@@ -148,6 +157,30 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
     Route::put('companies/{company}/modules', [AdminCompaniesController::class, 'updateModules'])->middleware('admin.permission:companies_approve')->name('companies.modules.update');
     Route::get('companies/{company}/notification-channels', [\App\Http\Controllers\Admin\AdminCompanyNotificationChannelsController::class, 'edit'])->middleware('admin.permission:companies_approve')->name('companies.notification-channels.edit');
     Route::put('companies/{company}/notification-channels', [\App\Http\Controllers\Admin\AdminCompanyNotificationChannelsController::class, 'update'])->middleware('admin.permission:companies_approve')->name('companies.notification-channels.update');
+
+    // WhatsApp Numbers (platform Meta Cloud API numbers — Super Admin)
+    Route::get('whatsapp-numbers', [AdminWhatsAppNumbersController::class, 'index'])->name('whatsapp-numbers.index');
+    Route::get('whatsapp-numbers/create', [AdminWhatsAppNumbersController::class, 'create'])->name('whatsapp-numbers.create');
+    Route::post('whatsapp-numbers', [AdminWhatsAppNumbersController::class, 'store'])->name('whatsapp-numbers.store');
+    Route::get('whatsapp-numbers/{whatsapp_number}/edit', [AdminWhatsAppNumbersController::class, 'edit'])->name('whatsapp-numbers.edit');
+    Route::put('whatsapp-numbers/{whatsapp_number}', [AdminWhatsAppNumbersController::class, 'update'])->name('whatsapp-numbers.update');
+    Route::delete('whatsapp-numbers/{whatsapp_number}', [AdminWhatsAppNumbersController::class, 'destroy'])->name('whatsapp-numbers.destroy');
+    Route::post('whatsapp-numbers/{whatsapp_number}/test-template', [AdminWhatsAppNumbersController::class, 'testTemplate'])->name('whatsapp-numbers.test-template');
+    Route::get('whatsapp-compose', [AdminWhatsAppComposeController::class, 'create'])->name('whatsapp-compose.create');
+    Route::post('whatsapp-compose', [AdminWhatsAppComposeController::class, 'send'])->name('whatsapp-compose.send');
+
+    Route::get('whatsapp-inbox', [\App\Http\Controllers\Admin\AdminWhatsAppInboxController::class, 'index'])->name('whatsapp-inbox.index');
+    Route::get('whatsapp-inbox/thread/{peerPhone}', [\App\Http\Controllers\Admin\AdminWhatsAppInboxController::class, 'thread'])->where('peerPhone', '.*')->name('whatsapp-inbox.thread');
+    Route::post('whatsapp-inbox/send', [\App\Http\Controllers\Admin\AdminWhatsAppInboxController::class, 'send'])->name('whatsapp-inbox.send');
+    Route::post('whatsapp-inbox/conflict', [\App\Http\Controllers\Admin\AdminWhatsAppInboxController::class, 'resolveConflict'])->name('whatsapp-inbox.conflict');
+
+    Route::get('whatsapp-templates', [AdminWhatsAppTemplatesController::class, 'index'])->name('whatsapp-templates.index');
+    Route::get('whatsapp-templates/create', [AdminWhatsAppTemplatesController::class, 'create'])->name('whatsapp-templates.create');
+    Route::post('whatsapp-templates', [AdminWhatsAppTemplatesController::class, 'store'])->name('whatsapp-templates.store');
+    Route::put('whatsapp-templates/bindings', [AdminWhatsAppTemplatesController::class, 'updateBindings'])->name('whatsapp-templates.bindings.update');
+    Route::get('whatsapp-templates/{whatsapp_template}/edit', [AdminWhatsAppTemplatesController::class, 'edit'])->name('whatsapp-templates.edit');
+    Route::put('whatsapp-templates/{whatsapp_template}', [AdminWhatsAppTemplatesController::class, 'update'])->name('whatsapp-templates.update');
+    Route::delete('whatsapp-templates/{whatsapp_template}', [AdminWhatsAppTemplatesController::class, 'destroy'])->name('whatsapp-templates.destroy');
 
     // Agreement Settings (assignable modules + per-module placeholders)
     Route::get('agreement-settings', [AdminAgreementSettingsController::class, 'index'])->middleware('admin.permission:agreement_settings_view')->name('agreement-settings.index');
@@ -768,6 +801,16 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::any('rider/attendance-import', [RiderAttendanceController::class, 'import'])->name('rider.attendance_import');
 
     Route::resource('riderActivities', RiderActivitiesController::class);
+    Route::post('rider/activities/whatsapp-filter', [RiderActivitiesController::class, 'whatsappFilter'])->name('rider.activities.whatsapp_filter');
+    Route::post('rider/activities/whatsapp-send', [RiderActivitiesController::class, 'whatsappSend'])->name('rider.activities.whatsapp_send');
+
+    Route::get('whatsapp/inbox', [\App\Http\Controllers\WhatsAppInboxController::class, 'index'])->name('whatsapp.inbox.index');
+    Route::get('whatsapp/inbox/participants', [\App\Http\Controllers\WhatsAppInboxController::class, 'searchParticipants'])->name('whatsapp.inbox.participants');
+    Route::get('whatsapp/inbox/thread/{peerPhone}', [\App\Http\Controllers\WhatsAppInboxController::class, 'thread'])->where('peerPhone', '[0-9]+')->name('whatsapp.inbox.thread');
+    Route::post('whatsapp/inbox/send', [\App\Http\Controllers\WhatsAppInboxController::class, 'send'])->name('whatsapp.inbox.send');
+    Route::post('whatsapp/inbox/transfer', [\App\Http\Controllers\WhatsAppInboxController::class, 'transfer'])->name('whatsapp.inbox.transfer');
+    Route::delete('whatsapp/inbox', [\App\Http\Controllers\WhatsAppInboxController::class, 'destroy'])->name('whatsapp.inbox.destroy');
+    Route::post('whatsapp/inbox/conflict', [\App\Http\Controllers\WhatsAppInboxController::class, 'resolveConflict'])->name('whatsapp.inbox.conflict');
     Route::any('rider/activities-import', [RiderActivitiesController::class, 'import'])->name('rider.activities_import');
     Route::any('rider/activities-import/page', [RiderActivitiesController::class, 'importPage'])->name('rider.activities_import_page');
     Route::post('rider/activities-import/preview', [RiderActivitiesController::class, 'previewImport'])->name('rider.activities_import_preview');

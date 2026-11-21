@@ -30,8 +30,15 @@ class UserDataTable extends DataTable
       ->addColumn('role', function (User $user) {
         return '<span class="badge  bg-label-success">' . $user->roles->pluck('name', 'name')->first() . '</span>';
       })
+      ->editColumn('status', function (User $user) {
+        if ($user->status) {
+          return '<span class="badge bg-label-success">Active</span>';
+        }
+
+        return '<span class="badge bg-label-secondary">Inactive</span>';
+      })
       ->toJson();
-    $dataTable->rawColumns(['role', 'action']);
+    $dataTable->rawColumns(['role', 'status', 'action']);
     return $dataTable;
   }
 
@@ -100,6 +107,7 @@ class UserDataTable extends DataTable
       //'phone',
       //'department_id' => ['title' => 'Department', 'data' => 'department.name'],
       'role',
+      'status' => ['title' => 'Status'],
     ];
   }
 

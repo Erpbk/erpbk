@@ -59,6 +59,8 @@ return [
 
         ['parent' => 'Email', 'slug' => 'email', 'submodules' => []],
 
+        ['parent' => 'WhatsApp', 'slug' => 'whatsapp', 'submodules' => []],
+
         [
             'parent' => 'Items',
             'slug' => 'items',

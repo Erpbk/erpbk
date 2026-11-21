@@ -43,12 +43,20 @@
 
 
 
-{{--<!-- Phone Field -->
+<!-- Phone Field -->
 <div class="form-group col-sm-4">
     {!! Form::label('phone', 'Phone:') !!}
-    {!! Form::text('phone', null, ['class' => 'form-control', 'maxlength' => 50, 'maxlength' => 50]) !!}
+    {!! Form::text('phone', null, ['class' => 'form-control', 'maxlength' => 50]) !!}
 </div>
- <!-- Country Field -->
+
+<!-- Company Contact Field -->
+<div class="form-group col-sm-4">
+    {!! Form::label('company_contact', 'Company contact:') !!}
+    {!! Form::text('company_contact', null, ['class' => 'form-control', 'maxlength' => 50]) !!}
+    <small class="text-muted">{{ __('Preferred for WhatsApp notifications') }}</small>
+</div>
+
+{{-- <!-- Country Field -->
 <div class="form-group col-sm-4">
     {!! Form::label('country', 'Country:') !!}
     {!! Form::select('country', $countries, $country??\App\Helpers\IConstants::COUNTRY, ['class' => 'form-control form-select select2 ']) !!}

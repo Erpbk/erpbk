@@ -34,6 +34,10 @@ return [
             'label' => 'Leads',
             'primary_label_key' => 'leads',
         ],
+        'whatsapp' => [
+            'label' => 'WhatsApp',
+            'primary_label_key' => 'whatsapp',
+        ],
         'customers' => [
             'label' => 'Customers',
             'primary_label_key' => 'customers',

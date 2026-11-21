@@ -199,6 +199,7 @@ $topBarStatDefinitions = $topBarStatDefinitions ?? app(\App\Services\Module\TopB
   'demoMode' => 'live',
   'insightCards' => $insightCards,
   'projects' => $projects,
+  'fleetSupervisors' => $fleetSupervisors ?? collect(),
   'riders' => $riders ?? collect(),
 ])
 @else

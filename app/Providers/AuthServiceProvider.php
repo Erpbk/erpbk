@@ -14,6 +14,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     protected $policies = [
         \App\Models\EmailAccount::class => \App\Policies\EmailAccountPolicy::class,
+        \App\Models\WhatsAppConnection::class => \App\Policies\WhatsAppConnectionPolicy::class,
     ];
 
     /**

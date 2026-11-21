@@ -64,10 +64,12 @@ class NotificationPreferencesSettingsController extends Controller
         $channelLabels = [
             'in_app' => __('In-App'),
             'email' => __('Email'),
+            'whatsapp' => __('WhatsApp'),
         ];
         $channelIcons = [
             'in_app' => 'ti-bell',
             'email' => 'ti-mail',
+            'whatsapp' => 'ti-brand-whatsapp',
         ];
         $triggerLabels = [
             'scheduled' => __('Scheduled'),

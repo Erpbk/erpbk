@@ -2,18 +2,18 @@
 $__companySlug = \App\Support\CompanyRouteContext::slug();
 $voucherPendingDeletion = record_is_pending_deletion($voucher);
 $voucherRouteParams = static function ($voucherKey) use ($__companySlug): array {
-  $params = ['voucher' => $voucherKey];
-  if (!empty($__companySlug)) {
-    $params['company_slug'] = $__companySlug;
-  }
-  return $params;
+$params = ['voucher' => $voucherKey];
+if (!empty($__companySlug)) {
+$params['company_slug'] = $__companySlug;
+}
+return $params;
 };
 $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
-  $params = ['id' => $transCode];
-  if (!empty($__companySlug)) {
-    $params['company_slug'] = $__companySlug;
-  }
-  return $params;
+$params = ['id' => $transCode];
+if (!empty($__companySlug)) {
+$params['company_slug'] = $__companySlug;
+}
+return $params;
 };
 $moduleActions = \App\Support\VoucherModuleActions::forVoucher($voucher, $__companySlug);
 $editDeleteFlags = $editDeleteFlags ?? \App\Models\VoucherType::getEditDeleteFlagsByModule('vouchers');
@@ -24,13 +24,13 @@ $useRiderDocument = empty($visaCreditEditEmbed) && $riderDoc->supports($voucher)
 $useVisaDocument = empty($visaCreditEditEmbed) && !$useRiderDocument && $visaDoc->supports($voucher);
 $useModernDocument = $useRiderDocument || $useVisaDocument;
 $doc = $useRiderDocument
-  ? $riderDoc->build($voucher)
-  : ($useVisaDocument ? $visaDoc->build($voucher) : null);
+? $riderDoc->build($voucher)
+: ($useVisaDocument ? $visaDoc->build($voucher) : null);
 $voucher_number = $doc['voucherNo']
-  ?? ($voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT));
+?? ($voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT));
 $moduleBadge = $doc['moduleBadge'] ?? (
-  (\App\Helpers\General::VoucherType($voucher->voucher_type) ?: $voucher->voucher_type)
-  .' - '.$voucher->voucher_type
+(\App\Helpers\General::VoucherType($voucher->voucher_type) ?: $voucher->voucher_type)
+.' - '.$voucher->voucher_type
 );
 $printUrl = route('vouchers.show', array_merge($voucherRouteParams($voucher->id), ['print' => 1]));
 $pdfUrl = route('vouchers.show', array_merge($voucherRouteParams($voucher->id), ['print' => 1]));
@@ -42,13 +42,13 @@ $pdfUrl = route('vouchers.show', array_merge($voucherRouteParams($voucher->id), 
       <h5 class="mb-0 fw-bold" style="letter-spacing:0.02em;">{{ $voucher_number }}</h5>
       <span class="badge bg-label-primary">{{ $moduleBadge }}</span>
       @if($voucherPendingDeletion)
-        @include('delete_requests._pending_badge', ['model' => $voucher])
+      @include('delete_requests._pending_badge', ['model' => $voucher])
       @endif
       <x-voucher-approval.status-badge :voucher="$voucher" />
     </div>
     <div class="d-flex flex-wrap align-items-center gap-2">
       @if($voucherPendingDeletion)
-        <span class="text-muted small"><i class="ti ti-lock me-1"></i>Locked — awaiting delete approval</span>
+      <span class="text-muted small"><i class="ti ti-lock me-1"></i>Locked — awaiting delete approval</span>
       @else
       @canany(['vouchers_edit', 'voucher_edit'])
       @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_edit']))
@@ -57,22 +57,22 @@ $pdfUrl = route('vouchers.show', array_merge($voucherRouteParams($voucher->id), 
       @endcanany
       <x-voucher-approval.panel :voucher="$voucher" />
       @canany(['vouchers_create', 'voucher_create'])
-        @if(!in_array($voucher->voucher_type, ['VL', 'LV', 'RFV', 'SV', 'RI']))
-          <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Clone Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.clone', $voucherCloneParams($voucher->trans_code)) }}" data-collapse-sidebar="1"><i class="ti ti-copy me-1"></i> Clone</a>
-        @endif
+      @if(!in_array($voucher->voucher_type, ['VL', 'LV', 'RFV', 'SV', 'RI']))
+      <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Clone Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.clone', $voucherCloneParams($voucher->trans_code)) }}" data-collapse-sidebar="1"><i class="ti ti-copy me-1"></i> Clone</a>
+      @endif
       @endcanany
       @canany(['vouchers_delete', 'voucher_delete'])
       @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']))
-        <button type="button" class="btn btn-sm btn-outline-danger" onclick='confirmDelete(@json($moduleActions['delete_url']))'>
-          <i class="fa fa-trash my-1"></i> Delete
-        </button>
+      <button type="button" class="btn btn-sm btn-outline-danger" onclick='confirmDelete(@json($moduleActions[' delete_url']))'>
+        <i class="fa fa-trash my-1"></i> Delete
+      </button>
       @endif
       @endcanany
       @endif
       <a href="{{ $printUrl }}" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-printer me-1"></i> Print</a>
       <a href="{{ $pdfUrl }}" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF</a>
       @can('email_create')
-        <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-mail me-1"></i> Email</a>
+      <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-mail me-1"></i> Email</a>
       @endcan
     </div>
   </div>
@@ -84,81 +84,103 @@ $pdfUrl = route('vouchers.show', array_merge($voucherRouteParams($voucher->id), 
   @endif
 
   @if($useModernDocument)
-    <div class="rpv-page">
-      @include($useVisaDocument ? 'vouchers.partials.visa_expense_voucher_document_body' : 'vouchers.partials.rider_voucher_document_body', $doc)
-    </div>
+  <div class="rpv-page">
+    @include($useVisaDocument ? 'vouchers.partials.visa_expense_voucher_document_body' : 'vouchers.partials.rider_voucher_document_body', $doc)
+  </div>
   @else
-    @php
-      $voucher_type_label = \App\Helpers\General::VoucherType($voucher->voucher_type);
-      $fin_detail = $voucher->voucher_type === 'RFV' ? company_table('rta_fines')->where('id', $voucher->ref_id)->first() : null;
-      $settings = company_table('settings')->pluck('value', 'name')->toArray();
-      $vf = static fn (string $f): bool => field_visible('voucher', $f);
-    @endphp
-    <div class="mb-3">
-      <div class="d-flex align-items-center gap-3 flex-wrap">
-        <img src="{{ $companyLogoUrl ?? asset('assets/img/logo-full.png') }}" alt="" width="120" class="img-fluid" onerror="this.style.display='none'">
-        <div>
-          <h6 class="mb-0 fw-semibold">{{ $settings['company_name'] ?? config('app.name') }}</h6>
-          <p class="text-muted small mb-0">{{ $settings['company_address'] ?? '' }}</p>
-          @if(!empty($settings['vat_number'])) <p class="text-muted small mb-0">TRN {{ $settings['vat_number'] }}</p> @endif
-        </div>
+  @php
+  $voucher_type_label = \App\Helpers\General::VoucherType($voucher->voucher_type);
+  $fin_detail = $voucher->voucher_type === 'RFV' ? company_table('rta_fines')->where('id', $voucher->ref_id)->first() : null;
+  $settings = company_table('settings')->pluck('value', 'name')->toArray();
+  $vf = static fn (string $f): bool => field_visible('voucher', $f);
+  @endphp
+  <div class="mb-3">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <img src="{{ $companyLogoUrl ?? asset('assets/img/logo-full.png') }}" alt="" width="120" class="img-fluid" onerror="this.style.display='none'">
+      <div>
+        <h6 class="mb-0 fw-semibold">{{ $settings['company_name'] ?? config('app.name') }}</h6>
+        <p class="text-muted small mb-0">{{ $settings['company_address'] ?? '' }}</p>
+        @if(!empty($settings['vat_number'])) <p class="text-muted small mb-0">TRN {{ $settings['vat_number'] }}</p> @endif
       </div>
     </div>
-    <div class="mb-3">
-      <h5 class="mb-2">{{ $voucher_type_label }}</h5>
-      <div class="row g-2">
-        <div class="col-auto">
-          <span class="text-muted">#</span><strong class="ms-1">{{ $voucher_number }}</strong>
-        </div>
-        @if($vf('trans_date'))<div class="col-auto text-muted">Date: {{ \Carbon\Carbon::parse($voucher->trans_date)->format('d M Y') }}</div>@endif
-        @if($vf('billing_month') && $voucher->billing_month)<div class="col-auto text-muted">Billing Month: {{ \Carbon\Carbon::parse($voucher->billing_month)->format('M-Y') }}</div>@endif
-        @if($vf('amount'))<div class="col-auto fw-semibold">Amount: {{ \App\Helpers\Currency::format($voucher->amount, 2) }}</div>@endif
-        @if($vf('reference_number') && $voucher->reference_number)
-        <div class="col-12 text-muted small">Reference Number: {{ $voucher->reference_number }}</div>
-        @endif
+  </div>
+  <div class="mb-3">
+    <h5 class="mb-2">{{ $voucher_type_label }}</h5>
+    <div class="row g-2">
+      <div class="col-auto">
+        <span class="text-muted">#</span><strong class="ms-1">{{ $voucher_number }}</strong>
       </div>
-    </div>
-    @if($vf('remarks') && $voucher->remarks)
-    <div class="mb-3">
-      <label class="form-label small text-uppercase text-muted mb-1">Notes</label>
-      <p class="mb-0">{!! $voucher->remarks !!}</p>
-    </div>
-    @endif
-    @include('vouchers.partials.posted_transactions', [
-      'transactions' => $voucher->transactions,
-      'voucherType' => $voucher->voucher_type,
-      'finDetail' => $fin_detail,
-      'showPostedTransactions' => true,
-      'includeInPrint' => true,
-    ])
-    <div class="row g-3 mb-3 no-print">
-      <div class="col-md-4"><hr class="my-0"><span class="small text-muted">Authorized Signature</span></div>
-      <div class="col-md-4"><hr class="my-0"><span class="small text-muted">Accountant Signature</span></div>
-      <div class="col-md-4"><hr class="my-0"><span class="small text-muted">Customer Signature</span></div>
-    </div>
-    <div class="text-center py-2 border-top">
-      @if($voucher->attach_file)
-      @php
-      $attach_url = in_array($voucher->voucher_type, ['RFV', 'LV']) ? url('storage/' . $voucher->attach_file) : url('storage/vouchers/' . $voucher->attach_file);
-      $attach_name = basename((string) $voucher->attach_file);
-      @endphp
-      <a href="{{ $attach_url }}"
-         class="js-vc-doc-view text-decoration-none text-body d-inline-flex align-items-center gap-1"
-         rel="noopener"
-         data-file-url="{{ $attach_url }}"
-         data-file-name="{{ $attach_name }}"
-         data-file-meta="{{ $voucher_number }}"
-         data-file-context="{{ $voucher_number }}">
-        <i class="ti ti-paperclip ti-sm"></i>
-        <span>1 Attachment(s) added</span>
-      </a>
-      @else
-      <span class="text-muted d-inline-flex align-items-center gap-1">
-        <i class="ti ti-paperclip ti-sm"></i>
-        0 Attachment(s) added
-      </span>
+      @if($vf('trans_date'))<div class="col-auto text-muted">Date: {{ \Carbon\Carbon::parse($voucher->trans_date)->format('d M Y') }}</div>@endif
+      @if($vf('billing_month') && $voucher->billing_month)<div class="col-auto text-muted">Billing Month: {{ \Carbon\Carbon::parse($voucher->billing_month)->format('M-Y') }}</div>@endif
+      @if($vf('amount'))<div class="col-auto fw-semibold">Amount: {{ \App\Helpers\Currency::format($voucher->amount, 2) }}</div>@endif
+      @if($vf('reference_number') && $voucher->reference_number)
+      <div class="col-12 text-muted small">Reference Number: {{ $voucher->reference_number }}</div>
       @endif
     </div>
+  </div>
+  @if($vf('remarks') && $voucher->remarks)
+  <div class="mb-3">
+    <label class="form-label small text-uppercase text-muted mb-1">Notes</label>
+    <p class="mb-0">{!! $voucher->remarks !!}</p>
+  </div>
+  @endif
+  @include('vouchers.partials.posted_transactions', [
+  'transactions' => $voucher->transactions,
+  'voucherType' => $voucher->voucher_type,
+  'finDetail' => $fin_detail,
+  'showPostedTransactions' => true,
+  'includeInPrint' => true,
+  ])
+  @php
+  $signatureResolver = app(\App\Services\Voucher\VoucherSignatureResolver::class);
+  $signatureSlots = $signatureResolver->slotsForVoucherModule(
+  (string) ($voucher->voucher_type ?? ''),
+  $voucher->company_id ?? null,
+  ! empty($voucher->Created_By) ? (int) $voucher->Created_By : null
+  );
+  @endphp
+  @if($signatureSlots->isNotEmpty())
+  @include('vouchers.partials.signature_block', [
+  'signatureSlots' => $signatureSlots,
+  'signatureVariant' => 'cv',
+  'signaturePerRow' => 3,
+  ])
+  @else
+  <div class="row g-3 mb-3 no-print">
+    <div class="col-md-4">
+      <hr class="my-0"><span class="small text-muted">Prepared By</span>
+    </div>
+    <div class="col-md-4">
+      <hr class="my-0"><span class="small text-muted">Checked By</span>
+    </div>
+    <div class="col-md-4">
+      <hr class="my-0"><span class="small text-muted">Authorized By</span>
+    </div>
+  </div>
+  @endif
+  <div class="text-center py-2 border-top">
+    @if($voucher->attach_file)
+    @php
+    $attach_url = in_array($voucher->voucher_type, ['RFV', 'LV']) ? url('storage/' . $voucher->attach_file) : url('storage/vouchers/' . $voucher->attach_file);
+    $attach_name = basename((string) $voucher->attach_file);
+    @endphp
+    <a href="{{ $attach_url }}"
+      class="js-vc-doc-view text-decoration-none text-body d-inline-flex align-items-center gap-1"
+      rel="noopener"
+      data-file-url="{{ $attach_url }}"
+      data-file-name="{{ $attach_name }}"
+      data-file-meta="{{ $voucher_number }}"
+      data-file-context="{{ $voucher_number }}">
+      <i class="ti ti-paperclip ti-sm"></i>
+      <span>1 Attachment(s) added</span>
+    </a>
+    @else
+    <span class="text-muted d-inline-flex align-items-center gap-1">
+      <i class="ti ti-paperclip ti-sm"></i>
+      0 Attachment(s) added
+    </span>
+    @endif
+  </div>
   @endif
 
   @if(empty($deleteRequestPreview))

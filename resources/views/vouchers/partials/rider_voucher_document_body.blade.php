@@ -276,7 +276,8 @@
 @endphp
 @include('vouchers.partials.print_layout_styles', [
     'printLayout' => $printLayout,
-    'isPdf' => !empty($isPdf),
+    // Treat browser print like PDF so signatures stay with content (no 720px flex gap).
+    'isPdf' => !empty($isPdf) || !empty($isPrint),
 ])
 
 <div class="rpv-doc {{ $docModeClass }}"

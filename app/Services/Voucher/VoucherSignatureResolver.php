@@ -11,8 +11,35 @@ use Illuminate\Support\Collection;
 
 class VoucherSignatureResolver
 {
+    public const MODULE_VOUCHERS = 'Vouchers';
+
+    public const DOC_KIND_VOUCHER = 'v';
+
     public function __construct(private UserStampSignatureService $stampService)
     {
+    }
+
+    /**
+     * Signature slots for the Vouchers module document only.
+     * Uses voucher-type assignment when configured; otherwise Prepared By from the
+     * preparer's (or auth user's) company stamp when allowed for Vouchers.
+     *
+     * @return Collection<int, array{role_label: string, display_name: ?string, designation: ?string, sort_order: int, stamp_url: ?string, signature_url: ?string, user_id: ?int}>
+     */
+    public function slotsForVoucherModule(string $voucherTypeCode, ?int $companyId = null, ?int $preparedByUserId = null): Collection
+    {
+        $slots = $this->slotsFor(
+            $voucherTypeCode,
+            $companyId,
+            self::MODULE_VOUCHERS,
+            self::DOC_KIND_VOUCHER
+        );
+
+        if ($slots->isNotEmpty()) {
+            return $slots;
+        }
+
+        return $this->defaultVoucherModuleSlots($companyId, $preparedByUserId);
     }
 
     /**
@@ -133,6 +160,72 @@ class VoucherSignatureResolver
     }
 
     /**
+     * Default Prepared / Checked / Authorized slots when no voucher-type assignment exists.
+     *
+     * @return Collection<int, array{role_label: string, display_name: ?string, designation: ?string, sort_order: int, stamp_url: ?string, signature_url: ?string, user_id: ?int}>
+     */
+    protected function defaultVoucherModuleSlots(?int $companyId, ?int $preparedByUserId = null): Collection
+    {
+        $companyId = $companyId ?? CompanyContext::id();
+        $company = $companyId ? Company::query()->find($companyId) : null;
+        if (! $company) {
+            return collect();
+        }
+
+        $preparedStamp = null;
+        $preparedUserId = $preparedByUserId ? (int) $preparedByUserId : null;
+        if ($preparedUserId) {
+            $preparedStamp = $this->stampService->forUser($company, $preparedUserId);
+            if ($preparedStamp && ! $this->stampService->canApply($preparedStamp, self::MODULE_VOUCHERS, self::DOC_KIND_VOUCHER)) {
+                $preparedStamp = null;
+            }
+        }
+        if (! $preparedStamp) {
+            $preparedStamp = $this->authUserAssets(self::MODULE_VOUCHERS, self::DOC_KIND_VOUCHER);
+            $preparedUserId = $preparedStamp['user_id'] ?? $preparedUserId;
+        }
+        if (! $preparedStamp) {
+            // Creator/auth may not have a stamp — use any company stamp allowed for Vouchers.
+            $preparedStamp = $this->stampService->firstEligible(
+                $company,
+                self::MODULE_VOUCHERS,
+                self::DOC_KIND_VOUCHER
+            );
+            $preparedUserId = $preparedStamp['user_id'] ?? $preparedUserId;
+        }
+
+        if (! $preparedStamp) {
+            // No voucher-eligible stamp — keep the Blade blank-line fallback.
+            return collect();
+        }
+
+        $blank = static fn (string $label, int $order): array => [
+            'role_label' => $label,
+            'display_name' => null,
+            'designation' => null,
+            'sort_order' => $order,
+            'stamp_url' => null,
+            'signature_url' => null,
+            'user_id' => null,
+        ];
+
+        $prepared = $blank('Prepared By', 0);
+        if ($preparedStamp) {
+            $prepared['display_name'] = ! empty($preparedStamp['signame']) ? (string) $preparedStamp['signame'] : null;
+            $prepared['designation'] = ! empty($preparedStamp['sigdes']) ? (string) $preparedStamp['sigdes'] : null;
+            $prepared['stamp_url'] = $preparedStamp['stampimg'] ?? null;
+            $prepared['signature_url'] = $preparedStamp['signimg'] ?? null;
+            $prepared['user_id'] = $preparedUserId ? (int) $preparedUserId : null;
+        }
+
+        return collect([
+            $prepared,
+            $blank('Checked By', 1),
+            $blank('Authorized By', 2),
+        ]);
+    }
+
+    /**
      * @return array{role_label: string, display_name: ?string, designation: ?string, sort_order: int, stamp_url: ?string, signature_url: ?string, user_id: ?int, _blocked?: bool}
      */
     protected function resolveSlot(VoucherSignatureSlot $slot, ?Company $company, ?string $module, string $docKind): array
@@ -166,7 +259,8 @@ class VoucherSignatureResolver
                         if ($designation === '' && ! empty($stamp['sigdes'])) {
                             $designation = (string) $stamp['sigdes'];
                         }
-                        if ($displayName === '' && ! empty($stamp['signame'])) {
+                        // Prefer company stamp signatory name when set.
+                        if (! empty($stamp['signame'])) {
                             $displayName = (string) $stamp['signame'];
                         }
                     }

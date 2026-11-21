@@ -153,9 +153,10 @@ class RiderModuleVoucherViewData
             'formatMoney' => static fn (float $n) => Currency::format($n),
             'riderModuleLabel' => $riderModuleLabel,
             'moduleBadge' => trim((string) $moduleBadgeLabel).' - '.$typeCode,
-            'signatureSlots' => $this->signatureResolver->slotsFor(
+            'signatureSlots' => $this->signatureResolver->slotsForVoucherModule(
                 $typeCode,
-                CompanyContext::id() ?? $voucher->company_id
+                CompanyContext::id() ?? ($voucher->company_id ? (int) $voucher->company_id : null),
+                ! empty($voucher->Created_By) ? (int) $voucher->Created_By : null
             ),
         ];
     }

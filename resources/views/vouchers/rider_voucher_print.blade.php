@@ -16,10 +16,28 @@
         !empty($isVisaExpenseDocument)
             ? 'vouchers.partials.visa_expense_voucher_document_body'
             : 'vouchers.partials.rider_voucher_document_body',
-        array_merge($doc ?? [], ['isPdf' => false])
+        array_merge($doc ?? [], ['isPdf' => true])
     )
     @if(request()->boolean('print') || request()->get('print'))
-    <script>window.onload = function () { window.print(); };</script>
+    <script>
+      (function () {
+        function whenImagesReady(done) {
+          var imgs = Array.prototype.slice.call(document.images || []);
+          if (!imgs.length) { done(); return; }
+          var left = imgs.length;
+          var finish = function () { left -= 1; if (left <= 0) done(); };
+          imgs.forEach(function (img) {
+            if (img.complete) { finish(); return; }
+            img.addEventListener('load', finish, { once: true });
+            img.addEventListener('error', finish, { once: true });
+          });
+          setTimeout(done, 2500);
+        }
+        window.addEventListener('load', function () {
+          whenImagesReady(function () { window.print(); });
+        });
+      })();
+    </script>
     @endif
 </body>
 </html>

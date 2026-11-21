@@ -200,11 +200,14 @@ class CompanyDetailsSettingsController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function saveUserStamp(Request $request, int $user)
+    public function saveUserStamp(Request $request)
     {
-        $this->authorizeStampManage($user);
+        // Read by name: route also has {company_slug}, and array_values() would
+        // otherwise bind the slug into a positional $user argument.
+        $userId = (int) $request->route('user');
+        $this->authorizeStampManage($userId);
         $company = $this->resolveCompany($request);
-        $this->assertCompanyUser($company, $user);
+        $this->assertCompanyUser($company, $userId);
 
         $payload = $request->validate([
             'signatory_name' => ['nullable', 'string', 'max:255'],
@@ -229,27 +232,30 @@ class CompanyDetailsSettingsController extends Controller
             ];
         }
 
-        $row = $this->stampService->save($company, $user, $payload);
+        $row = $this->stampService->save($company, $userId, $payload);
 
         return response()->json([
             'success' => true,
-            'record' => $this->stampService->toClient($company, $user, $row),
+            'record' => $this->stampService->toClient($company, $userId, $row),
             'message' => __('Stamp & signature saved.'),
         ]);
     }
 
-    public function uploadUserStampAsset(Request $request, int $user)
+    public function uploadUserStampAsset(Request $request)
     {
-        $this->authorizeStampManage($user);
+        // Read by name: route also has {company_slug}, and array_values() would
+        // otherwise bind the slug into a positional $user argument.
+        $userId = (int) $request->route('user');
+        $this->authorizeStampManage($userId);
         $company = $this->resolveCompany($request);
-        $this->assertCompanyUser($company, $user);
+        $this->assertCompanyUser($company, $userId);
 
         $data = $request->validate([
             'field' => ['required', Rule::in(['stampimg', 'signimg'])],
             'file' => ['required', 'file', 'max:4096', 'mimes:jpg,jpeg,png,webp,gif,svg'],
         ]);
 
-        $result = $this->stampService->uploadAsset($company, $user, $data['field'], $request->file('file'));
+        $result = $this->stampService->uploadAsset($company, $userId, $data['field'], $request->file('file'));
 
         return response()->json([
             'success' => true,
@@ -370,6 +376,9 @@ class CompanyDetailsSettingsController extends Controller
     {
         if (! $company) {
             abort(404, 'Company not found.');
+        }
+        if ($userId < 1) {
+            abort(404, 'User not found.');
         }
         $exists = User::query()
             ->where('company_id', $company->id)

@@ -593,7 +593,11 @@
             @php
                 $signatureResolver = app(\App\Services\Voucher\VoucherSignatureResolver::class);
                 $signatureSlots = $signatureSlots
-                    ?? $signatureResolver->slotsFor((string) ($voucher->voucher_type ?? ''));
+                    ?? $signatureResolver->slotsForVoucherModule(
+                        (string) ($voucher->voucher_type ?? ''),
+                        $voucher->company_id ?? null,
+                        ! empty($voucher->Created_By) ? (int) $voucher->Created_By : null
+                    );
                 [$printLayout, $plHeader, $plPos] = $signatureResolver
                     ->layoutPartsFor((string) ($voucher->voucher_type ?? ''));
             @endphp

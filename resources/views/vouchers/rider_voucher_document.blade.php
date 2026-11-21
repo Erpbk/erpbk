@@ -30,8 +30,26 @@ $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
         : 'vouchers.partials.rider_voucher_document_body';
 @endphp
 @if($isPrint)
-    @include($documentBody, array_merge($doc ?? [], ['isPdf' => false]))
-    <script>window.onload = function () { window.print(); };</script>
+    @include($documentBody, array_merge($doc ?? [], ['isPdf' => true]))
+    <script>
+      (function () {
+        function whenImagesReady(done) {
+          var imgs = Array.prototype.slice.call(document.images || []);
+          if (!imgs.length) { done(); return; }
+          var left = imgs.length;
+          var finish = function () { left -= 1; if (left <= 0) done(); };
+          imgs.forEach(function (img) {
+            if (img.complete) { finish(); return; }
+            img.addEventListener('load', finish, { once: true });
+            img.addEventListener('error', finish, { once: true });
+          });
+          setTimeout(done, 2500);
+        }
+        window.addEventListener('load', function () {
+          whenImagesReady(function () { window.print(); });
+        });
+      })();
+    </script>
 @else
     @if(!empty($voucher))
     <div class="rpv-toolbar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom no-print">

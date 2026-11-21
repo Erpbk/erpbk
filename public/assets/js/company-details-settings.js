@@ -367,12 +367,20 @@ function rowHtml(r){
 }
 
 /* ---------- render: sections ---------- */
+function switchStampUser(id){
+  const next=String(id||'');
+  if(!next||next===String(stampUserId))return;
+  stampUserId=next;
+  ensureStamp(stampUserId);
+  renderPanel();
+}
 function stampUserBar(){
   if(!stampUsers.length)return`<div class="warn">No users found for this company. Add users first, then assign stamps and signatures.</div>`;
   const canPick=IS_ADMIN;
   const opts=stampUsers.map(u=>`<option value="${u.id}"${String(u.id)===String(stampUserId)?' selected':''}>${esc(u.name)}${u.email?` — ${esc(u.email)}`:''}</option>`).join('');
+  // data-no-select2: Select2's jQuery change does not reach native panel listeners.
   return`<div class="syncbar" style="margin-top:14px"><span class="sdot"></span><div><b>User stamp &amp; signature</b><br>Each login user has their own stamp, signature and document permissions. ${canPick?'Administrators can select any user to manage.':'Showing your own stamp &amp; signature.'}</div>
-  <div style="min-width:220px"><span class="mini">User</span><select class="in" id="stampUserPick" ${canPick?'':'disabled'}>${opts}</select></div></div>`;
+  <div style="min-width:220px"><span class="mini">User</span><select class="in" id="stampUserPick" data-no-select2 ${canPick?'':'disabled'}>${opts}</select></div></div>`;
 }
 function renderPanel(){
   const s=SECS.find(x=>x.k===curSec);const panel=document.getElementById('panel');
@@ -635,7 +643,7 @@ panel.addEventListener('input',ev=>{const t=ev.target;
 });
 panel.addEventListener('change',ev=>{const t=ev.target;
   if(t.id==='brType'||t.id==='brStatus'){window.__brFilter=window.__brFilter||{q:'',type:'',status:''};if(t.id==='brType')window.__brFilter.type=t.value;else window.__brFilter.status=t.value;renderPanel();return;}
-  if(t.id==='stampUserPick'){stampUserId=String(t.value||'');ensureStamp(stampUserId);renderPanel();return;}
+  if(t.id==='stampUserPick'){switchStampUser(t.value);return;}
   if(t.dataset.m){const m=val('apm')||defaultMatrix();m[t.dataset.m][t.dataset.c]=t.checked;setVal('apm',m);renderPanel();return;}
   if(t.dataset.mall){const m=val('apm')||defaultMatrix();Object.values(m).forEach(x=>x[t.dataset.mall]=t.checked);setVal('apm',m);renderPanel();return;}
   if(t.dataset.f){setVal(t.dataset.f,t.type==='checkbox'?t.checked:t.value);renderHead();renderPanel();ibanCheckAll();return;}
@@ -680,6 +688,12 @@ panel.addEventListener('change',ev=>{const t=ev.target;
   }
   if(t.dataset.dfile&&t.files[0]){const d=cur.docs[+t.dataset.dfile];const fd=new FormData();fd.append('file',t.files[0]);fd.append('name',d.n||'Document');if(d.key)fd.append('key',d.key);if(d.no)fd.append('number',d.no);if(d.exp)fd.append('expiry_date',d.exp);if(d.document_type_id)fd.append('document_type_id',d.document_type_id);let docUrl;try{docUrl=profileUrl(ROUTES.uploadDocument);}catch(e){toast(e.message||'Upload failed');return;}api(docUrl,{method:'POST',body:fd,headers:{}}).then(function(res){if(res.bootstrap&&res.bootstrap.entities){const id=cur.id;ents=res.bootstrap.entities.map(mapEntity);cur=ents.find(function(e){return String(e.id)===String(id);})||cur;}mark();renderPanel();toast((d.n||'Document')+' saved');}).catch(function(err){toast(err.message||'Upload failed');});}
 });
+// Select2 triggers jQuery change/select2:select — native listeners above miss those.
+if(window.jQuery){
+  window.jQuery(panel).on('change.select2 select2:select', '#stampUserPick', function(){
+    switchStampUser(this.value);
+  });
+}
 panel.addEventListener('click',ev=>{const t=ev.target;
   if(t.id==='cdCreateBranch'||t.closest('[data-create-branch]')){openCreate();return;}
   const brOpen=t.closest('[data-br-open]');if(brOpen){document.querySelectorAll('.br-menu').forEach(m=>m.hidden=true);curSec='gen';switchTo(ents[+brOpen.dataset.brOpen]);return;}

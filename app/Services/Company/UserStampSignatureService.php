@@ -184,6 +184,34 @@ class UserStampSignatureService
         return $this->forUser($company, (int) $user->id);
     }
 
+    /**
+     * First active stamp record allowed for the given module/doc kind.
+     * Prefers rows that already have stamp or signature images.
+     */
+    public function firstEligible(Company $company, string $module, string $kind): ?array
+    {
+        $rows = UserStampSignature::query()
+            ->where('company_id', $company->id)
+            ->where('is_active', true)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->get();
+
+        $fallback = null;
+        foreach ($rows as $row) {
+            $stamp = $this->toClient($company, (int) $row->user_id, $row);
+            if (! $this->canApply($stamp, $module, $kind)) {
+                continue;
+            }
+            if (! empty($stamp['stampimg']) || ! empty($stamp['signimg'])) {
+                return $stamp;
+            }
+            $fallback ??= $stamp;
+        }
+
+        return $fallback;
+    }
+
     public function canApply(?array $stamp, string $module, string $kind): bool
     {
         if (! $stamp || empty($stamp['is_active'])) {
@@ -198,10 +226,19 @@ class UserStampSignatureService
         }
         if (! $kindKey) {
             // Other document tiles (salary slips, letters, etc.)
-            return (bool) data_get($stamp, 'other_docs.' . $module, false);
+            return (bool) (
+                data_get($stamp, 'other_docs.' . $module)
+                ?? data_get($stamp, $module)
+                ?? false
+            );
         }
 
-        return (bool) data_get($stamp, 'doc_matrix.' . $module . '.' . $kindKey, false);
+        // toClient() exposes the matrix as `apm`; raw rows may use `doc_matrix`.
+        return (bool) (
+            data_get($stamp, 'apm.' . $module . '.' . $kindKey)
+            ?? data_get($stamp, 'doc_matrix.' . $module . '.' . $kindKey)
+            ?? false
+        );
     }
 
     public function toClient(Company $company, int $userId, ?UserStampSignature $row = null, ?string $fallbackName = null): array
@@ -213,6 +250,8 @@ class UserStampSignatureService
 
         $other = (array) ($row?->other_docs ?: ['ap4' => false, 'ap5' => false, 'ap7' => false, 'ap8' => true]);
 
+        $matrix = is_array($row?->doc_matrix) && $row->doc_matrix ? $row->doc_matrix : $this->defaultMatrix();
+
         return [
             'user_id' => $userId,
             'stampimg' => $this->publicUrl($row?->stamp_path),
@@ -221,7 +260,8 @@ class UserStampSignatureService
             'signimg_path' => $row?->signature_path,
             'signame' => (string) ($row?->signatory_name ?: $fallbackName ?: ''),
             'sigdes' => (string) ($row?->designation ?: ''),
-            'apm' => is_array($row?->doc_matrix) && $row->doc_matrix ? $row->doc_matrix : $this->defaultMatrix(),
+            'apm' => $matrix,
+            'doc_matrix' => $matrix,
             'ap4' => (bool) ($other['ap4'] ?? false),
             'ap5' => (bool) ($other['ap5'] ?? false),
             'ap7' => (bool) ($other['ap7'] ?? false),
@@ -274,9 +314,9 @@ class UserStampSignatureService
         if (PublicStorageDisk::isCloud()) {
             return PublicStorageDisk::url($normalized);
         }
-        $base = rtrim((string) request()->getBasePath(), '/');
 
-        return $base . '/storage/' . $normalized;
+        // Absolute URL (no exists() check) so print/PDF windows can load the image.
+        return url('/storage/' . $normalized);
     }
 
     protected function deleteFile(?string $path): void

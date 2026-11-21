@@ -55,18 +55,17 @@
     border-radius: 12px;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 16px 40px rgba(15, 23, 42, 0.06);
 }
-.rpv-doc--pdf { max-width: none; border: none; border-radius: 0; box-shadow: none; }
+.rpv-doc--pdf { max-width: none; border: none; border-radius: 0; box-shadow: none; overflow: visible; }
 .rpv-page .rpv-doc { max-width: none; }
 .rpv-doc * { box-sizing: border-box; }
 .rpv-sheet { padding: 26px 30px 24px; }
 .rpv-doc--pdf .rpv-sheet { padding: 14px 16px 16px; }
-.rpv-hdr { width: 100%; border-collapse: collapse; margin: 0 0 18px; table-layout: fixed; }
-.rpv-doc--pdf .rpv-hdr { margin: 0 0 14px; }
-.rpv-hdr td { border: none; vertical-align: middle; padding: 0 0 16px; border-bottom: 2px solid var(--rpv-blue); }
-.rpv-doc--pdf .rpv-hdr td { padding: 0 0 12px; }
-.rpv-hdr-logo { width: 28%; text-align: left; }
-.rpv-hdr-brand { width: 44%; text-align: center; padding-left: 8px; padding-right: 8px; }
-.rpv-hdr-right { width: 28%; text-align: right; vertical-align: top; }
+.rpv-hdr { width: 100%; border-collapse: collapse; margin: 0 0 14px; table-layout: fixed; }
+.rpv-doc--pdf .rpv-hdr { margin: 0 0 10px; }
+.rpv-hdr td { border: none; vertical-align: middle; padding: 0 0 14px; border-bottom: 2px solid var(--rpv-blue); }
+.rpv-doc--pdf .rpv-hdr td { padding: 0 0 10px; }
+.rpv-hdr-logo { width: 26%; text-align: left; }
+.rpv-hdr-brand { width: 74%; text-align: center; padding-left: 8px; padding-right: 8px; }
 .rpv-logo { display: block; max-width: 180px; max-height: 60px; width: auto; height: auto; object-fit: contain; object-position: left center; margin: 0; }
 .rpv-doc--pdf .rpv-logo { max-width: 150px; max-height: 52px; }
 .rpv-company { font-size: 18px; font-weight: 700; color: var(--rpv-blue); line-height: 1.25; text-align: center; margin: 0; }
@@ -74,16 +73,78 @@
 .rpv-meta { display: block; margin-top: 5px; font-size: 11px; font-weight: 400; color: #666; line-height: 1.4; text-align: center; }
 .rpv-doc--pdf .rpv-meta { margin-top: 4px; font-size: 9.5px; }
 .rpv-meta + .rpv-meta { margin-top: 2px; }
-.rpv-badge {
-    display: inline-block; background: var(--rpv-soft); color: #0f172a; font-size: 11px; font-weight: 800;
-    letter-spacing: 1px; text-transform: uppercase; padding: 7px 14px; border-radius: 8px; margin-bottom: 8px;
+/* Title bar under company header — soft box with thick left accent */
+.rpv-titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 0 0 16px;
+    padding: 4px 6px 4px 7px;
+    background: var(--rpv-soft);
+    border: 1px solid var(--rpv-line);
+    border-left: 4px solid var(--rpv-blue);
+    border-radius: 8px;
+    box-sizing: border-box;
 }
-.rpv-doc--pdf .rpv-badge { font-size: 10px; padding: 6px 12px; border-radius: 0; }
-.rpv-stamp-kv { border-collapse: collapse; margin-left: auto; font-size: 12px; }
-.rpv-doc--pdf .rpv-stamp-kv { font-size: 9.5px; }
-.rpv-stamp-kv td { padding: 3px 0 3px 16px; border: none; background: transparent; vertical-align: middle; }
-.rpv-stamp-kv .k { color: #64748b; font-weight: 500; text-align: left; white-space: nowrap; }
-.rpv-stamp-kv .v { color: #0f172a; font-weight: 700; text-align: right; white-space: nowrap; }
+.rpv-doc--pdf .rpv-titlebar {
+    margin: 0 0 12px;
+    padding: 8px 12px 8px 14px;
+    /* Keep the same soft box + left accent in print/PDF */
+    border-radius: 8px !important;
+    border-left: 4px solid var(--rpv-blue) !important;
+    display: flex !important;
+    width: 100%;
+}
+.rpv-titlebar-l { min-width: 0; flex: 1 1 auto; overflow: visible; }
+.rpv-titlebar-r {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+.rpv-doc--pdf .rpv-titlebar-l,
+.rpv-doc--pdf .rpv-titlebar-r { display: block; }
+.rpv-doc--pdf .rpv-titlebar-r {
+    display: flex !important;
+    text-align: right;
+}
+.rpv-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--rpv-blue);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+.rpv-doc--pdf .rpv-title { font-size: 15px; white-space: nowrap; }
+.rpv-subtitle {
+    margin: 3px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    line-height: 1.3;
+}
+.rpv-doc--pdf .rpv-subtitle { font-size: 10px; }
+.rpv-title-kv { display: inline-flex; align-items: baseline; gap: 6px; font-size: 12.5px; }
+.rpv-doc--pdf .rpv-title-kv { font-size: 10.5px; }
+.rpv-title-kv .k { color: #64748b; font-weight: 500; }
+.rpv-title-kv .v { color: #0f172a; font-weight: 700; }
+.rpv-title-sep {
+    width: 1px;
+    height: 22px;
+    background: #cbd5e1;
+    flex: none;
+}
+.rpv-doc--pdf .rpv-title-sep {
+    display: block;
+    width: 1px;
+    height: 16px;
+    background: #cbd5e1;
+}
 .rpv-split { width: 100%; border-collapse: separate; border-spacing: 0; margin: 0 0 14px; table-layout: fixed; }
 .rpv-split--wide-left .rpv-split-cell:first-child { width: 56%; }
 .rpv-split--wide-left .rpv-split-cell:last-child { width: 44%; }
@@ -98,7 +159,7 @@
     background: #fff; border: 1px solid var(--rpv-line); border-top: 3px solid var(--rpv-blue);
     border-radius: 8px; overflow: hidden; height: 100%;
 }
-.rpv-doc--pdf .rpv-card { border-radius: 0; }
+.rpv-doc--pdf .rpv-card { border-radius: 8px; }
 .rpv-kv { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .rpv-kv td {
     border: none; border-bottom: 1px solid rgba(197, 216, 240, 0.85); padding: 7px 14px;
@@ -122,7 +183,7 @@
     border: 1px solid var(--rpv-line); border-top: 3px solid var(--rpv-blue); border-radius: 8px;
     padding: 12px 14px; margin: 0 0 14px; background: #f8fafc;
 }
-.rpv-doc--pdf .rpv-box { border-radius: 0; padding: 8px 12px; margin: 0 0 12px; }
+.rpv-doc--pdf .rpv-box { border-radius: 8px; padding: 8px 12px; margin: 0 0 12px; }
 .rpv-box-title { font-size: 10px; font-weight: 700; color: var(--rpv-blue); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
 .rpv-box-body { font-size: 13px; color: #334155; white-space: pre-wrap; }
 .rpv-doc--pdf .rpv-box-body { font-size: 11px; }
@@ -130,7 +191,7 @@
     border: 1px solid var(--rpv-line); border-top: 3px solid var(--rpv-blue); border-radius: 8px;
     overflow: hidden; margin: 0 0 14px;
 }
-.rpv-doc--pdf .rpv-table-wrap { border-radius: 0; margin: 0 0 12px; }
+.rpv-doc--pdf .rpv-table-wrap { border-radius: 8px; overflow: hidden; margin: 0 0 12px; }
 .rpv-table { width: 100%; border-collapse: collapse; margin: 0; font-size: 12.5px; }
 .rpv-doc--pdf .rpv-table { font-size: 10px; }
 .rpv-table th {
@@ -152,15 +213,17 @@
     width: 360px; max-width: 100%; margin: 0 0 14px auto; background: var(--rpv-soft); color: #0f172a;
     border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
 }
-.rpv-doc--pdf .rpv-total-paid { width: 48%; margin: 0 0 12px auto; border-radius: 0; padding: 10px 14px; display: table; }
+.rpv-doc--pdf .rpv-total-paid {
+    width: 360px; max-width: 100%; margin: 0 0 12px auto; border-radius: 8px;
+    padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;
+}
 .rpv-total-paid-label { font-size: 13px; font-weight: 500; white-space: nowrap; }
 .rpv-total-paid-val { font-size: 16px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
-.rpv-doc--pdf .rpv-total-paid-label, .rpv-doc--pdf .rpv-total-paid-val { display: table-cell; vertical-align: middle; }
 .rpv-meta-box {
     border: 1px solid var(--rpv-line); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;
     font-size: 12.5px; color: #334155; background: var(--rpv-soft);
 }
-.rpv-doc--pdf .rpv-meta-box { border-radius: 0; padding: 8px 12px; margin-bottom: 10px; font-size: 11px; }
+.rpv-doc--pdf .rpv-meta-box { border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; font-size: 11px; }
 .rpv-meta-box.rpv-attachments { background: #fff; }
 .rpv-meta-box strong {
     color: var(--rpv-blue); margin-right: 6px; text-transform: uppercase; letter-spacing: 0.04em;
@@ -176,7 +239,35 @@
 .rpv-doc .app-currency-icon { display: inline-block; height: 1em; width: auto; max-width: 1.75em; object-fit: contain; vertical-align: -0.15em; }
 @media print {
     .voucher-posted-transactions, .rpv-attachments, .rpv-toolbar, .no-print { display: none !important; }
-    .rpv-doc, .rpv-doc * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .rpv-doc, .rpv-doc * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    .rpv-doc { overflow: visible !important; }
+    .rpv-titlebar,
+    .rpv-card,
+    .rpv-box,
+    .rpv-table-wrap,
+    .rpv-total-paid,
+    .rpv-meta-box {
+        border-radius: 8px !important;
+    }
+    .rpv-titlebar {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        border-left: 4px solid var(--rpv-blue) !important;
+        background: var(--rpv-soft) !important;
+    }
+    .rpv-title { white-space: nowrap !important; }
+    .rpv-titlebar-r { display: flex !important; }
+    .rpv-total-paid {
+        display: flex !important;
+        width: 360px !important;
+        max-width: 100% !important;
+        margin-left: auto !important;
+    }
 }
 </style>
 @php
@@ -219,21 +310,22 @@
                     <div class="rpv-meta">{{ $companyAddress }}</div>
                     @endif
                 </td>
-                <td class="rpv-hdr-right">
-                    <div class="rpv-badge">{{ $documentTitle }}</div>
-                    <table class="rpv-stamp-kv" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td class="k">Voucher No</td>
-                            <td class="v">{{ $voucherNo }}</td>
-                        </tr>
-                        <tr>
-                            <td class="k">Date</td>
-                            <td class="v">{{ $voucherDate }}</td>
-                        </tr>
-                    </table>
-                </td>
             </tr>
         </table>
+
+        <div class="rpv-titlebar">
+            <div class="rpv-titlebar-l">
+                <div class="rpv-title">{{ $documentTitle }}</div>
+                @if(!empty($moduleBadge))
+                <div class="rpv-subtitle">{{ $moduleBadge }}</div>
+                @endif
+            </div>
+            <div class="rpv-titlebar-r">
+                <div class="rpv-title-kv"><span class="k">Voucher No</span> <span class="v">{{ $voucherNo }}</span></div>
+                <span class="rpv-title-sep" aria-hidden="true"></span>
+                <div class="rpv-title-kv"><span class="k">Date</span> <span class="v">{{ $voucherDate }}</span></div>
+            </div>
+        </div>
 
         <table class="rpv-split {{ $splitSizeClass }}" cellpadding="0" cellspacing="0">
             <tr>

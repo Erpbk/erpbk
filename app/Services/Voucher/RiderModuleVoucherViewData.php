@@ -142,7 +142,10 @@ class RiderModuleVoucherViewData
             'attachmentUrl' => $attachmentUrl,
             'attachmentName' => $attach !== '' ? basename($attach) : null,
             'lines' => $lines,
-            'lineTotal' => round(collect($lines)->sum('amount'), 2) ?: $amount,
+            // JV lists both debit+credit rows — total is the voucher amount, not the sum of both sides.
+            'lineTotal' => $typeCode === 'JV'
+                ? $amount
+                : (round(collect($lines)->sum('amount'), 2) ?: $amount),
             'postedTransactions' => $voucher->transactions ?? collect(),
             'finDetail' => $typeCode === 'RFV'
                 ? company_table('rta_fines')->where('id', $voucher->ref_id)->first()
@@ -162,19 +165,25 @@ class RiderModuleVoucherViewData
      */
     private function buildLineRows(Vouchers $voucher): array
     {
-        $debits = $voucher->transactions
-            ->filter(fn ($t) => (float) ($t->debit ?? 0) > 0.00001)
-            ->values();
+        $type = strtoupper((string) $voucher->voucher_type);
+        // Journal shows both sides (debit + credit), matching the Payment-style document screenshot.
+        $txs = $type === 'JV'
+            ? $voucher->transactions->values()
+            : $voucher->transactions
+                ->filter(fn ($t) => (float) ($t->debit ?? 0) > 0.00001)
+                ->values();
 
-        if ($debits->isEmpty()) {
-            $debits = $voucher->transactions->values();
+        if ($txs->isEmpty()) {
+            $txs = $voucher->transactions->values();
         }
 
         $rows = [];
-        foreach ($debits as $tx) {
-            $amt = (float) ($tx->debit ?? 0);
+        foreach ($txs as $tx) {
+            $debit = (float) ($tx->debit ?? 0);
+            $credit = (float) ($tx->credit ?? 0);
+            $amt = $debit > 0.00001 ? $debit : $credit;
             if ($amt < 0.00001) {
-                $amt = (float) ($tx->credit ?? 0);
+                continue;
             }
             $rows[] = [
                 'account' => $this->accountLabel($tx->account),

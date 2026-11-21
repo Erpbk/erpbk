@@ -124,7 +124,13 @@
 
         @if($askReason)
         swalOptions.input = 'textarea';
-        swalOptions.inputPlaceholder = 'Reason (optional)';
+        swalOptions.inputLabel = 'Reason';
+        swalOptions.inputPlaceholder = 'Why is this {{ strtolower($entityName) }} being deleted?';
+        swalOptions.inputValidator = function (value) {
+          if (!String(value || '').trim()) {
+            return 'Please enter a delete reason';
+          }
+        };
         @endif
 
         Swal.fire(swalOptions).then(function (result) {

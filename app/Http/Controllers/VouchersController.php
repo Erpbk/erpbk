@@ -75,7 +75,9 @@ class VouchersController extends Controller
     }
 
     // Shared filters (status tab / type applied after card + tab counts as needed)
-    $query = Vouchers::query()->orderBy('id', 'desc');
+    $query = Vouchers::query()
+      ->with(['approvedByUser:id,name', 'rejectedByUser:id,name'])
+      ->orderBy('id', 'desc');
     $this->applyVoucherListFilters($query, $request);
 
     // Type ticker: Approved/Pending per voucher_type (ignore selected type + status tab)
@@ -659,7 +661,7 @@ class VouchersController extends Controller
       return redirect()->back();
     }
 
-    // Rider payment vouchers use the payment document UI (with All Vouchers sidebar).
+    // Rider/employee payment vouchers use the payment document UI (with All Vouchers sidebar).
     if ((string) $voucher->voucher_type === 'PV') {
       $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher'])
         ->where('voucher_id', $voucher->id)
@@ -667,8 +669,12 @@ class VouchersController extends Controller
       if (! $payment && ! empty($voucher->ref_id)) {
         $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher'])->find($voucher->ref_id);
       }
-      if ($payment && app(\App\Services\Payment\RiderPaymentVoucherViewData::class)->isRiderPayment($payment)) {
-        return app(PaymentController::class)->show(request(), $company_slug, $payment->id);
+      if ($payment) {
+        $isRiderPay = app(\App\Services\Payment\RiderPaymentVoucherViewData::class)->isRiderPayment($payment);
+        $isEmployeePay = app(\App\Services\Payment\EmployeePaymentVoucherViewData::class)->isEmployeePayment($payment);
+        if ($isRiderPay || $isEmployeePay) {
+          return app(PaymentController::class)->show(request(), $company_slug, $payment->id);
+        }
       }
     }
 

@@ -31,6 +31,7 @@ $moduleByType = [
 
 $dh = '<svg class="vc-dh" viewBox="0 0 20 18" width="11" height="10"><path d="M4 2h5.5a7 7 0 0 1 0 14H4z" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M1 7h14M1 11h14" stroke="currentColor" stroke-width="1.8"/></svg>';
 @endphp
+<div class="vc-tbox-scroll">
 <table class="table list dataTable no-footer" id="dataTableBuilder">
   <thead>
     <tr role="row">
@@ -112,7 +113,8 @@ $dh = '<svg class="vc-dh" viewBox="0 0 20 18" width="11" height="10"><path d="M4
         $menuItems .= '<a class="mi show-modal" href="javascript:void(0);" data-size="'.e($moduleActions['edit_size']).'" data-title="'.e($moduleActions['edit_title']).'" data-action="'.e($moduleActions['edit_url']).'"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span><b>Edit</b><small>Change this voucher\'s details</small></span></a>';
       }
       if (!$voucherPendingDeletion && (user_can('voucher_delete') || user_can('vouchers_delete')) && !empty($editDeleteFlags[$voucher->voucher_type]['can_delete'])) {
-        $menuItems .= '<button type="button" class="mi del" onclick=\'confirmDelete('.json_encode($moduleActions['delete_url']).')\'><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg><span><b>Delete</b><small>Remove this voucher</small></span></button>';
+        $amtPlain = number_format((float) ($voucher->amount ?? 0), 2);
+        $menuItems .= '<button type="button" class="mi del" data-vc-del-id="'.(int) $voucher->id.'" data-vc-del-vno="'.e($voucherId).'" data-vc-del-amt="'.e($amtPlain).'" data-vc-del-url="'.e($moduleActions['delete_url']).'"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg><span><b>Delete</b><small>Remove this voucher</small></span></button>';
       }
     @endphp
     <tr class="{{ $isPending ? 'pend' : '' }} {{ $voucherPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $voucher->id }}">
@@ -205,6 +207,28 @@ $dh = '<svg class="vc-dh" viewBox="0 0 20 18" width="11" height="10"><path d="M4
       <td>
         @if($voucherPendingDeletion)
           @include('delete_requests._pending_badge', ['model' => $voucher])
+        @elseif(in_array($statusKey, ['approved', 'rejected'], true))
+          @php
+            $decisionUser = $statusKey === 'approved'
+              ? ($voucher->approvedByUser->name ?? null)
+              : ($voucher->rejectedByUser->name ?? null);
+            $decisionAt = $statusKey === 'approved'
+              ? $voucher->approved_at
+              : $voucher->rejected_at;
+            $decisionDate = $decisionAt
+              ? \Carbon\Carbon::parse($decisionAt)->format('d M Y')
+              : '';
+            $statusLabel = $statusKey === 'approved' ? 'Approved' : 'Rejected';
+          @endphp
+          <div class="vc-dec">
+            <span class="vc-pill {{ $statusKey }}">{{ $statusLabel }}</span>
+            @if($decisionUser)
+              <b class="vc-dec-name">{{ $decisionUser }}</b>
+            @endif
+            @if($decisionDate !== '')
+              <span class="vc-dec-date">{{ $decisionDate }}</span>
+            @endif
+          </div>
         @else
           <span class="vc-pill {{ $statusKey }}">{{ ucfirst(str_replace('_', ' ', $statusKey)) }}</span>
         @endif
@@ -228,59 +252,29 @@ $dh = '<svg class="vc-dh" viewBox="0 0 20 18" width="11" height="10"><path d="M4
     </tr>
     @endif
   </tbody>
-  @if(isset($data) && $data->count() > 0)
-  @php
-    $footSummary = 'Total of <b>'.$data->count().'</b> vouchers'
-      .($pagePending ? ' · <span class="p">'.$pagePending.' pending</span>' : '')
-      .' <span class="s">Cash '.$dh.number_format($pageCash, 2).' · Bank '.$dh.number_format($pageBank, 2).'</span>';
-    // One <td> per header column so Amount total stays aligned (and column-control can sync tfoot).
-    $footCells = [];
-    // Keep checkbox column empty so footer summary cannot stretch it.
-    $footCells[] = ['k' => 'ck', 'class' => 'vc-ck-col', 'html' => ''];
-    $summaryPlaced = false;
-    $placeSummary = static function (string $key) use (&$footCells, &$summaryPlaced, $footSummary): void {
-      if ($summaryPlaced) {
-        $footCells[] = ['k' => $key, 'class' => '', 'html' => ''];
-        return;
-      }
-      $footCells[] = ['k' => $key, 'class' => 'l', 'html' => $footSummary];
-      $summaryPlaced = true;
-    };
-    if ($vfCols['trans_date']) { $placeSummary('trans_date'); }
-    if ($vfCols['billing_month']) { $placeSummary('billing_month'); }
-    $placeSummary('voucher_id');
-    if ($vfCols['reference_number']) { $placeSummary('reference_number'); }
-    $placeSummary('module');
-    $placeSummary('account_kind');
-    $placeSummary('paid_from');
-    if ($vfCols['amount']) {
-      $footCells[] = ['k' => 'amount', 'class' => 'a', 'html' => $dh.number_format($pageTotal, 2)];
-    }
-    if ($vfCols['created_by']) { $footCells[] = ['k' => 'created_by', 'class' => '', 'html' => '']; }
-    if ($vfCols['updated_by']) { $footCells[] = ['k' => 'updated_by', 'class' => '', 'html' => '']; }
-    if ($vfCols['attach_file']) { $footCells[] = ['k' => 'attach_file', 'class' => '', 'html' => '']; }
-    $footCells[] = ['k' => 'approval_status', 'class' => '', 'html' => ''];
-    $footCells[] = ['k' => 'action', 'class' => '', 'html' => ''];
-    $footCells[] = ['k' => 'search', 'class' => '', 'html' => '', 'hidden' => true];
-    $footCells[] = ['k' => 'control', 'class' => '', 'html' => '', 'hidden' => true];
-  @endphp
-  <tfoot>
-    <tr>
-      @foreach($footCells as $fc)
-      <td class="{{ $fc['class'] }}"
-          data-k="{{ $fc['k'] }}"
-          @if(!empty($fc['hidden'])) style="display:none;" aria-hidden="true" @endif>
-        {!! $fc['html'] !!}
-      </td>
-      @endforeach
-    </tr>
-  </tfoot>
-  @endif
 </table>
+</div>{{-- /.vc-tbox-scroll — table scrolls independently of summary bar --}}
+
+@if(isset($data) && $data->count() > 0)
+@php
+  $footSummary = 'Total of <b>'.$data->count().'</b> vouchers'
+    .($pagePending ? ' · <span class="p">'.$pagePending.' pending</span>' : '')
+    .' <span class="s">Cash '.$dh.number_format($pageCash, 2)
+    .' · Bank '.$dh.number_format($pageBank, 2)
+    .' · Total '.$dh.number_format($pageTotal, 2).'</span>';
+  $footAmount = $dh.number_format($pageTotal, 2);
+@endphp
+<div class="vc-table-foot" id="vcTableFoot" aria-live="polite">
+  <div class="vc-table-foot-l">{!! $footSummary !!}</div>
+  <div class="vc-table-foot-a">{!! $footAmount !!}</div>
+</div>
+@endif
 
 @include('delete_requests._confirm_delete_script', [
   'entityName' => 'Voucher',
   'confirmText' => 'Submit a delete request for this voucher? It will stay in the list as Pending Deletion until an administrator approves.',
+  'askReason' => true,
+  'reasonField' => 'delete_reason',
 ])
 @include('delete_requests._pending_table_script', ['items' => $data])
 <script>
@@ -303,58 +297,9 @@ $dh = '<svg class="vc-dh" viewBox="0 0 20 18" width="11" height="10"><path d="M4
       }
     }
     setTimeout(tryInitialize, 100);
-    if (typeof window.vcSyncFooterCols === 'function') window.vcSyncFooterCols();
   });
 })();
 
-/** Keep footer summary in the first visible cell before Amount (no colspan drift). */
-window.vcSyncFooterCols = function () {
-  var table = document.getElementById('dataTableBuilder');
-  if (!table) return;
-  var foot = table.querySelector('tfoot tr');
-  if (!foot) return;
-  var cells = Array.from(foot.children);
-  var amtIdx = cells.findIndex(function (td) { return td.getAttribute('data-k') === 'amount'; });
-  if (amtIdx < 1) return;
-
-  var summaryHtml = '';
-  cells.forEach(function (td, i) {
-    if (i >= amtIdx) return;
-    if (td.getAttribute('data-vc-summary') === '1' && td.innerHTML) summaryHtml = td.innerHTML;
-  });
-  if (!summaryHtml) {
-    for (var i = 0; i < amtIdx; i++) {
-      if (cells[i].innerHTML) { summaryHtml = cells[i].innerHTML; break; }
-    }
-  }
-
-  var placed = false;
-  cells.forEach(function (td, i) {
-    if (i >= amtIdx) return;
-    td.removeAttribute('colspan');
-    if (td.classList.contains('column-hidden')) {
-      td.innerHTML = '';
-      td.classList.remove('l');
-      td.removeAttribute('data-vc-summary');
-      return;
-    }
-    // Never put the summary in the checkbox column (keeps it narrow).
-    if (td.getAttribute('data-k') === 'ck' || td.classList.contains('vc-ck-col')) {
-      td.innerHTML = '';
-      td.classList.remove('l');
-      td.removeAttribute('data-vc-summary');
-      return;
-    }
-    if (!placed) {
-      td.classList.add('l');
-      td.setAttribute('data-vc-summary', '1');
-      td.innerHTML = summaryHtml;
-      placed = true;
-    } else {
-      td.innerHTML = '';
-      td.classList.remove('l');
-      td.removeAttribute('data-vc-summary');
-    }
-  });
-};
+/** No-op: footer is outside the table and no longer needs column sync. */
+window.vcSyncFooterCols = function () {};
 </script>

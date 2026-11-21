@@ -285,14 +285,13 @@ document.addEventListener('DOMContentLoaded', function() {
       if (targetIndex >= 0 && targetIndex < totalDataColumns && headerCells[targetIndex]) {
         headerCells[targetIndex].classList.toggle('column-hidden', !isVisible);
       }
-      table.querySelectorAll('tbody tr, tfoot tr').forEach(row => {
+      table.querySelectorAll('tbody tr').forEach(row => {
         if (targetIndex >= 0 && targetIndex < totalDataColumns && row.children[targetIndex]) {
           row.children[targetIndex].classList.toggle('column-hidden', !isVisible);
         }
       });
 
       this.updateColumnStats();
-      if (typeof window.vcSyncFooterCols === 'function') window.vcSyncFooterCols();
       if (persist && !this.isInitialLoad) this.saveSettings();
     },
 
@@ -328,7 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
       reordered.forEach(cell => headerRow.appendChild(cell));
       actionHeaders.forEach(cell => headerRow.appendChild(cell));
 
-      table.querySelectorAll('tbody tr, tfoot tr').forEach(row => {
+      table.querySelectorAll('tbody tr').forEach(row => {
         const cells = Array.from(row.children);
         const dataCells = fixed > 0 ? cells.slice(0, -fixed) : cells.slice();
         const actionCells = fixed > 0 ? cells.slice(-fixed) : [];
@@ -340,7 +339,6 @@ document.addEventListener('DOMContentLoaded', function() {
         reorderedCells.forEach(c => row.appendChild(c));
         actionCells.forEach(c => row.appendChild(c));
       });
-      if (typeof window.vcSyncFooterCols === 'function') window.vcSyncFooterCols();
     },
 
     showAllColumns() {

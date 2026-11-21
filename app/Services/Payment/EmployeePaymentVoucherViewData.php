@@ -189,10 +189,32 @@ class EmployeePaymentVoucherViewData
 
     private function resolveEmployee(Payment $payment): ?Employee
     {
-        $payment->loadMissing('payeeAccount');
+        $payment->loadMissing(['payeeAccount', 'voucher.transactions.account']);
+
         $payee = $payment->payeeAccount;
         if ($payee && strcasecmp((string) ($payee->ref_name ?? ''), 'employee') === 0 && $payee->ref_id) {
-            return Employee::withTrashed()->find($payee->ref_id);
+            $fromPayee = Employee::withTrashed()->find($payee->ref_id);
+            if ($fromPayee) {
+                return $fromPayee;
+            }
+        }
+
+        // Fallback: first debit employee account on the voucher (keeps Paid To aligned with lines).
+        $txs = $payment->voucher?->transactions ?? collect();
+        foreach ($txs as $tx) {
+            if ((float) ($tx->debit ?? 0) < 0.00001) {
+                continue;
+            }
+            $account = $tx->account;
+            if (! $account) {
+                continue;
+            }
+            if (strcasecmp((string) ($account->ref_name ?? ''), 'employee') === 0 && $account->ref_id) {
+                $fromDebit = Employee::withTrashed()->find($account->ref_id);
+                if ($fromDebit) {
+                    return $fromDebit;
+                }
+            }
         }
 
         return null;

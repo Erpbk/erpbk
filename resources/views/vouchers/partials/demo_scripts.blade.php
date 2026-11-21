@@ -933,20 +933,65 @@
       updateBulk();
     });
 
-    $('#vcBdel').on('click', function () {
-      var ids = $('.vc-rck:checked').map(function () {
-        return $(this).closest('tr').data('id');
-      }).get();
-      if (!ids.length) return;
-      var html = ids.map(function (id) {
-        var row = $('tr[data-id="' + id + '"]');
+    window.__vcDelIds = [];
+
+    function vcEscHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function vcCollectCheckedDeleteItems() {
+      return $('.vc-rck:checked').map(function () {
+        var row = $(this).closest('tr');
+        var id = row.data('id');
         var vno = row.find('.vc-lnk').first().text().trim() || ('#' + id);
-        return '<div style="display:flex;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:12.5px"><b style="color:#0000ff;font-weight:500">' + vno + '</b></div>';
-      }).join('');
-      $('#vcDelT').text('Delete ' + ids.length + ' voucher' + (ids.length > 1 ? 's' : '') + '?');
-      $('#vcDelL').html(html);
+        var amt = row.find('.vc-amt').first().text().replace(/\s+/g, ' ').trim() || '';
+        return { id: id, vno: vno, amount: amt };
+      }).get();
+    }
+
+    window.vcOpenDeleteModal = function (items) {
+      items = Array.isArray(items) ? items.filter(function (it) { return it && it.id; }) : [];
+      if (!items.length) return;
+      window.__vcDelIds = items.map(function (it) { return it.id; });
+      var n = items.length;
+      $('#vcDelT').text('Delete ' + n + ' voucher' + (n === 1 ? '' : 's') + '?');
+      $('#vcDelSub').text(
+        n === 1
+          ? 'This voucher and its posted transactions will be removed.'
+          : 'These vouchers and their posted transactions will be removed.'
+      );
+      $('#vcDelGo').text(n === 1 ? 'Delete voucher' : 'Delete vouchers');
+      $('#vcDelL').html(items.map(function (it) {
+        return '<div class="vc-del-row">'
+          + '<b class="vc-del-id">' + vcEscHtml(it.vno || ('#' + it.id)) + '</b>'
+          + '<span class="vc-del-amt">' + vcEscHtml(it.amount || '') + '</span>'
+          + '</div>';
+      }).join(''));
       $('#vcDelR').val('');
       openModal('vcDelM');
+      setTimeout(function () { $('#vcDelR').trigger('focus'); }, 40);
+    };
+
+    $('#vcBdel').on('click', function () {
+      var items = vcCollectCheckedDeleteItems();
+      if (!items.length) return;
+      window.vcOpenDeleteModal(items);
+    });
+
+    // Row ⋯ Delete — open reason modal (not Swal without reason)
+    $(document).on('click', '.mi.del[data-vc-del-id]', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var $btn = $(this);
+      window.vcOpenDeleteModal([{
+        id: $btn.data('vc-del-id'),
+        vno: $btn.data('vc-del-vno') || ('#' + $btn.data('vc-del-id')),
+        amount: $btn.data('vc-del-amt') || ''
+      }]);
     });
 
     $('#vcDelGo').on('click', function () {
@@ -956,9 +1001,9 @@
         $('#vcDelR').focus();
         return;
       }
-      var ids = $('.vc-rck:checked').map(function () {
-        return $(this).closest('tr').data('id');
-      }).get();
+      var ids = (window.__vcDelIds && window.__vcDelIds.length)
+        ? window.__vcDelIds.slice()
+        : vcCollectCheckedDeleteItems().map(function (it) { return it.id; });
       if (!ids.length) {
         closeModal(document.getElementById('vcDelM'));
         return;
@@ -975,6 +1020,7 @@
           reason: reason
         },
         success: function (res) {
+          window.__vcDelIds = [];
           closeModal(document.getElementById('vcDelM'));
           toast(res.message || 'Delete requests submitted');
           setTimeout(function () { window.location.reload(); }, 700);
@@ -989,6 +1035,54 @@
         }
       });
     });
+
+    // View panel / legacy confirmDelete → prefer reason modal when row is on the list
+    (function wrapConfirmDeleteWithReasonModal() {
+      var tries = 0;
+      function wrap() {
+        tries++;
+        if (typeof window.confirmDelete !== 'function') {
+          if (tries < 40) setTimeout(wrap, 100);
+          return;
+        }
+        if (window.confirmDelete.__vcReasonWrapped) return;
+        var orig = window.confirmDelete;
+        window.confirmDelete = function (url) {
+          var row = null;
+          var id = null;
+          var m = String(url || '').match(/(?:\/|=)(\d+)(?:\/?$|\?)/);
+          if (m) {
+            id = parseInt(m[1], 10);
+            row = document.querySelector('#dataTableBuilder tr[data-id="' + id + '"]');
+          }
+          if (!row) {
+            // trans_code style URLs — match by voucher link text / data
+            var code = String(url || '').split('/').filter(Boolean).pop();
+            if (code) {
+              $('#dataTableBuilder tbody tr[data-id]').each(function () {
+                var vno = $(this).find('.vc-lnk').first().text().trim();
+                if (vno && (url.indexOf(vno) !== -1 || String($(this).data('id')) === code)) {
+                  row = this;
+                  id = $(this).data('id');
+                  return false;
+                }
+              });
+            }
+          }
+          if (row && id && typeof window.vcOpenDeleteModal === 'function') {
+            var $row = $(row);
+            var vno = $row.find('.vc-lnk').first().text().trim() || ('#' + id);
+            var amt = $row.find('.vc-amt').first().text().replace(/\s+/g, ' ').trim() || '';
+            window.vcOpenDeleteModal([{ id: id, vno: vno, amount: amt }]);
+            return;
+          }
+          return orig.apply(this, arguments);
+        };
+        window.confirmDelete.__vcReasonWrapped = true;
+        window.confirmDelete.__erpbkDeleteConfirm = true;
+      }
+      wrap();
+    })();
 
     // Attachment document viewer (header + iframe preview + note)
     var vcDocNoteTimer = null;

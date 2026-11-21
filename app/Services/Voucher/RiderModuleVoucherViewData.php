@@ -7,6 +7,7 @@ use App\Helpers\Common;
 use App\Helpers\Currency;
 use App\Helpers\General;
 use App\Models\Accounts;
+use App\Models\Employee;
 use App\Models\Riders;
 use App\Models\Settings;
 use App\Models\User;
@@ -63,8 +64,9 @@ class RiderModuleVoucherViewData
             $amount = round((float) $voucher->transactions->sum('debit'), 2);
         }
 
-        $rider = $this->resolveRider($voucher);
-        $partyAccount = $this->partyAccount($voucher, $rider);
+        $payee = $this->resolvePayee($voucher);
+        $partyAccount = $payee['account'];
+        $rider = $payee['rider'];
         $counterAccount = $this->counterAccount($voucher, $partyAccount?->id, $rider);
         $typeCode = strtoupper((string) $voucher->voucher_type);
         $typeLabel = General::VoucherType($typeCode) ?: $typeCode;
@@ -121,10 +123,9 @@ class RiderModuleVoucherViewData
             'voucherDate' => $voucher->trans_date
                 ? Common::DateFormat($voucher->trans_date)
                 : '—',
-            'payeeName' => $rider?->name
-                ?: ($partyAccount->name ?? '—'),
-            'riderCode' => $rider?->rider_id
-                ?: ($partyAccount->account_code ?? '—'),
+            // Paid To must match the debit party (same person as line/posted accounts).
+            'payeeName' => $payee['name'],
+            'riderCode' => $payee['code'],
             'billingMonth' => $voucher->billing_month
                 ? Common::MonthFormat($voucher->billing_month)
                 : '—',
@@ -209,52 +210,85 @@ class RiderModuleVoucherViewData
         return $fromList !== '' ? $fromList : 'Account';
     }
 
-    private function resolveRider(Vouchers $voucher): ?Riders
+    /**
+     * Paid To person/code — always aligned with the primary debit (posted) account.
+     *
+     * @return array{name:string,code:string,account:?Accounts,rider:?Riders}
+     */
+    private function resolvePayee(Vouchers $voucher): array
     {
-        $riderId = (int) ($voucher->rider_id ?: $voucher->ref_id ?: 0);
-        if ($riderId > 0) {
-            $rider = Riders::withTrashed()->find($riderId);
-            if ($rider) {
-                return $rider;
+        $partyAccount = $this->primaryPartyAccount($voucher);
+        $fallbackName = $partyAccount->name ?? '—';
+        $fallbackCode = $partyAccount->account_code ?? '—';
+
+        if ($partyAccount) {
+            $refName = strtolower(trim((string) ($partyAccount->ref_name ?? '')));
+            $refId = (int) ($partyAccount->ref_id ?? 0);
+
+            if ($refId > 0 && in_array($refName, ['employee', 'employees'], true)) {
+                $employee = Employee::withTrashed()->find($refId);
+                if ($employee) {
+                    return [
+                        'name' => trim((string) ($employee->name ?: $fallbackName)) ?: '—',
+                        'code' => trim((string) ($employee->employee_id ?: $fallbackCode)) ?: '—',
+                        'account' => $partyAccount,
+                        'rider' => null,
+                    ];
+                }
             }
+
+            if ($refId > 0 && $refName === 'rider') {
+                $rider = Riders::withTrashed()->find($refId);
+                if ($rider) {
+                    return [
+                        'name' => trim((string) ($rider->name ?: $fallbackName)) ?: '—',
+                        'code' => trim((string) ($rider->rider_id ?: $fallbackCode)) ?: '—',
+                        'account' => $partyAccount,
+                        'rider' => $rider,
+                    ];
+                }
+            }
+
+            // Non-person accounts: still show the debit account label (matches lines).
+            return [
+                'name' => trim((string) $fallbackName) ?: '—',
+                'code' => trim((string) $fallbackCode) ?: '—',
+                'account' => $partyAccount,
+                'rider' => null,
+            ];
         }
 
-        $party = $this->partyAccount($voucher);
-        if ($party && strcasecmp((string) ($party->ref_name ?? ''), 'Rider') === 0 && $party->ref_id) {
-            return Riders::withTrashed()->find($party->ref_id);
+        $rider = $this->resolveRiderFallback($voucher);
+        if ($rider) {
+            return [
+                'name' => trim((string) ($rider->name ?? '')) ?: '—',
+                'code' => trim((string) ($rider->rider_id ?? '')) ?: '—',
+                'account' => null,
+                'rider' => $rider,
+            ];
         }
 
-        return null;
+        return [
+            'name' => '—',
+            'code' => '—',
+            'account' => null,
+            'rider' => null,
+        ];
     }
 
-    private function partyAccount(Vouchers $voucher, ?Riders $rider = null): ?Accounts
+    /**
+     * Primary "who was paid" account = first debit line (same source as voucher lines).
+     */
+    private function primaryPartyAccount(Vouchers $voucher): ?Accounts
     {
-        if ($rider) {
-            $riderTx = $voucher->transactions->first(function ($t) use ($rider) {
-                $account = $t->account;
-                if (! $account) {
-                    return false;
-                }
-
-                return strcasecmp((string) ($account->ref_name ?? ''), 'Rider') === 0
-                    && (int) ($account->ref_id ?? 0) === (int) $rider->id;
-            });
-            if ($riderTx?->account) {
-                return $riderTx->account;
-            }
-
-            if (! empty($rider->account_id)) {
-                $linked = Accounts::query()->find($rider->account_id);
-                if ($linked) {
-                    return $linked;
-                }
-            }
-        }
-
         $paymentTo = (int) ($voucher->payment_to ?? 0);
         if ($paymentTo > 0) {
             $toAccount = Accounts::query()->find($paymentTo);
-            if ($toAccount) {
+            // Prefer payment_to only when it also appears on a debit line (keeps Paid To in sync).
+            if ($toAccount && $voucher->transactions->contains(function ($t) use ($paymentTo) {
+                return (int) ($t->account_id ?? 0) === $paymentTo
+                    && (float) ($t->debit ?? 0) > 0.00001;
+            })) {
                 return $toAccount;
             }
         }
@@ -264,6 +298,24 @@ class RiderModuleVoucherViewData
             ?: $voucher->transactions->first();
 
         return $tx?->account;
+    }
+
+    private function resolveRiderFallback(Vouchers $voucher): ?Riders
+    {
+        $type = strtoupper((string) $voucher->voucher_type);
+        $riderId = (int) ($voucher->rider_id ?: 0);
+        // PV/RV/TRF/JV ref_id is usually Payment/other id — do not treat as rider pk.
+        if ($riderId <= 0 && ! in_array($type, ['PV', 'RV', 'TRF', 'JV'], true)) {
+            $riderId = (int) ($voucher->ref_id ?: 0);
+        }
+        if ($riderId > 0) {
+            $rider = Riders::withTrashed()->find($riderId);
+            if ($rider) {
+                return $rider;
+            }
+        }
+
+        return null;
     }
 
     private function counterAccount(Vouchers $voucher, ?int $partyAccountId, ?Riders $rider = null): ?Accounts

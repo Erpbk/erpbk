@@ -1,20 +1,20 @@
-{{-- Bulk delete confirm --}}
+{{-- Delete confirm (single or bulk) — reason required --}}
 <div class="vc-modal-ov" id="vcDelM" hidden>
   <div class="vc-mbox" role="dialog" aria-labelledby="vcDelT">
     <div class="vc-mhd">
-      <div class="vc-mic">🗑</div>
+      <div class="vc-mic" aria-hidden="true">🗑</div>
       <div style="flex:1">
         <h5 id="vcDelT">Delete vouchers?</h5>
-        <small>A delete request will be submitted for each selected voucher.</small>
+        <small id="vcDelSub">These vouchers and their posted transactions will be removed.</small>
       </div>
       <button type="button" class="x" data-vc-mclose aria-label="Close">×</button>
     </div>
-    <div id="vcDelL" style="max-height:180px;overflow:auto;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:12px"></div>
-    <label for="vcDelR" style="font-size:12.5px;font-weight:600;color:#1e4b8f">Delete reason</label>
-    <textarea id="vcDelR" placeholder="Why should these vouchers be deleted?"></textarea>
+    <div id="vcDelL" class="vc-del-list"></div>
+    <label for="vcDelR" class="vc-del-lbl">Reason</label>
+    <textarea id="vcDelR" placeholder="Why are these vouchers being deleted?" rows="3"></textarea>
     <div class="vc-mft">
       <button type="button" class="vc-ireset" data-vc-mclose>Cancel</button>
-      <button type="button" class="vc-igo" id="vcDelGo" style="min-width:140px;background:#dc2626">Delete</button>
+      <button type="button" class="vc-igo vc-del-go" id="vcDelGo">Delete vouchers</button>
     </div>
   </div>
 </div>

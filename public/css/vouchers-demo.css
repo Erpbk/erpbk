@@ -491,9 +491,19 @@
   border: 1px solid var(--vc-edge);
   border-radius: 12px;
   background: var(--vc-surface);
-  overflow: auto;
+  overflow: hidden;
   max-height: calc(100vh - 220px);
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Table scrolls here; summary bar stays full-width below (not tied to columns). */
+.vc-demo .vc-tbox-scroll {
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
 }
 
 .vc-demo .vc-tbox table.list,
@@ -518,9 +528,14 @@
   text-align: center;
   border-top: 1px solid var(--vc-edge);
   border-bottom: 1px solid var(--vc-edge);
+  border-right: 1px solid var(--vc-edge-soft);
   box-shadow: 0 3px 6px -2px rgba(96, 165, 250, 0.25);
   white-space: nowrap;
   user-select: none;
+}
+
+.vc-demo .vc-tbox thead th:last-child {
+  border-right: 0;
 }
 
 .vc-demo .vc-tbox thead th.s {
@@ -559,8 +574,8 @@
   color: #474a55;
   height: 54px;
   background: #fff;
-  border-right: 0;
-  border-bottom: 0;
+  border-right: 1px solid var(--vc-edge-soft);
+  border-bottom: 1px solid var(--vc-edge-soft);
   white-space: nowrap;
 }
 
@@ -701,6 +716,40 @@
   color: var(--vc-bad);
 }
 
+.vc-demo .vc-tbox td:has(.vc-dec) {
+  height: auto;
+  min-height: 54px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.vc-demo .vc-dec {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  line-height: 1.2;
+  vertical-align: middle;
+}
+
+.vc-demo .vc-dec .vc-pill {
+  margin-bottom: 1px;
+}
+
+.vc-demo .vc-dec-name {
+  display: block;
+  color: #1e293b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.vc-demo .vc-dec-date {
+  display: block;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 500;
+}
+
 .vc-demo .vc-apby {
   display: block;
   margin-top: 4px;
@@ -741,41 +790,50 @@
   height: auto;
 }
 
-/* Footer stays after rows (not sticky) so it cannot paint over body cells. */
-.vc-demo .vc-tbox tfoot td {
-  position: static;
-  z-index: auto;
-  background: var(--vc-head) !important;
+/* Summary bar — outside table columns, pinned under the scroll area */
+.vc-demo .vc-table-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 14px;
+  background: var(--vc-head);
   color: var(--vc-head-ink);
   border-top: 2px solid var(--vc-blue);
-  padding: 11px 12px;
   font-weight: 600;
   font-size: 12.5px;
-  height: auto;
+  box-shadow: 0 -6px 14px -8px rgba(30, 58, 138, 0.35);
+  z-index: 4;
 }
 
-.vc-demo .vc-tbox tfoot .l {
+.vc-demo .vc-table-foot-l {
+  flex: 1 1 auto;
+  min-width: 0;
   text-align: left;
   white-space: nowrap;
-  overflow: visible;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.vc-demo .vc-tbox tfoot .a {
+.vc-demo .vc-table-foot-a {
+  flex: 0 0 auto;
   font-weight: 800;
   font-size: 13.5px;
   color: #0f172a;
   text-align: right;
   white-space: nowrap;
-  background: var(--vc-head) !important;
 }
 
-.vc-demo .vc-tbox tfoot .s {
+.vc-demo .vc-table-foot .s {
   margin-left: 16px;
   color: var(--vc-ink2);
   font-weight: 500;
 }
 
-.vc-demo .vc-tbox tfoot .p {
+.vc-demo .vc-table-foot .p {
   color: var(--vc-pend);
 }
 
@@ -1261,6 +1319,54 @@
   font: 12.5px Inter, system-ui, sans-serif;
   min-height: 60px;
   resize: vertical;
+}
+
+.vc-del-list {
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+
+.vc-del-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 12.5px;
+}
+
+.vc-del-row:last-child {
+  border-bottom: 0;
+}
+
+.vc-del-id {
+  color: #0000ff;
+  font-weight: 500;
+}
+
+.vc-del-amt {
+  color: #0f172a;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.vc-del-lbl {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 2px;
+}
+
+.vc-del-go {
+  min-width: 140px;
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
 }
 
 .vc-mbox .x {

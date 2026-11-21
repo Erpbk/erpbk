@@ -70,4 +70,5 @@ $panelAmount = (isset($totalPayment) && isset($formatMoney) && is_callable($form
     data-amount="{{ $panelAmount }}"
     style="display:none;"
     aria-hidden="true"></div>
+@include('vouchers.partials.doc_viewer')
 @endif

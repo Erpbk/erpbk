@@ -100,4 +100,5 @@ $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
         data-amount="{{ \App\Helpers\Currency::formatPlain((float) ($amount ?? 0), 2) }}"
         style="display:none;"
         aria-hidden="true"></div>
+    @include('vouchers.partials.doc_viewer')
 @endif

@@ -140,8 +140,15 @@ $pdfUrl = route('vouchers.show', array_merge($voucherRouteParams($voucher->id), 
       @if($voucher->attach_file)
       @php
       $attach_url = in_array($voucher->voucher_type, ['RFV', 'LV']) ? url('storage/' . $voucher->attach_file) : url('storage/vouchers/' . $voucher->attach_file);
+      $attach_name = basename((string) $voucher->attach_file);
       @endphp
-      <a href="{{ $attach_url }}" target="_blank" class="text-decoration-none text-body d-inline-flex align-items-center gap-1">
+      <a href="{{ $attach_url }}"
+         class="js-vc-doc-view text-decoration-none text-body d-inline-flex align-items-center gap-1"
+         rel="noopener"
+         data-file-url="{{ $attach_url }}"
+         data-file-name="{{ $attach_name }}"
+         data-file-meta="{{ $voucher_number }}"
+         data-file-context="{{ $voucher_number }}">
         <i class="ti ti-paperclip ti-sm"></i>
         <span>1 Attachment(s) added</span>
       </a>

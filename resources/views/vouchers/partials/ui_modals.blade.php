@@ -171,54 +171,6 @@
 {{-- Row action menu (positioned by JS) --}}
 <div class="vc-menu vc-rmenu" id="vcRowMenu" hidden></div>
 
-{{-- Attachment document viewer (matches Payment/Visa doc preview chrome) --}}
-{{-- Inline critical styles so a stale/cached vouchers-demo.css on server cannot hide the modal --}}
-<style id="vc-docv-critical">
-  .vc-docv.open,.vc-docv.open[hidden]{display:flex!important;visibility:visible!important;opacity:1!important;position:fixed!important;inset:0!important;z-index:200000!important;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.55);box-sizing:border-box}
-  .vc-docv-panel{width:min(1120px,96vw);height:min(920px,94vh);max-height:94vh;background:#fff;border-radius:14px;box-shadow:0 24px 64px rgba(15,23,42,.28);display:flex;flex-direction:column;overflow:hidden;position:relative}
-  .vc-docv-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid #e2e8f0;background:#fff;flex:none}
-  .vc-docv-hd-l{display:flex;align-items:center;gap:10px;min-width:0}
-  .vc-docv-ico{width:36px;height:36px;border-radius:9px;background:#eff6ff;color:#2563eb;display:grid;place-items:center;flex:none}
-  .vc-docv-titles{min-width:0}
-  .vc-docv-name{font:700 14px/1.25 Inter,system-ui,sans-serif;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .vc-docv-meta{margin-top:2px;font:500 11.5px/1.35 Inter,system-ui,sans-serif;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .vc-docv-hd-r{display:flex;align-items:center;gap:8px;flex:none}
-  .vc-docv-dl{display:inline-flex;align-items:center;gap:6px;border:1px solid #3b82f6;color:#2563eb;background:#fff;border-radius:8px;padding:7px 12px;font:600 12.5px Inter,system-ui,sans-serif;text-decoration:none}
-  .vc-docv-x{width:34px;height:34px;border:0;border-radius:8px;background:transparent;color:#64748b;font-size:22px;line-height:1;cursor:pointer}
-  .vc-docv-body{flex:1 1 auto;min-height:0;height:100%;background:#525659;position:relative;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
-  .vc-docv-body iframe,.vc-docv-body embed,.vc-docv-body object{position:absolute;inset:0;width:100%;height:100%;min-height:100%;border:0;display:block;background:#525659}
-  .vc-docv-img-wrap{min-height:100%;display:block;padding:16px;box-sizing:border-box;background:#0f172a}
-  .vc-docv-body img{display:block;width:auto;max-width:100%;height:auto;margin:0 auto;background:#fff}
-  .vc-docv-note{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:#1e3a8a;color:#fff;border-radius:999px;padding:9px 16px;font:600 12.5px Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(15,23,42,.28);z-index:2;white-space:nowrap}
-  body.vc-docv-open{overflow:hidden}
-</style>
-<div class="vc-docv" id="vcDocViewer" hidden aria-hidden="true">
-  <div class="vc-docv-panel" role="dialog" aria-modal="true" aria-labelledby="vcDocVTitle">
-    <div class="vc-docv-hd">
-      <div class="vc-docv-hd-l">
-        <span class="vc-docv-ico" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
-            <path d="M14 3v5h5"/>
-            <path d="M9 13h6M9 17h4"/>
-          </svg>
-        </span>
-        <div class="vc-docv-titles">
-          <div class="vc-docv-name" id="vcDocVTitle">Document</div>
-          <div class="vc-docv-meta" id="vcDocVMeta"></div>
-        </div>
-      </div>
-      <div class="vc-docv-hd-r">
-        <a href="#" class="vc-docv-dl" id="vcDocVDownload" download target="_blank" rel="noopener">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
-          Download
-        </a>
-        <button type="button" class="vc-docv-x" id="vcDocVClose" aria-label="Close">&times;</button>
-      </div>
-    </div>
-    <div class="vc-docv-body" id="vcDocVBody"></div>
-    <div class="vc-docv-note" id="vcDocVNote" hidden></div>
-  </div>
-</div>
+@include('vouchers.partials.doc_viewer')
 
 <div class="vc-toast" id="vcToast" hidden></div>

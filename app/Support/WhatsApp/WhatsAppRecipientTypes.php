@@ -217,6 +217,37 @@ class WhatsAppRecipientTypes
         return class_basename($model).' #'.$model->getKey();
     }
 
+    /**
+     * Public URL for a known participant photo, or null when unavailable.
+     */
+    public static function photoUrl(?Model $model): ?string
+    {
+        if (! $model) {
+            return null;
+        }
+
+        $imageName = trim((string) ($model->image_name ?? ''));
+        if ($imageName === '' || in_array(strtolower($imageName), ['default.png', 'default.jpg'], true)) {
+            return null;
+        }
+
+        if ($model instanceof Riders) {
+            return storage_url('profile/'.$imageName) ?: null;
+        }
+
+        if ($model instanceof User) {
+            return storage_url('uploads/'.$imageName) ?: null;
+        }
+
+        // Other recipient types may store a generic image_name on the public disk.
+        if (isset($model->image_name)) {
+            return storage_url('profile/'.$imageName)
+                ?: (storage_url('uploads/'.$imageName) ?: null);
+        }
+
+        return null;
+    }
+
     public static function isTrashed(Model $model): bool
     {
         return method_exists($model, 'trashed') && $model->trashed();

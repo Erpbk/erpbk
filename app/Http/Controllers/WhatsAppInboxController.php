@@ -28,7 +28,9 @@ class WhatsAppInboxController extends Controller
 
         $type = $request->query('type');
         $activeType = (is_string($type) && $type !== '' && $type !== 'all') ? $type : 'all';
-        $filters = $inbox->typeFilters($user, $companyId);
+        // Polls can skip filter counts (distinct scan); full page / filter clicks still need them.
+        $includeFilters = ! in_array(strtolower((string) $request->query('include_filters', '1')), ['0', 'false', 'no'], true);
+        $filters = $includeFilters ? $inbox->typeFilters($user, $companyId) : null;
         $conversations = $inbox->listConversations(
             $user,
             $companyId,
@@ -38,10 +40,16 @@ class WhatsAppInboxController extends Controller
         );
 
         if ($request->wantsJson() || $request->ajax()) {
-            return response()->json([
-                'filters' => $filters,
-                'conversations' => $conversations,
-            ]);
+            $payload = ['conversations' => $conversations];
+            if ($filters !== null) {
+                $payload['filters'] = $filters;
+            }
+
+            return response()->json($payload);
+        }
+
+        if ($filters === null) {
+            $filters = $inbox->typeFilters($user, $companyId);
         }
 
         return view('whatsapp_inbox.index', [

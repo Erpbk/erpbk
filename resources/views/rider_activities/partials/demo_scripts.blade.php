@@ -141,15 +141,41 @@
     return WA_AV_COLORS[n % WA_AV_COLORS.length];
   }
 
+  function avatarHtml(r, className) {
+    var ini = (r && r.ini) || 'R';
+    var c = avColor(r);
+    var photo = r && r.photo ? String(r.photo) : '';
+    var cls = className || 'wa-av';
+    var html = '<div class="' + cls + '" data-ini="' + esc(ini) + '" style="background:' + c[0] + ';color:' + c[1] + '">' +
+      '<span class="ra-av-ini">' + esc(ini) + '</span>';
+    if (photo) {
+      html += '<img src="' + esc(photo) + '" alt="" loading="lazy"' +
+        ' onload="this.parentElement.classList.add(\'has-img\')"' +
+        ' onerror="this.remove()">';
+    }
+    html += '</div>';
+    return html;
+  }
+
   function setAvatar(el, r) {
     if (!el) return;
     var ini = (r && r.ini) || 'R';
     var c = avColor(r);
+    var photo = r && r.photo ? String(r.photo) : '';
     el.setAttribute('data-ini', ini);
     el.classList.remove('has-img');
     el.style.background = c[0];
     el.style.color = c[1];
     el.innerHTML = '<span class="ra-av-ini">' + esc(ini) + '</span>';
+    if (photo) {
+      var img = document.createElement('img');
+      img.src = photo;
+      img.alt = '';
+      img.loading = 'lazy';
+      img.onload = function () { el.classList.add('has-img'); };
+      img.onerror = function () { img.remove(); };
+      el.appendChild(img);
+    }
   }
 
   var UNBOUND_MSG = 'No Message template found for this alert type. Contact FleetValue Support team to resolve this issue.';
@@ -326,7 +352,7 @@
     }
     rows.innerHTML = list.map(function (r, i) {
       var sub = esc(r.code);
-      var tag = r.project_name || r.project || r.sup || '';
+      var tag = r.project_name || r.project || '';
       if (tag) sub += ' · <em>' + esc(tag) + '</em>';
       var noPhone = hasNoPhone(r);
       var missing = hasMissingData(r);
@@ -345,12 +371,11 @@
           '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
           '</span>';
       }
-      var c = avColor(r);
       // No phone: blocked. Missing data: selectable but unchecked by default.
       var checked = !noPhone && !missing;
       return '<div class="wa-row' + (noPhone ? ' is-err' : '') + (missing ? ' is-warn' : '') + '" data-id="' + r.id + '"' + (noPhone ? ' data-blocked="1"' : '') + '>' +
         '<input type="checkbox"' + (noPhone ? ' disabled title="' + esc(tip) + '"' : (checked ? ' checked' : '')) + (missing && tip ? ' title="' + esc(tip) + '"' : '') + '>' +
-        '<div class="wa-av" data-ini="' + esc(r.ini || 'R') + '" style="background:' + c[0] + ';color:' + c[1] + '"><span class="ra-av-ini">' + esc(r.ini || 'R') + '</span></div>' +
+        avatarHtml(r) +
         '<div class="wa-tx"><b title="' + esc(r.phone ? '+' + r.phone : 'No phone') + '">' + esc(r.name) + '</b><small>' + sub + '</small>' +
         '<span class="wa-chips">' + chips + '</span></div></div>';
     }).join('');

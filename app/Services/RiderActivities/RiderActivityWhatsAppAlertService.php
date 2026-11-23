@@ -3,6 +3,7 @@
 namespace App\Services\RiderActivities;
 
 use App\Models\Company;
+use App\Models\Customers;
 use App\Models\liveactivities;
 use App\Models\RiderActivities;
 use App\Models\Riders;
@@ -77,22 +78,36 @@ class RiderActivityWhatsAppAlertService
         $referenceDate = $resolved['reference_date'];
         $matched = $resolved['rows']; // list of [id, days_absent?, hours?, orders?]
 
-        $riderIds = array_map(fn ($r) => (int) $r['id'], $matched);
-        $riders = Riders::query()
-            ->whereIn('id', $riderIds ?: [0])
-            ->get([
-                'id', 'rider_id', 'name', 'fleet_supervisor',
-                'personal_contact', 'company_contact', 'image_name',
-            ])
-            ->keyBy('id');
+        $riderIds = array_values(array_unique(array_map(fn ($r) => (int) $r['id'], $matched)));
+        $riders = $riderIds === []
+            ? collect()
+            : Riders::query()
+                ->whereIn('id', $riderIds)
+                ->get([
+                    'id', 'rider_id', 'name', 'fleet_supervisor', 'customer_id',
+                    'personal_contact', 'company_contact', 'image_name',
+                ])
+                ->keyBy('id');
 
-        $lastWorked = $this->insights->lastWorkedMap();
+        $customerIds = $riders->pluck('customer_id')->filter()->unique()->values()->all();
+        $projectNames = $customerIds === []
+            ? collect()
+            : Customers::query()->whereIn('id', $customerIds)->pluck('name', 'id');
+
+        $lastWorked = $this->insights->lastWorkedMap($riderIds);
+
+        $triggerKeys = array_map(fn ($type) => 'rider_activity:'.$type['key'], $typeDefs);
+        $resolvedBindings = $this->bindings->resolveMany($triggerKeys);
 
         $bindings = [];
         $typesPayload = [];
         foreach ($typeDefs as $type) {
             $trigger = 'rider_activity:'.$type['key'];
-            $bindingResolved = $this->bindings->resolve($trigger);
+            $bindingResolved = $resolvedBindings[$trigger] ?? [
+                'ready' => false,
+                'message' => null,
+                'template' => null,
+            ];
             $template = ($bindingResolved['ready'] ?? false) && ($bindingResolved['template'] instanceof WhatsAppTemplate)
                 ? $bindingResolved['template']
                 : null;
@@ -109,11 +124,10 @@ class RiderActivityWhatsAppAlertService
 
         $trigger = 'rider_activity:'.$alertType;
         $template = ! empty($bindings[$alertType]['bound'])
-            ? $this->bindings->resolve($trigger)['template'] ?? null
+            ? (($resolvedBindings[$trigger]['template'] ?? null) instanceof WhatsAppTemplate
+                ? $resolvedBindings[$trigger]['template']
+                : null)
             : null;
-        if (! $template instanceof WhatsAppTemplate) {
-            $template = null;
-        }
 
         $rows = [];
         foreach ($matched as $meta) {
@@ -126,7 +140,8 @@ class RiderActivityWhatsAppAlertService
                 $lastWorked,
                 $companyName,
                 $referenceDate,
-                isset($meta['days_absent']) ? (int) $meta['days_absent'] : $daysThreshold
+                isset($meta['days_absent']) ? (int) $meta['days_absent'] : $daysThreshold,
+                (string) ($projectNames[(int) ($rider->customer_id ?? 0)] ?? '')
             );
             if (isset($meta['hours'])) {
                 $row['hours'] = (string) $meta['hours'];
@@ -210,13 +225,14 @@ class RiderActivityWhatsAppAlertService
         ?Carbon $alertDate = null
     ): array {
         $activeRiders = $this->activeRidersScoped($projectId, $supervisor);
+        $activeIds = $activeRiders->pluck('id')->map(fn ($id) => (int) $id)->all();
 
         if ($mode === 'live') {
             // Live hours/orders are always locked to today.
             $reference = in_array($alertType, ['lhrs', 'lord'], true)
                 ? Carbon::today()->startOfDay()
                 : $this->insights->resolveLiveReferenceDate(request());
-            $byRider = $this->dayActivityByRider($reference, true);
+            $byRider = $this->dayActivityByRider($reference, true, $activeIds);
             $refStr = $reference->toDateString();
 
             return match ($alertType) {
@@ -250,8 +266,11 @@ class RiderActivityWhatsAppAlertService
             $reference = $this->insights->resolveReferenceDate(request());
         }
         $refStr = $reference->toDateString();
-        $byRider = $this->dayActivityByRider($reference, false);
-        $lastWorked = $this->insights->lastWorkedMap();
+        $byRider = $this->dayActivityByRider($reference, false, $activeIds);
+        $needsLastWorked = in_array($alertType, ['abs', 'off', 'off2', 'off4', 'off6'], true);
+        $lastWorked = $needsLastWorked
+            ? $this->insights->lastWorkedMap($activeIds)
+            : collect();
 
         if (in_array($alertType, ['abs', 'labs'], true)) {
             $rows = [];
@@ -387,14 +406,26 @@ class RiderActivityWhatsAppAlertService
     /**
      * @return array<int, object{rider_id:int,login_hr:float,delivered_orders:int}>
      */
-    private function dayActivityByRider(Carbon $date, bool $live): array
+    /**
+     * @param  list<int>|null  $riderIds
+     * @return array<int, object>
+     */
+    private function dayActivityByRider(Carbon $date, bool $live, ?array $riderIds = null): array
     {
+        if (is_array($riderIds) && $riderIds === []) {
+            return [];
+        }
+
         $query = $live
             ? liveactivities::query()->whereDate('date', $date->toDateString())
             : RiderActivities::query()->whereDate('date', $date->toDateString());
 
-        $rows = $query->whereNotNull('rider_id')
-            ->get(['rider_id', 'login_hr', 'delivered_orders']);
+        $query->whereNotNull('rider_id');
+        if (is_array($riderIds)) {
+            $query->whereIn('rider_id', $riderIds);
+        }
+
+        $rows = $query->get(['rider_id', 'login_hr', 'delivered_orders']);
 
         $out = [];
         foreach ($rows->groupBy('rider_id') as $riderId => $group) {
@@ -467,8 +498,14 @@ class RiderActivityWhatsAppAlertService
      * @param  Collection<int, object>|null  $lastWorked
      * @return array<string, mixed>
      */
-    private function riderRow($rider, $lastWorked, string $companyName, ?string $referenceDate, int $daysAbsent): array
-    {
+    private function riderRow(
+        $rider,
+        $lastWorked,
+        string $companyName,
+        ?string $referenceDate,
+        int $daysAbsent,
+        string $projectName = ''
+    ): array {
         $phoneRaw = $rider->company_contact ?: $rider->personal_contact;
         $phone = PhoneNumber::toWhatsAppDigits(is_string($phoneRaw) ? $phoneRaw : null);
         $last = $lastWorked?->get((int) $rider->id);
@@ -497,13 +534,20 @@ class RiderActivityWhatsAppAlertService
             }
         }
 
+        $imageName = trim((string) ($rider->image_name ?? ''));
+        $photo = ($imageName !== '' && ! in_array(strtolower($imageName), ['default.png', 'default.jpg'], true))
+            ? (storage_url('profile/'.$imageName) ?: null)
+            : null;
+
         return [
             'id' => (int) $rider->id,
             'code' => (string) ($rider->rider_id ?? $rider->id),
             'name' => (string) $rider->name,
             'sup' => (string) ($rider->fleet_supervisor ?? ''),
+            'project_name' => $projectName,
             'phone' => PhoneNumber::isValidWhatsAppDigits($phone) ? $phone : '',
             'ini' => $initials !== '' ? $initials : 'R',
+            'photo' => $photo,
             'days_absent' => $daysAbsent,
             'last_date' => $lastDate ?: '—',
             'last_worked_date' => $lastDate,

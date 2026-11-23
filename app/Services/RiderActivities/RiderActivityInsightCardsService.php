@@ -734,12 +734,24 @@ class RiderActivityInsightCardsService
     /**
      * @return Collection<int, string>
      */
-    public function lastWorkedMap(): Collection
+    /**
+     * @param  list<int>|null  $riderIds  When set, only these riders are scanned.
+     */
+    public function lastWorkedMap(?array $riderIds = null): Collection
     {
-        return RiderActivities::query()
+        if (is_array($riderIds) && $riderIds === []) {
+            return collect();
+        }
+
+        $query = RiderActivities::query()
             ->select('rider_id', DB::raw('MAX(date) as last_login'))
             ->whereNotNull('rider_id')
-            ->where('login_hr', '>', 0)
+            ->where('login_hr', '>', 0);
+        if (is_array($riderIds)) {
+            $query->whereIn('rider_id', $riderIds);
+        }
+
+        return $query
             ->groupBy('rider_id')
             ->pluck('last_login', 'rider_id');
     }

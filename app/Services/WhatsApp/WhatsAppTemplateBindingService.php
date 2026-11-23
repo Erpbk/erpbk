@@ -18,52 +18,91 @@ class WhatsAppTemplateBindingService
             return ['ready' => false, 'message' => 'Trigger key is required.', 'binding' => null, 'template' => null];
         }
 
-        $binding = WhatsAppTemplateBinding::query()
-            ->with(['template'])
-            ->where('trigger_key', $triggerKey)
-            ->first();
+        $map = $this->resolveMany([$triggerKey]);
 
-        if (! $binding) {
-            return [
+        return $map[$triggerKey] ?? [
+            'ready' => false,
+            'message' => "No WhatsApp template bound for [{$triggerKey}].",
+            'binding' => null,
+            'template' => null,
+        ];
+    }
+
+    /**
+     * Resolve several trigger keys in one bindings query.
+     *
+     * @param  list<string>  $triggerKeys
+     * @return array<string, array{ready: bool, message?: string, binding?: WhatsAppTemplateBinding|null, template?: WhatsAppTemplate|null, connection_id?: int|null}>
+     */
+    public function resolveMany(array $triggerKeys): array
+    {
+        $keys = [];
+        foreach ($triggerKeys as $key) {
+            $key = trim((string) $key);
+            if ($key !== '') {
+                $keys[$key] = true;
+            }
+        }
+        $keys = array_keys($keys);
+        $out = [];
+        foreach ($keys as $key) {
+            $out[$key] = [
                 'ready' => false,
-                'message' => "No WhatsApp template bound for [{$triggerKey}].",
+                'message' => "No WhatsApp template bound for [{$key}].",
                 'binding' => null,
                 'template' => null,
             ];
         }
-
-        $template = $binding->template;
-        if (! $template instanceof WhatsAppTemplate || ! $template->isActive()) {
-            return [
-                'ready' => false,
-                'message' => "Bound WhatsApp template for [{$triggerKey}] is missing or inactive.",
-                'binding' => $binding,
-                'template' => null,
-            ];
+        if ($keys === []) {
+            return $out;
         }
 
-        // Injection config must exist for this Meta name.
-        $injection = app(WhatsAppTemplateInjector::class)
-            ->injectionFor($template->name, $template->language ?: 'en');
-        if ($injection === null) {
-            return [
-                'ready' => false,
-                'message' => "No injection config for bound template [{$template->name}].",
+        $bindings = WhatsAppTemplateBinding::query()
+            ->with(['template'])
+            ->whereIn('trigger_key', $keys)
+            ->get()
+            ->keyBy('trigger_key');
+
+        $injector = app(WhatsAppTemplateInjector::class);
+        foreach ($keys as $key) {
+            $binding = $bindings->get($key);
+            if (! $binding) {
+                continue;
+            }
+
+            $template = $binding->template;
+            if (! $template instanceof WhatsAppTemplate || ! $template->isActive()) {
+                $out[$key] = [
+                    'ready' => false,
+                    'message' => "Bound WhatsApp template for [{$key}] is missing or inactive.",
+                    'binding' => $binding,
+                    'template' => null,
+                ];
+                continue;
+            }
+
+            $injection = $injector->injectionFor($template->name, $template->language ?: 'en');
+            if ($injection === null) {
+                $out[$key] = [
+                    'ready' => false,
+                    'message' => "No injection config for bound template [{$template->name}].",
+                    'binding' => $binding,
+                    'template' => $template,
+                ];
+                continue;
+            }
+
+            $out[$key] = [
+                'ready' => true,
                 'binding' => $binding,
                 'template' => $template,
+                'connection_id' => $binding->whatsapp_connection_id
+                    ? (int) $binding->whatsapp_connection_id
+                    : null,
             ];
         }
 
-        $connectionId = $binding->whatsapp_connection_id
-            ? (int) $binding->whatsapp_connection_id
-            : null;
-
-        return [
-            'ready' => true,
-            'binding' => $binding,
-            'template' => $template,
-            'connection_id' => $connectionId,
-        ];
+        return $out;
     }
 
     /**

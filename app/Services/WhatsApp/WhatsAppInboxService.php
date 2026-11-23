@@ -55,25 +55,28 @@ class WhatsAppInboxService
      */
     public function typeFilters(User $user, int $companyId): array
     {
-        // Distinct threads only — avoid loading every message row into PHP.
-        $threads = $this->visiblePeersQuery($user, $companyId)
-            ->select('peer_phone', 'participant_type', 'participant_id')
-            ->distinct()
-            ->get();
+        // Collapse to one row per thread in SQL, then count by morph in PHP.
+        $threadMorphs = $this->visiblePeersQuery($user, $companyId)
+            ->select('participant_type')
+            ->groupBy('peer_phone', 'participant_type', 'participant_id')
+            ->pluck('participant_type');
 
-        $threadsByType = $threads->groupBy(function (WhatsAppMessage $m) {
-            return WhatsAppRecipientTypes::keyForMorph($m->participant_type) ?? WhatsAppRecipientTypes::UNKNOWN;
-        });
+        $countsByType = [];
+        foreach ($threadMorphs as $morph) {
+            $key = WhatsAppRecipientTypes::keyForMorph($morph) ?? WhatsAppRecipientTypes::UNKNOWN;
+            $countsByType[$key] = ($countsByType[$key] ?? 0) + 1;
+        }
 
+        $total = array_sum($countsByType);
         $filters = [
             [
                 'key' => 'all',
                 'label' => 'All',
-                'count' => $threads->count(),
+                'count' => $total,
             ],
         ];
         foreach (WhatsAppRecipientTypes::filterKeys() as $key) {
-            $count = isset($threadsByType[$key]) ? $threadsByType[$key]->count() : 0;
+            $count = (int) ($countsByType[$key] ?? 0);
             if ($count > 0) {
                 $filters[] = [
                     'key' => $key,
@@ -116,7 +119,10 @@ class WhatsAppInboxService
         $latests = WhatsAppMessage::query()
             ->whereIn('id', $tipIds)
             ->with(['participant'])
-            ->get()
+            ->get([
+                'id', 'peer_phone', 'participant_type', 'participant_id', 'participant_conflict',
+                'body', 'message_type', 'is_system', 'occurred_at',
+            ])
             ->keyBy('id');
 
         $unreadByKey = $this->unreadCountsByThread($user, $companyId, $typeKey, $nameSearch, $participantId);
@@ -135,12 +141,14 @@ class WhatsAppInboxService
             $key = $this->threadKey($peer, $pType, $pId);
 
             [$label, $trashed] = $this->formatPeerHeader($latest, $peer, false);
+            $participant = $latest->participant;
 
             $rows[] = [
                 'thread_key' => $key,
                 'peer_phone' => $peer,
                 'label' => $label,
                 'trashed' => $trashed,
+                'photo' => WhatsAppRecipientTypes::photoUrl($participant),
                 'last_body' => $latest->is_system
                     ? (string) $latest->body
                     : ($latest->body ?: ($latest->message_type ?: '')),
@@ -283,7 +291,10 @@ class WhatsAppInboxService
             ->where('company_id', $companyId)
             ->where('peer_phone', $peerPhone)
             ->where('user_id', $user->id)
-            ->with(['user:id,name', 'participant', 'connection'])
+            // Incremental polls only need owner names for gap lines; skip morph/connection.
+            ->with($afterId
+                ? ['user:id,name']
+                : ['user:id,name', 'participant', 'connection'])
             ->when($afterId, fn ($q) => $q->where('id', '>', $afterId));
         $this->applyParticipantScope($messagesQuery, $participantType, $participantId);
 
@@ -322,13 +333,20 @@ class WhatsAppInboxService
                 'label' => method_exists($c, 'displayLabel') ? $c->displayLabel() : ($c->label ?: $c->display_phone_number),
             ])->values()->all();
 
-        $openByConnection = [];
-        foreach ($sendFrom as $conn) {
-            // Meta 24h window is phone-level; any inbound on this number opens it.
-            $openByConnection[$conn['id']] = $this->hasOpenWindow($companyId, $peerPhone, (int) $conn['id']);
-        }
+        $connectionIds = array_map(fn ($c) => (int) $c['id'], $sendFrom);
+        $openByConnection = $this->openWindowsByConnection($companyId, $peerPhone, $connectionIds);
 
-        [$peerLabel, $trashed] = $this->formatPeerHeader($latest, $peerPhone);
+        // Full opens resolve peer meta; incremental polls keep the client header as-is.
+        $peerLabel = '';
+        $trashed = false;
+        $photo = null;
+        if (! $afterId) {
+            [$peerLabel, $trashed] = $this->formatPeerHeader($latest, $peerPhone);
+            $photo = $this->participantPhoto($latest, $participantType, $participantId);
+        } elseif ($latest) {
+            [$peerLabel, $trashed] = $this->formatPeerHeader($latest, $peerPhone);
+            $photo = $this->participantPhoto($latest, $participantType, $participantId);
+        }
 
         return [
             'items' => $items,
@@ -338,11 +356,40 @@ class WhatsAppInboxService
             'conflict' => $conflict,
             'peer_label' => $peerLabel,
             'trashed' => $trashed,
+            'photo' => $photo,
             'peer_phone' => $peerPhone,
             'participant_type' => $participantType,
             'participant_id' => $participantId,
             'thread_key' => $this->threadKey($peerPhone, $participantType, $participantId),
         ];
+    }
+
+    private function participantPhoto(
+        ?WhatsAppMessage $latest,
+        ?string $participantType = null,
+        ?int $participantId = null
+    ): ?string {
+        $participant = $latest?->participant;
+        if ($participant) {
+            return WhatsAppRecipientTypes::photoUrl($participant);
+        }
+
+        $type = $participantType ?: $latest?->participant_type;
+        $id = $participantId ?: ($latest?->participant_id ? (int) $latest->participant_id : null);
+        if (! $type || ! $id) {
+            return null;
+        }
+
+        $key = WhatsAppRecipientTypes::keyForMorph($type);
+        if (! $key) {
+            return null;
+        }
+        $query = WhatsAppRecipientTypes::baseQuery($key);
+        if (! $query) {
+            return null;
+        }
+
+        return WhatsAppRecipientTypes::photoUrl($query->withoutGlobalScope('company')->whereKey($id)->first());
     }
 
     /**
@@ -423,15 +470,46 @@ class WhatsAppInboxService
 
     public function hasOpenWindow(int $companyId, string $peerPhone, int $connectionId): bool
     {
-        $peerPhone = PhoneNumber::toWhatsAppDigits($peerPhone) ?? $peerPhone;
+        $map = $this->openWindowsByConnection($companyId, $peerPhone, [$connectionId]);
 
-        return WhatsAppMessage::query()
+        return (bool) ($map[$connectionId] ?? false);
+    }
+
+    /**
+     * Batch 24h inbound-window checks (one query for all send-from connections).
+     *
+     * @param  list<int>  $connectionIds
+     * @return array<int, bool> connection_id => open
+     */
+    public function openWindowsByConnection(int $companyId, string $peerPhone, array $connectionIds): array
+    {
+        $peerPhone = PhoneNumber::toWhatsAppDigits($peerPhone) ?? $peerPhone;
+        $connectionIds = array_values(array_unique(array_filter(
+            array_map('intval', $connectionIds),
+            fn (int $id) => $id > 0
+        )));
+
+        $open = array_fill_keys($connectionIds, false);
+        if ($connectionIds === [] || $peerPhone === '') {
+            return $open;
+        }
+
+        $openIds = WhatsAppMessage::query()
             ->where('company_id', $companyId)
             ->where('peer_phone', $peerPhone)
-            ->where('whatsapp_connection_id', $connectionId)
+            ->whereIn('whatsapp_connection_id', $connectionIds)
             ->where('direction', WhatsAppMessage::DIRECTION_IN)
             ->where('occurred_at', '>=', now()->subHours(24))
-            ->exists();
+            ->distinct()
+            ->pluck('whatsapp_connection_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        foreach ($openIds as $id) {
+            $open[$id] = true;
+        }
+
+        return $open;
     }
 
     /**

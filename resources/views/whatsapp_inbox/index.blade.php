@@ -20,7 +20,7 @@
     return mb_strtoupper($ini !== '' ? $ini : '?');
   };
 @endphp
-<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261123-wa-inbox">
+<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261123-wa-av">
 <style>
   /* Inbox page chrome: slim header, full-bleed body */
   .wa-inbox-page .content-header { padding-top: 8px; padding-bottom: 8px; }
@@ -77,9 +77,17 @@
                   data-tkey="{{ $tkey }}"
                   data-ptype="{{ $c['participant_type'] ?? '' }}"
                   data-pid="{{ $c['participant_id'] ?? '' }}"
+                  data-photo="{{ $c['photo'] ?? '' }}"
                   data-unread="{{ $unread }}"
                   data-last-at="{{ $c['last_at'] ?? '' }}">
-            <div class="wa-av">{{ $waInitials($c['label']) }}</div>
+            <div class="wa-av" data-ini="{{ $waInitials($c['label']) }}">
+              <span class="ra-av-ini">{{ $waInitials($c['label']) }}</span>
+              @if(!empty($c['photo']))
+                <img src="{{ $c['photo'] }}" alt="" loading="lazy"
+                     onload="this.parentElement.classList.add('has-img')"
+                     onerror="this.remove()">
+              @endif
+            </div>
             <div class="wa-tx">
               <div class="wa-inbox-row-top">
                 <b>{{ $c['label'] }}@if(!empty($c['trashed'])) <span class="text-danger">(trash)</span>@endif</b>
@@ -98,7 +106,7 @@
 
     <div class="wa-inbox-main">
       <div class="wa-ch">
-        <div class="wa-av" id="waPeerAv">WA</div>
+        <div class="wa-av" id="waPeerAv" data-ini="WA"><span class="ra-av-ini">WA</span></div>
         <div class="who">
           <b id="waPeerLabel">Select a conversation</b>
           <small id="waPeerPhone"></small>
@@ -203,11 +211,14 @@
   }
 
   function threadRefFromRow(el) {
+    const nameEl = el.querySelector('.wa-inbox-row-top b');
     return {
       peer_phone: el.dataset.peer || '',
       participant_type: el.dataset.ptype || null,
       participant_id: el.dataset.pid ? +el.dataset.pid : null,
-      thread_key: el.dataset.tkey || null
+      thread_key: el.dataset.tkey || null,
+      photo: el.dataset.photo || '',
+      label: nameEl ? nameEl.textContent.replace(/\s*\(trash\)\s*$/i, '').trim() : ''
     };
   }
 
@@ -258,6 +269,35 @@
     });
   }
 
+  function avatarMarkup(label, photo) {
+    const ini = initialsOf(label);
+    let html = '<div class="wa-av" data-ini="' + escapeHtml(ini) + '"><span class="ra-av-ini">' + escapeHtml(ini) + '</span>';
+    if (photo) {
+      html += '<img src="' + escapeHtml(photo) + '" alt="" loading="lazy"'
+        + ' onload="this.parentElement.classList.add(\'has-img\')"'
+        + ' onerror="this.remove()">';
+    }
+    return html + '</div>';
+  }
+
+  function setPeerAvatar(label, photo) {
+    const avEl = document.getElementById('waPeerAv');
+    if (!avEl) return;
+    const ini = initialsOf(label);
+    avEl.setAttribute('data-ini', ini);
+    avEl.classList.remove('has-img');
+    avEl.innerHTML = '<span class="ra-av-ini">' + escapeHtml(ini) + '</span>';
+    if (photo) {
+      const img = document.createElement('img');
+      img.src = photo;
+      img.alt = '';
+      img.loading = 'lazy';
+      img.onload = () => avEl.classList.add('has-img');
+      img.onerror = () => img.remove();
+      avEl.appendChild(img);
+    }
+  }
+
   function renderConversationRow(c) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -272,12 +312,13 @@
     btn.dataset.tkey = tkey;
     btn.dataset.ptype = c.participant_type || '';
     btn.dataset.pid = c.participant_id || '';
+    btn.dataset.photo = c.photo || '';
     btn.dataset.unread = String(showUnread);
     btn.dataset.lastAt = c.last_at || '';
     const unreadHtml = showUnread > 0
       ? ('<span class="wa-unread">' + (showUnread > 99 ? '99+' : showUnread) + '</span>')
       : '';
-    btn.innerHTML = '<div class="wa-av">' + escapeHtml(initialsOf(c.label)) + '</div>'
+    btn.innerHTML = avatarMarkup(c.label, c.photo || '')
       + '<div class="wa-tx"><div class="wa-inbox-row-top"><b>' + escapeHtml(c.label)
       + (c.trashed ? ' <span class="text-danger">(trash)</span>' : '')
       + '</b>' + unreadHtml + '</div><small>' + escapeHtml(c.last_body || '') + '</small></div>';
@@ -331,6 +372,8 @@
     if (type && type !== 'all') url.searchParams.set('type', type);
     if (q) url.searchParams.set('q', q);
     if (participantIdFilter) url.searchParams.set('participant_id', participantIdFilter);
+    // Polls skip the distinct filter-count scan unless explicitly requested.
+    if (opts.includeFilters === false) url.searchParams.set('include_filters', '0');
     const res = await fetch(url, { headers: headers(), credentials: 'same-origin' });
     if (!res.ok) return;
     const data = await res.json();
@@ -379,6 +422,15 @@
     participantId = pId || null;
     threadKey = tkey;
 
+    if (typeof ref !== 'string') {
+      const earlyLabel = ref.label || peerPhone;
+      const earlyPhoto = ref.photo || '';
+      if (earlyLabel) {
+        document.getElementById('waPeerLabel').textContent = earlyLabel;
+        setPeerAvatar(earlyLabel, earlyPhoto);
+      }
+    }
+
     document.querySelectorAll('.wa-inbox-row').forEach(el => {
       const isOn = el.dataset.tkey === threadKey;
       el.classList.toggle('on', isOn);
@@ -407,13 +459,17 @@
     }
     // Ignore stale responses if the user switched chats mid-flight.
     if (threadKey !== tkey) return;
-    document.getElementById('waPeerLabel').textContent = data.peer_label || peerPhone;
-    const phoneEl = document.getElementById('waPeerPhone');
-    if (phoneEl) phoneEl.textContent = peerPhone;
-    const avEl = document.getElementById('waPeerAv');
-    if (avEl) avEl.textContent = initialsOf(data.peer_label || peerPhone);
     openByConn = data.open_window_by_connection || {};
-    renderConflict(data.conflict);
+    // Incremental polls keep the existing header; full opens refresh peer meta.
+    if (!afterId) {
+      document.getElementById('waPeerLabel').textContent = data.peer_label || peerPhone;
+      const phoneEl = document.getElementById('waPeerPhone');
+      if (phoneEl) phoneEl.textContent = peerPhone;
+      setPeerAvatar(data.peer_label || peerPhone, data.photo || '');
+      renderConflict(data.conflict);
+    } else if (data.conflict) {
+      renderConflict(data.conflict);
+    }
     // Poll/background refresh: keep place if user scrolled up. User open/send: stick to end.
     const scrollMode = opts.scrollMode || 'end';
     const anchor = scrollMode === 'preserve' ? captureChatAnchor() : { mode: 'end' };
@@ -753,17 +809,19 @@
     document.getElementById('waSend').disabled = !open || !peer;
   }
 
+  let pollTick = 0;
   function startPoll() {
     stopPoll();
-    // Always refresh sidebar/filters; also refresh the open thread.
-    // List uses batched queries; skip DOM rewrite when signature unchanged.
+    // Sidebar + incremental thread deltas. Full filter counts every ~30s.
     pollTimer = setInterval(async () => {
       if (document.visibilityState === 'hidden' || pollInFlight) return;
       pollInFlight = true;
+      pollTick += 1;
       try {
         await loadList(activeType, searchQuery || null, searchParticipantId, {
           skipIfUnchanged: true,
-          scrollMode: 'preserve'
+          scrollMode: 'preserve',
+          includeFilters: (pollTick % 6) === 0
         });
         if (peer && threadKey) {
           await openThread({
@@ -771,7 +829,7 @@
             participant_type: participantType,
             participant_id: participantId,
             thread_key: threadKey
-          }, null, { restartPoll: false, scrollMode: 'preserve' });
+          }, lastId > 0 ? lastId : null, { restartPoll: false, scrollMode: 'preserve' });
         }
       } finally {
         pollInFlight = false;

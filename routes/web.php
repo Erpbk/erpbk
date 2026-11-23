@@ -811,6 +811,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('whatsapp/inbox/transfer', [\App\Http\Controllers\WhatsAppInboxController::class, 'transfer'])->name('whatsapp.inbox.transfer');
     Route::delete('whatsapp/inbox', [\App\Http\Controllers\WhatsAppInboxController::class, 'destroy'])->name('whatsapp.inbox.destroy');
     Route::post('whatsapp/inbox/conflict', [\App\Http\Controllers\WhatsAppInboxController::class, 'resolveConflict'])->name('whatsapp.inbox.conflict');
+    Route::get('whatsapp/ui-prefs', [\App\Http\Controllers\WhatsAppUiPreferencesController::class, 'show'])->name('whatsapp.ui_prefs');
+    Route::post('whatsapp/ui-prefs', [\App\Http\Controllers\WhatsAppUiPreferencesController::class, 'update'])->name('whatsapp.ui_prefs.update');
     Route::any('rider/activities-import', [RiderActivitiesController::class, 'import'])->name('rider.activities_import');
     Route::any('rider/activities-import/page', [RiderActivitiesController::class, 'importPage'])->name('rider.activities_import_page');
     Route::post('rider/activities-import/preview', [RiderActivitiesController::class, 'previewImport'])->name('rider.activities_import_preview');

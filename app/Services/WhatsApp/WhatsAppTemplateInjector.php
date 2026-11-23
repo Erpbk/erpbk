@@ -10,7 +10,8 @@ class WhatsAppTemplateInjector
 {
     /**
      * Build Meta template components from config injections + typed context.
-     * Fail-closed: returns ok=false when any required inject is missing.
+     * Fail-closed when any required inject is missing, unless $missingPlaceholder
+     * is provided (e.g. "-") — then missing values are filled with that string.
      *
      * @return array{
      *   ok: bool,
@@ -21,7 +22,7 @@ class WhatsAppTemplateInjector
      *   language?: string
      * }
      */
-    public function build(WhatsAppTemplate $template, WhatsAppSendContext $context): array
+    public function build(WhatsAppTemplate $template, WhatsAppSendContext $context, ?string $missingPlaceholder = null): array
     {
         $name = trim((string) $template->name);
         $language = trim((string) ($template->language ?: 'en')) ?: 'en';
@@ -71,7 +72,10 @@ class WhatsAppTemplateInjector
             $value = $context->get($injectKey);
             if ($value === null) {
                 $missingInjects[] = $injectKey;
-                continue;
+                if ($missingPlaceholder === null) {
+                    continue;
+                }
+                $value = $missingPlaceholder;
             }
 
             $component = strtolower(trim((string) ($row['component'] ?? 'body'))) ?: 'body';
@@ -100,13 +104,16 @@ class WhatsAppTemplateInjector
             $byComponent[$component][] = $param;
         }
 
+        $missingInjects = array_values(array_unique($missingInjects));
         if ($missingInjects !== []) {
-            $missingInjects = array_values(array_unique($missingInjects));
             Log::info('whatsapp.inject_missing', [
                 'template' => $name,
                 'injects' => $missingInjects,
+                'filled_with' => $missingPlaceholder,
             ]);
+        }
 
+        if ($missingInjects !== [] && $missingPlaceholder === null) {
             return [
                 'ok' => false,
                 'error' => 'Missing required inject value(s): '.implode(', ', $missingInjects).'.',
@@ -135,7 +142,7 @@ class WhatsAppTemplateInjector
         return [
             'ok' => true,
             'components' => $components,
-            'missing_injects' => [],
+            'missing_injects' => $missingInjects,
             'template_name' => $name,
             'language' => $language,
         ];
@@ -144,9 +151,9 @@ class WhatsAppTemplateInjector
     /**
      * Preview body text by substituting inject values into body_preview or parameter list.
      */
-    public function previewText(WhatsAppTemplate $template, WhatsAppSendContext $context): ?string
+    public function previewText(WhatsAppTemplate $template, WhatsAppSendContext $context, ?string $missingPlaceholder = null): ?string
     {
-        $payload = $this->previewPayload($template, $context);
+        $payload = $this->previewPayload($template, $context, $missingPlaceholder);
 
         return $payload['text'] ?? null;
     }
@@ -160,9 +167,9 @@ class WhatsAppTemplateInjector
      *   error: ?string
      * }
      */
-    public function previewPayload(WhatsAppTemplate $template, WhatsAppSendContext $context): array
+    public function previewPayload(WhatsAppTemplate $template, WhatsAppSendContext $context, ?string $missingPlaceholder = null): array
     {
-        $built = $this->build($template, $context);
+        $built = $this->build($template, $context, $missingPlaceholder);
         $missing = is_array($built['missing_injects'] ?? null) ? $built['missing_injects'] : [];
         $labelsMap = config('whatsapp_templates.inject_keys', []);
         $labels = [];
@@ -191,7 +198,10 @@ class WhatsAppTemplateInjector
                 }
                 $param = trim((string) ($row['parameter_name'] ?? ''));
                 $inject = trim((string) ($row['inject'] ?? ''));
-                $value = $context->get($inject) ?? '';
+                $value = $context->get($inject);
+                if ($value === null) {
+                    $value = $missingPlaceholder ?? '';
+                }
                 if ($param !== '') {
                     $preview = str_replace('{{'.$param.'}}', $value, $preview);
                 }
@@ -200,8 +210,8 @@ class WhatsAppTemplateInjector
             return [
                 'ok' => true,
                 'text' => $preview,
-                'missing_injects' => [],
-                'missing_inject_labels' => [],
+                'missing_injects' => $missing,
+                'missing_inject_labels' => $labels,
                 'error' => null,
             ];
         }
@@ -215,9 +225,9 @@ class WhatsAppTemplateInjector
 
         return [
             'ok' => true,
-            'text' => implode(' · ', array_filter($parts)),
-            'missing_injects' => [],
-            'missing_inject_labels' => [],
+            'text' => implode(' · ', array_filter($parts, fn ($p) => $p !== '')),
+            'missing_injects' => $missing,
+            'missing_inject_labels' => $labels,
             'error' => null,
         ];
     }

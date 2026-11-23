@@ -452,7 +452,8 @@ class RiderActivityWhatsAppAlertService
             return $row;
         }
 
-        $payload = $this->injector->previewPayload($template, $context);
+        // Rider alerts fill blank injects with "-" so preview/send still work.
+        $payload = $this->injector->previewPayload($template, $context, '-');
         $row['preview_ok'] = (bool) ($payload['ok'] ?? false);
         $row['preview_text'] = $payload['text'] ?? null;
         $row['missing_injects'] = $payload['missing_injects'] ?? [];

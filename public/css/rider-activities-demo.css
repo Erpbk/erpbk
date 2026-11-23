@@ -1099,63 +1099,8 @@
   overflow: auto;
 }
 
-/* WhatsApp alerts drawer */
-#raWaOv {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.4);
-  z-index: 1090;
-}
+/* WhatsApp alerts drawer shell/header styles moved to public/css/whatsapp-ui.css */
 
-#raWaDrawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  height: 100vh;
-  width: min(980px, 96vw);
-  background: #fff;
-  z-index: 1091;
-  display: flex;
-  flex-direction: column;
-  box-shadow: -10px 0 30px rgba(15, 23, 42, 0.18);
-  font-family: var(--ra-font, Inter, system-ui, sans-serif);
-}
-
-#raWaDrawer .hd {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-#raWaDrawer .hd h3 {
-  margin: 0;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-#raWaDrawer .hd .tag {
-  font-size: 11px;
-  font-weight: 700;
-  background: #fef3c7;
-  color: #b45309;
-  border-radius: 999px;
-  padding: 2px 9px;
-}
-
-#raWaDrawer .hd .x {
-  margin-left: auto;
-  border: 0;
-  background: #f1f5f9;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  font-size: 18px;
-  cursor: pointer;
-}
 
 .ra-chsw {
   display: inline-flex;

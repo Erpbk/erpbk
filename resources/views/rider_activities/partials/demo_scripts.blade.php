@@ -134,11 +134,21 @@
     return (waPayload.bindings && waPayload.bindings[waType]) ? waPayload.bindings[waType] : null;
   }
 
+  var WA_AV_COLORS = [['#d9fdd3', '#008069'], ['#e7f0ff', '#1d4ed8'], ['#fff4e5', '#b45309'], ['#fde8e8', '#c81e1e'], ['#f3e8ff', '#7e22ce'], ['#e0f7fa', '#00796b']];
+
+  function avColor(r) {
+    var n = Math.abs(parseInt(r && r.id, 10) || 0);
+    return WA_AV_COLORS[n % WA_AV_COLORS.length];
+  }
+
   function setAvatar(el, r) {
     if (!el) return;
     var ini = (r && r.ini) || 'R';
+    var c = avColor(r);
     el.setAttribute('data-ini', ini);
     el.classList.remove('has-img');
+    el.style.background = c[0];
+    el.style.color = c[1];
     el.innerHTML = '<span class="ra-av-ini">' + esc(ini) + '</span>';
   }
 
@@ -155,9 +165,19 @@
     return [];
   }
 
+  function hasNoPhone(r) {
+    return !r || !String(r.phone || '').trim();
+  }
+
+  function hasMissingData(r) {
+    return !hasNoPhone(r) && missingLabels(r).length > 0;
+  }
+
   function hasPreviewError(r) {
+    // Only hard-fail when unbound or phone missing / preview truly failed.
     var b = currentBinding();
     if (!b || !b.bound || !r) return false;
+    if (hasNoPhone(r)) return true;
     if (r.preview_ok === true || r.preview_text) return false;
     return true;
   }
@@ -165,13 +185,10 @@
   function previewText(r) {
     var b = currentBinding();
     if (!b || !b.bound) return UNBOUND_MSG;
+    if (r && hasNoPhone(r)) return 'Cannot send — this rider has no phone number.';
     if (r && r.preview_text) return String(r.preview_text);
-    var missing = missingLabels(r);
-    if (missing.length) {
-      return 'Cannot send — missing: ' + missing.join(', ') + '.';
-    }
     if (r && r.preview_error) return String(r.preview_error);
-    return 'Template bound, but preview could not be built for this rider (missing inject values).';
+    return 'Template bound, but preview could not be built for this rider.';
   }
 
   function selectedFromId() {
@@ -216,7 +233,7 @@
   }
 
   function selectableCount() {
-    return document.querySelectorAll('#raWaRows .ra-wa-row:not([data-blocked]) input[type=checkbox]:checked').length;
+    return document.querySelectorAll('#raWaRows .wa-row:not([data-blocked]) input[type=checkbox]:checked').length;
   }
 
   function syncListHeader() {
@@ -250,9 +267,14 @@
     var av = document.getElementById('raWaPAv');
     var textEl = document.getElementById('raWaMsgText');
     var msgEl = document.getElementById('raWaMsgPreview');
+    var warnEl = document.getElementById('raWaMsgWarn');
     var loaded = waLoadedType === waType;
     var broken = hasPreviewError(r);
-    if (msgEl) msgEl.classList.toggle('is-err', broken);
+    var missing = hasMissingData(r);
+    if (msgEl) {
+      msgEl.classList.toggle('is-err', broken);
+      msgEl.classList.toggle('is-warn', !broken && missing);
+    }
     if (r) {
       if (nameEl) nameEl.textContent = r.name || '—';
       if (subEl) subEl.textContent = (r.phone ? ('+' + r.phone) : 'No phone') + ' · WhatsApp';
@@ -265,6 +287,16 @@
         ? 'Select a rider to preview the message.'
         : 'Hit Filter to load riders for this alert.';
     }
+    if (warnEl) {
+      if (!broken && missing) {
+        var labels = missingLabels(r);
+        warnEl.hidden = false;
+        warnEl.textContent = 'Missing data will send as "-": ' + labels.join(', ') + '.';
+      } else {
+        warnEl.hidden = true;
+        warnEl.textContent = '';
+      }
+    }
     syncSendUi();
   }
 
@@ -276,52 +308,56 @@
     var list = currentList();
     document.querySelectorAll('#raWaTypes [data-cnt]').forEach(function (el) {
       var k = el.getAttribute('data-cnt');
-      if (waLoadedType === k && waPayload.types && waPayload.types[k]) {
-        el.textContent = String(waPayload.types[k].length);
-      } else if (waLoadedType !== k) {
-        // keep previous count for other tabs until they are re-filtered
-      }
+      var rowsForType = (waPayload.types && waPayload.types[k]) ? waPayload.types[k] : null;
+      // Filtered type shows its count; other tabs reset to 0 until they are filtered.
+      el.textContent = String(rowsForType ? rowsForType.length : 0);
     });
     if (!loaded) {
       if (lh) lh.textContent = 'Hit Filter to load riders';
-      rows.innerHTML = '<div class="ra-wa-empty">Set parameters and press Filter.</div>';
+      rows.innerHTML = '<div class="wa-empty">Set parameters and press Filter.</div>';
       fillPreview(null);
       return;
     }
     if (!list.length) {
       if (lh) lh.textContent = 'Riders in this alert (0) · Selected 0';
-      rows.innerHTML = '<div class="ra-wa-empty">No riders match these filters.</div>';
+      rows.innerHTML = '<div class="wa-empty">No riders match these filters.</div>';
       fillPreview(null);
       return;
     }
     rows.innerHTML = list.map(function (r, i) {
-      var details = [esc(r.code)];
-      details.push(r.phone ? ('+' + esc(r.phone)) : 'no phone');
-      if (r.sup) details.push(esc(r.sup));
-      if (r.days_absent != null && r.days_absent !== '' && (waType === 'off' || waType === 'off2' || waType === 'off4' || waType === 'off6' || waType === 'abs')) {
-        details.push(esc(r.days_absent) + 'd off');
+      var sub = esc(r.code);
+      var tag = r.project_name || r.project || r.sup || '';
+      if (tag) sub += ' · <em>' + esc(tag) + '</em>';
+      var noPhone = hasNoPhone(r);
+      var missing = hasMissingData(r);
+      if (noPhone) sub += ' · no phone';
+      var chips = '';
+      var showDays = r.days_absent != null && r.days_absent !== '' &&
+        (waType === 'off' || waType === 'off2' || waType === 'off4' || waType === 'off6' || waType === 'abs' || waType === 'labs');
+      if (showDays) chips += '<span class="wa-chip d">' + esc(r.days_absent) + 'd off</span>';
+      if (r.hours != null && r.hours !== '') chips += '<span class="wa-chip h">' + esc(r.hours) + 'h</span>';
+      if (r.orders != null && r.orders !== '') chips += '<span class="wa-chip o">' + esc(r.orders) + ' orders</span>';
+      var tip = noPhone
+        ? 'Cannot send — no phone number'
+        : (missing ? ('Missing data will send as "-": ' + missingLabels(r).join(', ')) : '');
+      if (noPhone || missing) {
+        chips += '<span class="wa-err" title="' + esc(tip) + '" aria-label="' + esc(tip) + '">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+          '</span>';
       }
-      if (r.hours != null && r.hours !== '') details.push(esc(r.hours) + 'h');
-      if (r.orders != null && r.orders !== '') details.push(esc(r.orders) + ' orders');
-      var broken = hasPreviewError(r);
-      var tip = broken
-        ? ('Cannot send — missing: ' + (missingLabels(r).join(', ') || 'required values'))
-        : '';
-      var errIcon = broken
-        ? '<span class="ra-wa-err" title="' + esc(tip) + '" aria-label="' + esc(tip) + '">' +
-            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
-          '</span>'
-        : '';
-      return '<div class="ra-wa-row' + (i === 0 ? ' sel' : '') + (broken ? ' is-err' : '') + '" data-id="' + r.id + '"' + (broken ? ' data-blocked="1"' : '') + '>' +
-        '<input type="checkbox"' + (broken ? ' disabled title="' + esc(tip) + '"' : ' checked') + '>' +
-        '<div class="av" data-ini="' + esc(r.ini || 'R') + '"><span class="ra-av-ini">' + esc(r.ini || 'R') + '</span></div>' +
-        '<div><b>' + esc(r.name) + '</b><small>' + details.join(' · ') + '</small></div>' +
-        '<div class="rt">' + errIcon + '</div></div>';
+      var c = avColor(r);
+      // No phone: blocked. Missing data: selectable but unchecked by default.
+      var checked = !noPhone && !missing;
+      return '<div class="wa-row' + (noPhone ? ' is-err' : '') + (missing ? ' is-warn' : '') + '" data-id="' + r.id + '"' + (noPhone ? ' data-blocked="1"' : '') + '>' +
+        '<input type="checkbox"' + (noPhone ? ' disabled title="' + esc(tip) + '"' : (checked ? ' checked' : '')) + (missing && tip ? ' title="' + esc(tip) + '"' : '') + '>' +
+        '<div class="wa-av" data-ini="' + esc(r.ini || 'R') + '" style="background:' + c[0] + ';color:' + c[1] + '"><span class="ra-av-ini">' + esc(r.ini || 'R') + '</span></div>' +
+        '<div class="wa-tx"><b title="' + esc(r.phone ? '+' + r.phone : 'No phone') + '">' + esc(r.name) + '</b><small>' + sub + '</small>' +
+        '<span class="wa-chips">' + chips + '</span></div></div>';
     }).join('');
-    rows.querySelectorAll('.ra-wa-row').forEach(function (row) {
+    rows.querySelectorAll('.wa-row').forEach(function (row) {
       row.addEventListener('click', function (e) {
         if (e.target && e.target.tagName === 'INPUT') return;
-        rows.querySelectorAll('.ra-wa-row').forEach(function (x) { x.classList.remove('sel'); });
+        rows.querySelectorAll('.wa-row').forEach(function (x) { x.classList.remove('sel'); });
         row.classList.add('sel');
         var id = +row.getAttribute('data-id');
         var found = list.find(function (x) { return x.id === id; });
@@ -331,7 +367,7 @@
       if (cb && !cb.disabled) {
         cb.addEventListener('change', function () {
           if (waAll) {
-            var selectable = rows.querySelectorAll('.ra-wa-row:not([data-blocked]) input[type=checkbox]');
+            var selectable = rows.querySelectorAll('.wa-row:not([data-blocked]) input[type=checkbox]');
             waAll.checked = selectable.length > 0 && Array.prototype.every.call(selectable, function (c) { return c.checked; });
           }
           syncSendUi();
@@ -339,12 +375,18 @@
       }
     });
     if (waAll) {
-      var selectable = rows.querySelectorAll('.ra-wa-row:not([data-blocked]) input[type=checkbox]');
+      var selectable = rows.querySelectorAll('.wa-row:not([data-blocked]) input[type=checkbox]');
       waAll.checked = selectable.length > 0 && Array.prototype.every.call(selectable, function (c) { return c.checked; });
       waAll.disabled = selectable.length === 0;
     }
     syncListHeader();
-    fillPreview(list[0] || null);
+    // Prefer first rider with a phone for the initial preview selection.
+    var firstPreview = list.find(function (x) { return !hasNoPhone(x); }) || list[0] || null;
+    if (firstPreview) {
+      var firstRow = rows.querySelector('.wa-row[data-id="' + firstPreview.id + '"]');
+      if (firstRow) firstRow.classList.add('sel');
+    }
+    fillPreview(firstPreview);
   }
 
   function appendFilterParams(body) {
@@ -373,6 +415,10 @@
     if (o) {
       syncFilterFields();
       renderWaRows();
+      waPlaceRsz();
+    } else {
+      var cp = document.getElementById('raWaCust');
+      if (cp) cp.hidden = true;
     }
   }
   if (waBtn) waBtn.addEventListener('click', function () { openWa(true); });
@@ -399,7 +445,7 @@
   var waAll = document.getElementById('raWaAll');
   if (waAll) {
     waAll.addEventListener('change', function () {
-      document.querySelectorAll('#raWaRows .ra-wa-row:not([data-blocked]) input[type=checkbox]').forEach(function (c) {
+      document.querySelectorAll('#raWaRows .wa-row:not([data-blocked]) input[type=checkbox]').forEach(function (c) {
         c.checked = waAll.checked;
       });
       syncSendUi();
@@ -420,8 +466,8 @@
       var lh = document.getElementById('raWaLh');
       if (lh) lh.textContent = 'Loading riders…';
       if (rows) {
-        rows.innerHTML = '<div class="ra-wa-empty ra-wa-loading" role="status" aria-live="polite">' +
-          '<span class="ra-wa-spin" aria-hidden="true"></span>' +
+        rows.innerHTML = '<div class="wa-empty wa-loading" role="status" aria-live="polite">' +
+          '<span class="wa-spin" aria-hidden="true"></span>' +
           '<span>Loading riders…</span>' +
           '</div>';
       }
@@ -430,13 +476,11 @@
         .then(function (data) {
           waPayload = data || { types: {}, bindings: {} };
           waLoadedType = waType;
-          var cnt = document.querySelector('#raWaTypes [data-cnt="' + waType + '"]');
-          if (cnt) cnt.textContent = String((waPayload.types && waPayload.types[waType]) ? waPayload.types[waType].length : 0);
           renderWaRows();
           toast('Filter applied');
         })
         .catch(function () {
-          if (rows) rows.innerHTML = '<div class="ra-wa-empty">Filter failed. Try again.</div>';
+          if (rows) rows.innerHTML = '<div class="wa-empty">Filter failed. Try again.</div>';
           if (lh) lh.textContent = 'Hit Filter to load riders';
           toast('Filter failed');
         })
@@ -456,7 +500,7 @@
       if (!fromId) { toast('Select a WhatsApp number to send from'); return; }
       if (waLoadedType !== waType) { toast('Hit Filter for this alert type first'); return; }
       var ids = [];
-      document.querySelectorAll('#raWaRows .ra-wa-row:not([data-blocked])').forEach(function (row) {
+      document.querySelectorAll('#raWaRows .wa-row:not([data-blocked])').forEach(function (row) {
         var cb = row.querySelector('input[type=checkbox]');
         if (cb && !cb.disabled && cb.checked) ids.push(+row.getAttribute('data-id'));
       });
@@ -480,8 +524,173 @@
     });
   }
 
+  /* ---- Column resizer (list | chat) ---- */
+  var waRsz = document.getElementById('raWaRsz');
+  var waList = document.getElementById('raWaList');
+  var waDrag = false;
+
+  function waPlaceRsz() {
+    if (!waRsz || !waDr || !waList || waDr.hidden) return;
+    requestAnimationFrame(function () {
+      var a = waDr.getBoundingClientRect();
+      var l = waList.getBoundingClientRect();
+      waRsz.style.left = (l.right - a.left) + 'px';
+      waRsz.style.top = (l.top - a.top) + 'px';
+      waRsz.style.bottom = '0';
+    });
+  }
+  window.addEventListener('resize', waPlaceRsz);
+  // Sidebar collapse/expand changes the drawer width.
+  if (window.MutationObserver) {
+    new MutationObserver(function () { setTimeout(waPlaceRsz, 320); })
+      .observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  function waSetListWidth(p) {
+    p = Math.round(Math.max(18, Math.min(65, p)));
+    waC.lw = p;
+    waApplyPrefs(true);
+    var v = document.getElementById('v_lw');
+    if (v) v.textContent = p + '%';
+    var i = document.querySelector('#raWaCustRows [data-k=lw]');
+    if (i) i.value = p;
+  }
+  function waStopDrag() {
+    if (!waDrag) return;
+    waDrag = false;
+    if (waRsz) waRsz.classList.remove('drag');
+    document.body.classList.remove('wa-dragging');
+  }
+  if (waRsz && waDr) {
+    waRsz.addEventListener('pointerdown', function (e) {
+      waDrag = true;
+      waRsz.classList.add('drag');
+      document.body.classList.add('wa-dragging');
+      waRsz.setPointerCapture(e.pointerId);
+    });
+    waRsz.addEventListener('pointermove', function (e) {
+      if (!waDrag) return;
+      var a = waDr.getBoundingClientRect();
+      waSetListWidth((e.clientX - a.left) / a.width * 100);
+    });
+    waRsz.addEventListener('pointerup', waStopDrag);
+    waRsz.addEventListener('pointercancel', waStopDrag);
+    waRsz.addEventListener('dblclick', function () { waSetListWidth(WA_DEF.lw); });
+  }
+
+  /* ---- Customize panel (CSS variables; optional debounced POST to data-wa-prefs-url) ---- */
+  var WA_DEF = { accent: '#00a884', bubble: '#d9fdd3', chat: '#efeae2', doodle: true, panel: '#ffffff', head: '#ffffff', lw: 34, ns: 17, av: 50, rh: 74, mf: 15, mw: 62 };
+  var WA_FIELDS = [
+    ['accent', 'Main color (buttons)', 'c'], ['bubble', 'Message bubble', 'c'], ['chat', 'Chat background', 'c'],
+    ['doodle', 'Doodle pattern', 'b'], ['panel', 'Left panel background', 'c'], ['head', 'Chat header', 'c'],
+    ['lw', 'List width', 's', 18, 65, '%'], ['ns', 'Name size', 's', 12, 24, 'px'], ['av', 'Photo size', 's', 30, 72, 'px'],
+    ['rh', 'Row height', 's', 50, 110, 'px'], ['mf', 'Message text', 's', 11, 22, 'px'], ['mw', 'Message width', 's', 35, 95, '%']
+  ];
+  var WA_LS_KEY = 'waAlertsUiPrefs';
+  var waC = Object.assign({}, WA_DEF);
+  // Prefer server prefs (cross-device); fall back to local cache only if server absent.
+  try {
+    var serverPrefs = waDr && waDr.getAttribute('data-wa-prefs');
+    if (serverPrefs) {
+      Object.assign(waC, JSON.parse(serverPrefs));
+    } else {
+      Object.assign(waC, JSON.parse(localStorage.getItem(WA_LS_KEY) || '{}'));
+    }
+  } catch (e) {
+    try { Object.assign(waC, JSON.parse(localStorage.getItem(WA_LS_KEY) || '{}')); } catch (e2) {}
+  }
+  var waPrefsTimer = null;
+
+  function waApplyPrefs(skipSave) {
+    if (!waDr) return;
+    var s = waDr.style;
+    s.setProperty('--accent', waC.accent);
+    s.setProperty('--bubble', waC.bubble);
+    s.setProperty('--chat', waC.chat);
+    s.setProperty('--panel', waC.panel);
+    s.setProperty('--head', waC.head);
+    s.setProperty('--lw', waC.lw + '%');
+    s.setProperty('--ns', waC.ns + 'px');
+    s.setProperty('--av', waC.av + 'px');
+    s.setProperty('--rh', waC.rh + 'px');
+    s.setProperty('--mf', waC.mf + 'px');
+    s.setProperty('--mw', waC.mw + '%');
+    waDr.classList.toggle('nodoodle', !waC.doodle);
+    waPlaceRsz();
+    if (skipSave === 'nosave') return;
+    try { localStorage.setItem(WA_LS_KEY, JSON.stringify(waC)); } catch (e) {}
+    waQueuePrefsSave();
+  }
+
+  function waQueuePrefsSave() {
+    var url = waDr && waDr.getAttribute('data-wa-prefs-url');
+    if (!url) return;
+    clearTimeout(waPrefsTimer);
+    waPrefsTimer = setTimeout(function () {
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-TOKEN': waDr.getAttribute('data-wa-csrf') || ''
+        },
+        body: JSON.stringify({ prefs: waC })
+      }).catch(function () {});
+    }, 600);
+  }
+
+  function waBuildCust() {
+    var box = document.getElementById('raWaCustRows');
+    if (!box) return;
+    box.innerHTML = WA_FIELDS.map(function (f) {
+      var k = f[0], l = f[1], t = f[2];
+      if (t === 'c') return '<div class="r"><span>' + l + '</span><input type="color" data-k="' + k + '" value="' + waC[k] + '"></div>';
+      if (t === 'b') return '<div class="r"><span>' + l + '</span><input type="checkbox" data-k="' + k + '"' + (waC[k] ? ' checked' : '') + '></div>';
+      return '<div class="r"><span>' + l + '</span><input type="range" data-k="' + k + '" min="' + f[3] + '" max="' + f[4] + '" value="' + waC[k] + '"><span class="v" id="v_' + k + '">' + waC[k] + f[5] + '</span></div>';
+    }).join('');
+  }
+
+  var waCustRows = document.getElementById('raWaCustRows');
+  var waCust = document.getElementById('raWaCust');
+  if (waCustRows) {
+    waCustRows.addEventListener('input', function (e) {
+      var k = e.target.getAttribute('data-k');
+      if (!k) return;
+      var f = WA_FIELDS.filter(function (x) { return x[0] === k; })[0];
+      if (!f) return;
+      waC[k] = e.target.type === 'checkbox' ? e.target.checked : (e.target.type === 'range' ? +e.target.value : e.target.value);
+      if (f[2] === 's') {
+        var v = document.getElementById('v_' + k);
+        if (v) v.textContent = waC[k] + f[5];
+      }
+      waApplyPrefs();
+    });
+  }
+  var waGear = document.getElementById('raWaGear');
+  if (waGear && waCust) {
+    waGear.addEventListener('click', function () {
+      waBuildCust();
+      waCust.hidden = !waCust.hidden;
+    });
+  }
+  var waCustX = document.getElementById('raWaCustX');
+  var waCustDone = document.getElementById('raWaCustDone');
+  var waCustReset = document.getElementById('raWaCustReset');
+  if (waCustX && waCust) waCustX.addEventListener('click', function () { waCust.hidden = true; });
+  if (waCustDone && waCust) waCustDone.addEventListener('click', function () { waCust.hidden = true; });
+  if (waCustReset) {
+    waCustReset.addEventListener('click', function () {
+      waC = Object.assign({}, WA_DEF);
+      waApplyPrefs();
+      waBuildCust();
+    });
+  }
+  waApplyPrefs('nosave');
+
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
+      if (waCust && !waCust.hidden) { waCust.hidden = true; return; }
       openWa(false);
       if (opsMenu) opsMenu.classList.remove('show');
     }

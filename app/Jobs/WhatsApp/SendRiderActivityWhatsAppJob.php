@@ -94,7 +94,8 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
             return;
         }
 
-        $built = $injector->build($template, $context);
+        // Missing template injects are sent as "-" (same as drawer preview).
+        $built = $injector->build($template, $context, '-');
         if (! ($built['ok'] ?? false)) {
             Log::info('whatsapp.rider_activity_skipped', [
                 'rider_id' => $this->riderId,
@@ -147,7 +148,7 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
             ],
         ]);
 
-        $preview = $injector->previewText($template, $context);
+        $preview = $injector->previewText($template, $context, '-');
 
         $result = $client->sendTemplate(
             $connection,

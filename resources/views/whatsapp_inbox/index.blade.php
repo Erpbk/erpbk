@@ -5,161 +5,39 @@
 @section('content')
 @php
   $companySlug = request()->route('company_slug') ?? session('company_slug');
+  $waPrefsUrl = \Illuminate\Support\Facades\Route::has('whatsapp.ui_prefs.update')
+    ? route('whatsapp.ui_prefs.update', absolute: false)
+    : '';
+  $waUiPrefs = auth()->user()
+    ? \App\Support\WhatsApp\WhatsAppUiPreferences::forUser(auth()->user())
+    : \App\Support\WhatsApp\WhatsAppUiPreferences::defaults();
+  $waInitials = function ($label) {
+    $label = trim((string) $label);
+    if ($label === '') return '?';
+    $parts = preg_split('/\s+/u', $label) ?: [];
+    $ini = mb_substr($parts[0] ?? '', 0, 1);
+    if (count($parts) > 1) $ini .= mb_substr($parts[count($parts) - 1], 0, 1);
+    return mb_strtoupper($ini !== '' ? $ini : '?');
+  };
 @endphp
-<link rel="stylesheet" href="{{ asset('css/rider-activities-demo.css') }}">
+<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261123-wa-inbox">
 <style>
-  .wa-inbox {
-    display: grid;
-    grid-template-columns: 320px 1fr;
-    gap: 0;
-    height: calc(100vh - 180px);
-    min-height: 420px;
-    max-height: calc(100vh - 140px);
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    overflow: hidden;
-    background: #fff;
-  }
-  .wa-inbox-side {
-    border-right: 1px solid #e2e8f0;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    min-width: 0;
-    background: #f8fafc;
-  }
-  .wa-inbox-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
-  .wa-inbox-filters button { border: 1px solid #cbd5e1; background: #fff; border-radius: 999px; padding: 4px 10px; font-size: 12px; }
-  .wa-inbox-filters button.on { background: #16a34a; border-color: #16a34a; color: #fff; }
-  .wa-inbox-search { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
-  .wa-inbox-list { overflow-y: auto; overflow-x: hidden; flex: 1 1 auto; min-height: 0; -webkit-overflow-scrolling: touch; }
-  .wa-inbox-row { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid #eef2f7; background: transparent; padding: 10px 12px; cursor: pointer; }
-  .wa-inbox-row:hover, .wa-inbox-row.on { background: #ecfdf5; }
-  .wa-inbox-row-top { display: flex; align-items: center; gap: 8px; }
-  .wa-inbox-row b { display: block; font-size: 13px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .wa-inbox-row small { color: #64748b; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .wa-unread {
-    flex-shrink: 0;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    border-radius: 999px;
-    background: #16a34a;
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 18px;
-    text-align: center;
-  }
-  .wa-inbox-row.has-unread b { font-weight: 700; }
-  .wa-inbox-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
-  .wa-toolbar { display: flex; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; align-items: center; flex-shrink: 0; }
-  .wa-conflict { margin: 8px 12px; padding: 10px; background: #fff7ed; border: 1px solid #fdba74; border-radius: 8px; flex-shrink: 0; }
-  .wa-inbox-main .ra-wa-phone {
-    flex: 1 1 auto;
-    min-height: 0;
-    margin: 0;
-    border: 0;
-    border-radius: 0;
-    max-width: none;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .wa-inbox-main .ra-wa-chat {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-  }
-  .wa-inbox-composer {
-    display: flex;
-    gap: 8px;
-    padding: 10px;
-    border-top: 1px solid #e2e8f0;
-    align-items: flex-end;
-    flex-shrink: 0;
-    background: #fff;
-  }
-  .wa-inbox-composer select { max-width: 220px; flex: 0 1 220px; }
-  .wa-inbox-composer #waBody {
-    flex: 1;
-    min-height: 38px;
-    max-height: 140px;
-    resize: none;
-    overflow-y: auto;
-    line-height: 1.4;
-    transition: min-height 0.15s ease;
-  }
-  .wa-inbox-composer #waBody.is-expanded { min-height: 72px; }
-  .wa-inbox-composer #waSend {
-    width: 38px;
-    height: 38px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .wa-inbox-composer #waSend svg { width: 18px; height: 18px; fill: currentColor; }
-  .wa-gap { text-align: center; color: #64748b; font-size: 12px; margin: 10px 12px; padding: 6px 10px; background: #f1f5f9; border-radius: 8px; }
-  .wa-sys { text-align: center; color: #475569; font-size: 12px; margin: 8px; font-style: italic; }
-  /* Incoming left/white, outgoing right/green (override rider-activities defaults) */
-  .wa-inbox-main .ra-wa-stack { align-items: stretch; }
-  .wa-inbox-main .ra-wa-msg {
-    align-self: flex-start;
-    background: #fff;
-    border-radius: 0 9px 9px 9px;
-    border: 1px solid rgba(0, 0, 0, 0.06);
-  }
-  .wa-inbox-main .ra-wa-msg.out {
-    align-self: flex-end;
-    background: #d9fdd3;
-    border-radius: 9px 0 9px 9px;
-    border-color: transparent;
-  }
-  .wa-inbox-main .ra-wa-msg.is-pending { opacity: 0.85; }
-  .wa-inbox-main .ra-wa-msg.is-failed { background: #fee2e2; border: 1px solid #fca5a5; }
-  .wa-msg-spin {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border: 2px solid #94a3b8;
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: wa-spin 0.7s linear infinite;
-    vertical-align: -1px;
-  }
-  .wa-msg-resend {
-    border: 0;
-    background: transparent;
-    color: #b91c1c;
-    padding: 0 2px;
-    cursor: pointer;
-    line-height: 1;
-    font-size: 14px;
-  }
-  .wa-msg-resend:hover { color: #7f1d1d; }
-  @keyframes wa-spin { to { transform: rotate(360deg); } }
-  @media (max-width: 900px) {
-    .wa-inbox { grid-template-columns: 1fr; height: auto; max-height: none; min-height: 70vh; }
-    .wa-inbox-side { max-height: 40vh; }
-    .wa-inbox-main { min-height: 50vh; }
-  }
+  /* Inbox page chrome: slim header, full-bleed body */
+  .wa-inbox-page .content-header { padding-top: 8px; padding-bottom: 8px; }
+  .wa-inbox-page .content-header h1 { font-size: 1.35rem; margin: 0; }
+  .wa-inbox-page .content.wa-inbox-content { padding: 0; }
 </style>
 
-<section class="content-header">
+<section class="content-header wa-inbox-page">
   <div class="container-fluid">
-    <div class="row mb-2">
+    <div class="row">
       <div class="col-sm-6"><h1>{{ $menuLabels['whatsapp'] ?? 'WhatsApp' }}</h1></div>
     </div>
   </div>
 </section>
 
-<div class="content px-3">
-  <div class="wa-inbox ra-demo" id="waInbox"
+<div class="content wa-inbox-content wa-inbox-page">
+  <div class="wa-ui" id="waInbox"
        data-list-url="{{ route('whatsapp.inbox.index', absolute: false) }}"
        data-thread-url="/app/{{ $companySlug }}/whatsapp/inbox/thread"
        data-search-url="{{ route('whatsapp.inbox.participants', absolute: false) }}"
@@ -168,19 +46,24 @@
        data-delete-url="{{ route('whatsapp.inbox.destroy', absolute: false) }}"
        data-conflict-url="{{ route('whatsapp.inbox.conflict', absolute: false) }}"
        data-csrf="{{ csrf_token() }}"
+       data-wa-prefs-url="{{ $waPrefsUrl }}"
+       data-wa-prefs='@json($waUiPrefs)'
        data-can-create="{{ $canCreate ? '1' : '0' }}"
        data-can-edit="{{ $canEdit ? '1' : '0' }}"
        data-can-delete="{{ $canDelete ? '1' : '0' }}">
     <div class="wa-inbox-side">
-      <div class="wa-inbox-filters" id="waFilters">
-        @foreach($filters as $f)
-          <button type="button" data-type="{{ $f['key'] }}" class="{{ ($activeType ?? 'all') === $f['key'] ? 'on' : '' }}">
-            {{ $f['label'] }} <span>({{ $f['count'] }})</span>
-          </button>
-        @endforeach
+      <div class="wa-bar">
+        <div class="wa-seg" id="waFilters">
+          @foreach($filters as $f)
+            <button type="button" data-type="{{ $f['key'] }}" class="{{ ($activeType ?? 'all') === $f['key'] ? 'on' : '' }}">
+              {{ $f['label'] }} <span>{{ $f['count'] }}</span>
+            </button>
+          @endforeach
+        </div>
+        <button type="button" class="wa-icon-btn" id="waGear" title="Customize" aria-label="Customize">&#9881;</button>
       </div>
       <div class="wa-inbox-search">
-        <input type="search" id="waSearch" class="form-control form-control-sm" placeholder="Search name or phone…">
+        <input type="search" id="waSearch" placeholder="Search name or phone…" autocomplete="off">
         <div id="waSearchResults" class="mt-1"></div>
       </div>
       <div class="wa-inbox-list" id="waList">
@@ -196,45 +79,66 @@
                   data-pid="{{ $c['participant_id'] ?? '' }}"
                   data-unread="{{ $unread }}"
                   data-last-at="{{ $c['last_at'] ?? '' }}">
-            <div class="wa-inbox-row-top">
-              <b>{{ $c['label'] }}@if(!empty($c['trashed'])) <span class="text-danger">(trash)</span>@endif</b>
-              @if($unread > 0)
-                <span class="wa-unread">{{ $unread > 99 ? '99+' : $unread }}</span>
-              @endif
+            <div class="wa-av">{{ $waInitials($c['label']) }}</div>
+            <div class="wa-tx">
+              <div class="wa-inbox-row-top">
+                <b>{{ $c['label'] }}@if(!empty($c['trashed'])) <span class="text-danger">(trash)</span>@endif</b>
+                @if($unread > 0)
+                  <span class="wa-unread">{{ $unread > 99 ? '99+' : $unread }}</span>
+                @endif
+              </div>
+              <small>{{ $c['last_body'] }}</small>
             </div>
-            <small>{{ $c['last_body'] }}</small>
           </button>
         @empty
-          <div class="p-3 text-muted">No conversations yet.</div>
+          <div class="wa-empty">No conversations yet.</div>
         @endforelse
       </div>
     </div>
+
     <div class="wa-inbox-main">
-      <div class="wa-toolbar">
-        <strong id="waPeerLabel">Select a conversation</strong>
-        <div class="ms-auto d-flex gap-2">
+      <div class="wa-ch">
+        <div class="wa-av" id="waPeerAv">WA</div>
+        <div class="who">
+          <b id="waPeerLabel">Select a conversation</b>
+          <small id="waPeerPhone"></small>
+        </div>
+        <div class="acts">
           @if($canEdit)
-          <button type="button" class="btn btn-sm btn-outline-secondary" id="waTransferBtn" disabled>Transfer</button>
+          <button type="button" class="wa-act-btn wa-act-transfer" id="waTransferBtn" disabled title="Transfer chat">Transfer</button>
           @endif
           @if($canDelete)
-          <button type="button" class="btn btn-sm btn-outline-danger" id="waDeleteBtn" disabled>Delete my chat</button>
+          <button type="button" class="wa-act-icon" id="waDeleteBtn" disabled title="Delete my chat" aria-label="Delete my chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+          </button>
           @endif
         </div>
       </div>
       <div id="waConflict" class="wa-conflict" hidden></div>
-      <div class="ra-wa-phone">
-        <div class="ra-wa-chat" id="waChat">
-          <div class="ra-wa-stack" id="waStack">
-            <div class="text-muted p-3">Choose a chat from the left.</div>
-          </div>
+      <div class="wa-msgs" id="waChat">
+        <div class="wa-stack" id="waStack">
+          <div class="wa-hint">Choose a chat from the left.</div>
         </div>
       </div>
-      <div class="wa-inbox-composer" id="waComposer" hidden>
-        <select id="waFrom" class="form-select form-select-sm"></select>
-        <textarea id="waBody" class="form-control form-control-sm" rows="1" placeholder="Type a message…"></textarea>
-        <button type="button" class="btn btn-sm btn-success" id="waSend" title="Send" aria-label="Send">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      <div class="wa-comp" id="waComposer" hidden>
+        <select id="waFrom" class="no-select2" data-no-select2 aria-label="Send from" title="Send from"></select>
+        <textarea id="waBody" rows="1" placeholder="Type a message…"></textarea>
+        <button type="button" class="wa-send" id="waSend" title="Send" aria-label="Send">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5V14l9-2-9-2V3.5L22 12z"/></svg>
         </button>
+      </div>
+    </div>
+
+    <div class="wa-rsz" id="waRsz" title="Drag to resize · double-click to reset"></div>
+
+    <div class="wa-cust" id="waCust" hidden>
+      <div class="top"><h2>Customize</h2><button type="button" class="x" id="waCustX" aria-label="Close customize">&times;</button></div>
+      <div id="waCustRows"></div>
+      <div class="btns">
+        <button type="button" class="reset" id="waCustReset">Reset</button>
+        <button type="button" class="done" id="waCustDone">Done</button>
       </div>
     </div>
   </div>
@@ -261,7 +165,7 @@
         <textarea id="waTransferReason" class="form-control" rows="3" required></textarea>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-primary" id="waTransferConfirm">Transfer</button>
+        <button type="button" class="btn wa-transfer-confirm" id="waTransferConfirm">Transfer</button>
       </div>
     </div>
   </div>
@@ -349,7 +253,7 @@
       btn.type = 'button';
       btn.dataset.type = f.key;
       if (prevActive === f.key) btn.classList.add('on');
-      btn.innerHTML = escapeHtml(f.label) + ' <span>(' + escapeHtml(String(f.count)) + ')</span>';
+      btn.innerHTML = escapeHtml(f.label) + ' <span>' + escapeHtml(String(f.count)) + '</span>';
       box.appendChild(btn);
     });
   }
@@ -373,9 +277,10 @@
     const unreadHtml = showUnread > 0
       ? ('<span class="wa-unread">' + (showUnread > 99 ? '99+' : showUnread) + '</span>')
       : '';
-    btn.innerHTML = '<div class="wa-inbox-row-top"><b>' + escapeHtml(c.label)
+    btn.innerHTML = '<div class="wa-av">' + escapeHtml(initialsOf(c.label)) + '</div>'
+      + '<div class="wa-tx"><div class="wa-inbox-row-top"><b>' + escapeHtml(c.label)
       + (c.trashed ? ' <span class="text-danger">(trash)</span>' : '')
-      + '</b>' + unreadHtml + '</div><small>' + escapeHtml(c.last_body || '') + '</small>';
+      + '</b>' + unreadHtml + '</div><small>' + escapeHtml(c.last_body || '') + '</small></div>';
     btn.addEventListener('click', () => openThread(c));
     return btn;
   }
@@ -443,13 +348,21 @@
     list.innerHTML = '';
     conversations.forEach(c => list.appendChild(renderConversationRow(c)));
     if (!conversations.length) {
-      list.innerHTML = '<div class="p-3 text-muted">No conversations.</div>';
+      list.innerHTML = '<div class="wa-empty">No conversations.</div>';
     }
     applyListScroll(anchor);
   }
 
   function escapeHtml(s) {
     return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  function initialsOf(label) {
+    const parts = String(label || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    let ini = Array.from(parts[0])[0] || '';
+    if (parts.length > 1) ini += Array.from(parts[parts.length - 1])[0] || '';
+    return (ini || '?').toUpperCase();
   }
 
   async function openThread(ref, afterId, options) {
@@ -495,6 +408,10 @@
     // Ignore stale responses if the user switched chats mid-flight.
     if (threadKey !== tkey) return;
     document.getElementById('waPeerLabel').textContent = data.peer_label || peerPhone;
+    const phoneEl = document.getElementById('waPeerPhone');
+    if (phoneEl) phoneEl.textContent = peerPhone;
+    const avEl = document.getElementById('waPeerAv');
+    if (avEl) avEl.textContent = initialsOf(data.peer_label || peerPhone);
     openByConn = data.open_window_by_connection || {};
     renderConflict(data.conflict);
     // Poll/background refresh: keep place if user scrolled up. User open/send: stick to end.
@@ -680,7 +597,7 @@
     }
     const d = document.createElement('div');
     const sendState = it.send_state || null;
-    d.className = 'ra-wa-msg' + (it.direction === 'out' ? ' out' : ' in')
+    d.className = 'wa-bub' + (it.direction === 'out' ? ' out' : ' in')
       + (sendState === 'pending' ? ' is-pending' : '')
       + (sendState === 'failed' ? ' is-failed' : '');
     d.dataset.mid = it.id || '';
@@ -990,12 +907,171 @@
 
   // Seed signatures from server-rendered markup so the first poll can no-op.
   filtersSig = Array.from(document.querySelectorAll('#waFilters button')).map(b => {
-    const count = (b.textContent.match(/\((\d+)\)/) || [])[1] || '0';
+    const cntEl = b.querySelector('span');
+    const count = (cntEl && cntEl.textContent.trim()) || '0';
     return (b.dataset.type || '') + ':' + count;
   }).join('|');
   listSig = Array.from(document.querySelectorAll('#waList .wa-inbox-row')).map(el => {
     return (el.dataset.tkey || '') + ':' + (el.dataset.lastAt || '') + ':' + (el.dataset.unread || '0');
   }).join('|');
+
+  /* ---- UI prefs (same keys as alerts drawer; per-user, saved in DB) ---- */
+  const WA_DEF = { accent: '#00a884', bubble: '#d9fdd3', chat: '#efeae2', doodle: true, panel: '#ffffff', head: '#ffffff', lw: 34, ns: 17, av: 50, rh: 74, mf: 15, mw: 62 };
+  const WA_FIELDS = [
+    ['accent', 'Main color (buttons)', 'c'], ['bubble', 'Message bubble', 'c'], ['chat', 'Chat background', 'c'],
+    ['doodle', 'Doodle pattern', 'b'], ['panel', 'Left panel background', 'c'], ['head', 'Chat header', 'c'],
+    ['lw', 'List width', 's', 18, 65, '%'], ['ns', 'Name size', 's', 12, 24, 'px'], ['av', 'Photo size', 's', 30, 72, 'px'],
+    ['rh', 'Row height', 's', 50, 110, 'px'], ['mf', 'Message text', 's', 11, 22, 'px'], ['mw', 'Message width', 's', 35, 95, '%']
+  ];
+  const WA_LS_KEY = 'waInboxUiPrefs';
+  let waC = Object.assign({}, WA_DEF);
+  try {
+    const serverPrefs = root.getAttribute('data-wa-prefs');
+    if (serverPrefs) {
+      Object.assign(waC, JSON.parse(serverPrefs));
+    } else {
+      Object.assign(waC, JSON.parse(localStorage.getItem(WA_LS_KEY) || '{}'));
+    }
+  } catch (e) {}
+  let waPrefsTimer = null;
+  const waRsz = document.getElementById('waRsz');
+  const waSide = root.querySelector('.wa-inbox-side');
+  const waCust = document.getElementById('waCust');
+  const waCustRows = document.getElementById('waCustRows');
+
+  function waPlaceRsz() {
+    if (!waRsz || !waSide) return;
+    requestAnimationFrame(() => {
+      const a = root.getBoundingClientRect();
+      const l = waSide.getBoundingClientRect();
+      waRsz.style.left = (l.right - a.left) + 'px';
+    });
+  }
+
+  function waApplyPrefs(mode) {
+    const s = root.style;
+    s.setProperty('--accent', waC.accent);
+    s.setProperty('--bubble', waC.bubble);
+    s.setProperty('--chat', waC.chat);
+    s.setProperty('--panel', waC.panel);
+    s.setProperty('--head', waC.head);
+    s.setProperty('--lw', waC.lw + '%');
+    s.setProperty('--ns', waC.ns + 'px');
+    s.setProperty('--av', waC.av + 'px');
+    s.setProperty('--rh', waC.rh + 'px');
+    s.setProperty('--mf', waC.mf + 'px');
+    s.setProperty('--mw', waC.mw + '%');
+    // Modal lives outside #waInbox — expose accent for Transfer confirm.
+    document.documentElement.style.setProperty('--wa-accent', waC.accent);
+    const confirmBtn = document.getElementById('waTransferConfirm');
+    if (confirmBtn) {
+      confirmBtn.style.backgroundColor = waC.accent;
+      confirmBtn.style.borderColor = waC.accent;
+    }
+    root.classList.toggle('nodoodle', !waC.doodle);
+    waPlaceRsz();
+    if (mode === 'nosave') return;
+    try { localStorage.setItem(WA_LS_KEY, JSON.stringify(waC)); } catch (e) {}
+    waQueuePrefsSave();
+  }
+
+  function waQueuePrefsSave() {
+    const url = root.getAttribute('data-wa-prefs-url');
+    if (!url) return;
+    clearTimeout(waPrefsTimer);
+    waPrefsTimer = setTimeout(() => {
+      fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, headers()),
+        body: JSON.stringify({ prefs: waC })
+      }).catch(() => {});
+    }, 600);
+  }
+
+  function waBuildCust() {
+    if (!waCustRows) return;
+    waCustRows.innerHTML = WA_FIELDS.map(f => {
+      const k = f[0], l = f[1], t = f[2];
+      if (t === 'c') return '<div class="r"><span>' + l + '</span><input type="color" data-k="' + k + '" value="' + waC[k] + '"></div>';
+      if (t === 'b') return '<div class="r"><span>' + l + '</span><input type="checkbox" data-k="' + k + '"' + (waC[k] ? ' checked' : '') + '></div>';
+      return '<div class="r"><span>' + l + '</span><input type="range" data-k="' + k + '" min="' + f[3] + '" max="' + f[4] + '" value="' + waC[k] + '"><span class="v" id="v_' + k + '">' + waC[k] + f[5] + '</span></div>';
+    }).join('');
+  }
+
+  if (waCustRows) {
+    waCustRows.addEventListener('input', (e) => {
+      const k = e.target.getAttribute('data-k');
+      if (!k) return;
+      const f = WA_FIELDS.filter(x => x[0] === k)[0];
+      if (!f) return;
+      waC[k] = e.target.type === 'checkbox' ? e.target.checked : (e.target.type === 'range' ? +e.target.value : e.target.value);
+      if (f[2] === 's') {
+        const v = document.getElementById('v_' + k);
+        if (v) v.textContent = waC[k] + f[5];
+      }
+      waApplyPrefs();
+    });
+  }
+  const waGear = document.getElementById('waGear');
+  if (waGear && waCust) {
+    waGear.addEventListener('click', () => {
+      waBuildCust();
+      waCust.hidden = !waCust.hidden;
+    });
+  }
+  const waCustX = document.getElementById('waCustX');
+  const waCustDone = document.getElementById('waCustDone');
+  const waCustReset = document.getElementById('waCustReset');
+  if (waCustX && waCust) waCustX.addEventListener('click', () => { waCust.hidden = true; });
+  if (waCustDone && waCust) waCustDone.addEventListener('click', () => { waCust.hidden = true; });
+  if (waCustReset) {
+    waCustReset.addEventListener('click', () => {
+      waC = Object.assign({}, WA_DEF);
+      waApplyPrefs();
+      waBuildCust();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && waCust && !waCust.hidden) waCust.hidden = true;
+  });
+
+  // List | chat resizer
+  function waSetListWidth(p) {
+    p = Math.round(Math.max(18, Math.min(65, p)));
+    waC.lw = p;
+    waApplyPrefs();
+    const v = document.getElementById('v_lw');
+    if (v) v.textContent = p + '%';
+    const i = document.querySelector('#waCustRows [data-k=lw]');
+    if (i) i.value = p;
+  }
+  let waDrag = false;
+  function waStopDrag() {
+    if (!waDrag) return;
+    waDrag = false;
+    if (waRsz) waRsz.classList.remove('drag');
+    document.body.classList.remove('wa-dragging');
+  }
+  if (waRsz) {
+    waRsz.addEventListener('pointerdown', (e) => {
+      waDrag = true;
+      waRsz.classList.add('drag');
+      document.body.classList.add('wa-dragging');
+      waRsz.setPointerCapture(e.pointerId);
+    });
+    waRsz.addEventListener('pointermove', (e) => {
+      if (!waDrag) return;
+      const a = root.getBoundingClientRect();
+      waSetListWidth((e.clientX - a.left) / a.width * 100);
+    });
+    waRsz.addEventListener('pointerup', waStopDrag);
+    waRsz.addEventListener('pointercancel', waStopDrag);
+    waRsz.addEventListener('dblclick', () => waSetListWidth(WA_DEF.lw));
+  }
+  window.addEventListener('resize', waPlaceRsz);
+  if (window.ResizeObserver) new ResizeObserver(waPlaceRsz).observe(root);
+  waApplyPrefs('nosave');
 
   // Keep sidebar/filters fresh even when no chat is open.
   startPoll();

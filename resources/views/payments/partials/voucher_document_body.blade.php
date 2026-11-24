@@ -73,54 +73,19 @@
 .rpv-doc * { box-sizing: border-box; }
 .rpv-sheet { padding: 26px 30px 24px; }
 .rpv-doc--pdf .rpv-sheet { padding: 14px 16px 16px; }
-.rpv-hdr {
+.rpv-hdr-with-stamp {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
     width: 100%;
-    border-collapse: collapse;
     margin: 0 0 18px;
-    table-layout: fixed;
-}
-.rpv-doc--pdf .rpv-hdr { margin: 0 0 14px; }
-.rpv-hdr td {
-    border: none;
-    vertical-align: middle;
     padding: 0 0 16px;
     border-bottom: 2px solid var(--rpv-blue);
+    box-sizing: border-box;
 }
-.rpv-doc--pdf .rpv-hdr td { padding: 0 0 12px; }
-.rpv-hdr-logo { width: 28%; text-align: left; }
-.rpv-hdr-brand { width: 44%; text-align: center; padding-left: 8px; padding-right: 8px; }
-.rpv-hdr-right { width: 28%; text-align: right; vertical-align: top; }
-.rpv-logo {
-    display: block;
-    max-width: 180px;
-    max-height: 60px;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-    object-position: left center;
-    margin: 0;
-}
-.rpv-doc--pdf .rpv-logo { max-width: 150px; max-height: 52px; }
-.rpv-company {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--rpv-blue);
-    line-height: 1.25;
-    text-align: center;
-    margin: 0;
-}
-.rpv-doc--pdf .rpv-company { font-size: 16px; }
-.rpv-meta {
-    display: block;
-    margin-top: 5px;
-    font-size: 11px;
-    font-weight: 400;
-    color: #666666;
-    line-height: 1.4;
-    text-align: center;
-}
-.rpv-doc--pdf .rpv-meta { margin-top: 4px; font-size: 9.5px; }
-.rpv-meta + .rpv-meta { margin-top: 2px; }
+.rpv-doc--pdf .rpv-hdr-with-stamp { margin: 0 0 14px; padding: 0 0 12px; }
+.rpv-hdr-with-stamp-main { flex: 1 1 auto; min-width: 0; }
+.rpv-hdr-right { flex: 0 0 auto; text-align: right; vertical-align: top; }
 .rpv-badge {
     display: inline-block;
     background: var(--rpv-soft);
@@ -460,20 +425,15 @@
  */
 @media (max-width: 576px) {
     .rpv-doc--screen .rpv-sheet { padding: 14px 12px 16px; }
-    .rpv-doc--screen .rpv-hdr,
-    .rpv-doc--screen .rpv-hdr tbody,
-    .rpv-doc--screen .rpv-hdr tr,
-    .rpv-doc--screen .rpv-hdr-logo,
-    .rpv-doc--screen .rpv-hdr-brand,
-    .rpv-doc--screen .rpv-hdr-right {
-        display: block;
-        width: 100% !important;
+    .rpv-doc--screen .rpv-hdr-with-stamp {
+        flex-direction: column;
+        align-items: center;
         text-align: center;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
     }
-    .rpv-doc--screen .rpv-hdr-logo { margin-bottom: 10px; }
-    .rpv-doc--screen .rpv-logo { margin: 0 auto; object-position: center; }
+    .rpv-doc--screen .rpv-hdr-with-stamp-main,
+    .rpv-doc--screen .rpv-hdr-right {
+        width: 100%;
+    }
     .rpv-doc--screen .rpv-hdr-right { margin-top: 10px; }
     .rpv-doc--screen .rpv-stamp-kv { margin: 0 auto; }
     .rpv-doc--screen .rpv-split,
@@ -594,55 +554,40 @@
 @endphp
 @include('vouchers.partials.print_layout_styles', [
     'printLayout' => $printLayout,
+    'plPos' => $plPos,
     'isPdf' => $isPdf,
 ])
 
 <div class="rpv-doc {{ $docModeClass }}"
      style="--rpv-blue: {{ $blue }}; --rpv-soft: {{ $blueSoft }}; --rpv-line: {{ $blueLine }};">
-    <div class="rpv-sheet">
-        <table class="rpv-hdr" cellpadding="0" cellspacing="0">
-            <tr>
-                <td class="rpv-hdr-logo">
-                    @if(!empty($logoSrc))
-                    <img src="{{ $logoSrc }}" alt="{{ $companyName }}" class="rpv-logo">
-                    @endif
-                </td>
-                <td class="rpv-hdr-brand">
-                    <div class="rpv-company">{{ $companyName }}</div>
-                    @php
-                        $plOn = $plHeader['on'] ?? null;
-                        $showTel = $plOn === null || !empty($plOn['tel']);
-                        $showEmail = $plOn === null || !empty($plOn['email']);
-                        $showAddr = $plOn === null || !empty($plOn['addr']);
-                        $showTrn = $plOn === null || !empty($plOn['trn']);
-                    @endphp
-                    @if(($showTrn && $companyTrn !== '') || ($showTel && $companyPhone !== '') || ($showEmail && $companyEmail !== ''))
-                    <div class="rpv-meta">
-                        @if($showTrn && $companyTrn !== '')TRN: {{ $companyTrn }}@endif
-                        @if($showTrn && $companyTrn !== '' && $showTel && $companyPhone !== '') · @endif
-                        @if($showTel && $companyPhone !== '')Tel: {{ $companyPhone }}@endif
-                        @if($showEmail && $companyEmail !== ''){{ (($showTrn && $companyTrn !== '') || ($showTel && $companyPhone !== '')) ? ' ' : '' }}{{ $companyEmail }}@endif
-                    </div>
-                    @endif
-                    @if($showAddr && $companyAddress !== '')
-                    <div class="rpv-meta">{{ $companyAddress }}</div>
-                    @endif
-                </td>
-                <td class="rpv-hdr-right">
-                    <div class="rpv-badge">{{ $documentTitle }}</div>
-                    <table class="rpv-stamp-kv" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td class="k">Voucher No</td>
-                            <td class="v">{{ $voucherNo }}</td>
-                        </tr>
-                        <tr>
-                            <td class="k">Date</td>
-                            <td class="v">{{ $paymentDate }}</td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
+    <div class="rpv-sheet rpv-sheet--sig-{{ $plPos }}">
+        <div class="rpv-hdr-with-stamp">
+            <div class="rpv-hdr-with-stamp-main">
+                @include('vouchers.partials.print_company_header', [
+                    'plHeader' => $plHeader,
+                    'companyName' => $companyName,
+                    'logoSrc' => $logoSrc,
+                    'companyPhone' => $companyPhone,
+                    'companyEmail' => $companyEmail,
+                    'companyAddress' => $companyAddress,
+                    'companyTrn' => $companyTrn,
+                    'headerWithBorder' => false,
+                ])
+            </div>
+            <div class="rpv-hdr-right">
+                <div class="rpv-badge">{{ $documentTitle }}</div>
+                <table class="rpv-stamp-kv" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td class="k">Voucher No</td>
+                        <td class="v">{{ $voucherNo }}</td>
+                    </tr>
+                    <tr>
+                        <td class="k">Date</td>
+                        <td class="v">{{ $paymentDate }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
 
         <table class="rpv-split {{ $splitSizeClass }}" cellpadding="0" cellspacing="0">
             <tr>
@@ -769,9 +714,20 @@
         </div>
         @endif
 
+        @if(!$isPdf && !request()->boolean('print'))
+        @include('vouchers.partials.posted_transactions', [
+            'transactions' => $postedTransactions ?? collect(),
+            'voucherType' => $payment->voucher->voucher_type ?? 'PV',
+            'showPostedTransactions' => true,
+        ])
+        @endif
+
         @php
             $configuredSignatureSlots = collect($signatureSlots ?? []);
         @endphp
+        @if($plPos === 'bottom')
+        <div class="rpv-sig-push" aria-hidden="true"></div>
+        @endif
         @if($configuredSignatureSlots->isNotEmpty())
             @include('vouchers.partials.signature_block', [
                 'signatureSlots' => $configuredSignatureSlots,
@@ -791,14 +747,6 @@
                 </td>
             </tr>
         </table>
-        @endif
-
-        @if(!$isPdf && !request()->boolean('print'))
-        @include('vouchers.partials.posted_transactions', [
-            'transactions' => $postedTransactions ?? collect(),
-            'voucherType' => $payment->voucher->voucher_type ?? 'PV',
-            'showPostedTransactions' => true,
-        ])
         @endif
     </div>
 </div>

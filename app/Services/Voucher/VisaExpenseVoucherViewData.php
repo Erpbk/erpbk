@@ -203,7 +203,9 @@ class VisaExpenseVoucherViewData
             'moduleBadge' => trim((string) Settings::getMenuLabel('visa_expenses') ?: 'Visa Expense').' - '.$typeCode,
             'signatureSlots' => $this->signatureResolver->slotsFor(
                 $typeCode,
-                $companyId
+                $companyId,
+                VoucherSignatureResolver::MODULE_VOUCHERS,
+                VoucherSignatureResolver::DOC_KIND_VOUCHER
             ),
         ];
     }

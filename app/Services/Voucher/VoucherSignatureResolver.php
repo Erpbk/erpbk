@@ -77,9 +77,10 @@ class VoucherSignatureResolver
             is_array($layout['header'] ?? null)
                 ? VoucherSignatureConfig::normalizeHeaderSettings($layout['header'])
                 : null,
-            ($layout['signature_position'] ?? VoucherSignatureConfig::POSITION_AFTER) === VoucherSignatureConfig::POSITION_BOTTOM
-                ? VoucherSignatureConfig::POSITION_BOTTOM
-                : VoucherSignatureConfig::POSITION_AFTER,
+            // Default matches Settings → Voucher Signature Assignment ("Page bottom").
+            ($layout['signature_position'] ?? VoucherSignatureConfig::POSITION_BOTTOM) === VoucherSignatureConfig::POSITION_AFTER
+                ? VoucherSignatureConfig::POSITION_AFTER
+                : VoucherSignatureConfig::POSITION_BOTTOM,
         ];
     }
 

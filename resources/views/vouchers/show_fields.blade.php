@@ -480,7 +480,23 @@
 
     <div class="cv-doc">
         <div class="cv-accent"></div>
-        <div class="cv-sheet">
+        @php
+            $signatureResolver = app(\App\Services\Voucher\VoucherSignatureResolver::class);
+            $signatureSlots = $signatureSlots
+                ?? $signatureResolver->slotsForVoucherModule(
+                    (string) ($voucher->voucher_type ?? ''),
+                    $voucher->company_id ?? null,
+                    ! empty($voucher->Created_By) ? (int) $voucher->Created_By : null
+                );
+            [$printLayout, $plHeader, $plPos] = $signatureResolver
+                ->layoutPartsFor((string) ($voucher->voucher_type ?? ''));
+        @endphp
+        @include('vouchers.partials.print_layout_styles', [
+            'printLayout' => $printLayout,
+            'plPos' => $plPos,
+            'isPdf' => false,
+        ])
+        <div class="cv-sheet rpv-sheet rpv-sheet--sig-{{ $plPos }}">
             <table class="cv-hdr" cellpadding="0" cellspacing="0">
                 <tr>
                     <td class="cv-hdr-logo">
@@ -590,21 +606,9 @@
             </div>
             @endif
 
-            @php
-                $signatureResolver = app(\App\Services\Voucher\VoucherSignatureResolver::class);
-                $signatureSlots = $signatureSlots
-                    ?? $signatureResolver->slotsForVoucherModule(
-                        (string) ($voucher->voucher_type ?? ''),
-                        $voucher->company_id ?? null,
-                        ! empty($voucher->Created_By) ? (int) $voucher->Created_By : null
-                    );
-                [$printLayout, $plHeader, $plPos] = $signatureResolver
-                    ->layoutPartsFor((string) ($voucher->voucher_type ?? ''));
-            @endphp
-            @include('vouchers.partials.print_layout_styles', [
-                'printLayout' => $printLayout,
-                'isPdf' => false,
-            ])
+            @if($plPos === 'bottom')
+            <div class="rpv-sig-push" aria-hidden="true"></div>
+            @endif
             @if($signatureSlots->isNotEmpty())
                 @include('vouchers.partials.signature_block', [
                     'signatureSlots' => $signatureSlots,
@@ -612,7 +616,7 @@
                     'signaturePerRow' => 3,
                 ])
             @else
-            <table class="cv-sigs" width="100%" cellpadding="0" cellspacing="0">
+            <table class="cv-sigs rpv-sigs" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                     <td class="cv-sig">
                         <div class="cv-sig-line"></div>

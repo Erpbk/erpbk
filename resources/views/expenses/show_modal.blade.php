@@ -101,12 +101,33 @@
     </table>
   </div>
 
-  {{-- Signature lines --}}
+  {{-- Signature slots from Voucher Signature Assignment (EXP), else legacy blank lines --}}
+  @php
+    $signatureResolver = app(\App\Services\Voucher\VoucherSignatureResolver::class);
+    $signatureSlots = $signatureResolver->slotsForVoucherModule(
+      (string) ($voucher->voucher_type ?? 'EXP'),
+      $voucher->company_id ?? null,
+      ! empty($voucher->Created_By) ? (int) $voucher->Created_By : null
+    );
+    [$printLayout] = $signatureResolver->layoutPartsFor((string) ($voucher->voucher_type ?? 'EXP'));
+  @endphp
+  @include('vouchers.partials.print_layout_styles', [
+    'printLayout' => $printLayout,
+    'isPdf' => false,
+  ])
+  @if($signatureSlots->isNotEmpty())
+    @include('vouchers.partials.signature_block', [
+      'signatureSlots' => $signatureSlots,
+      'signatureVariant' => 'cv',
+      'signaturePerRow' => 3,
+    ])
+  @else
   <div class="row g-3 mb-3 no-print">
-    <div class="col-md-4"><hr class="my-0"><span class="small text-muted">Authorized Signature</span></div>
-    <div class="col-md-4"><hr class="my-0"><span class="small text-muted">Accountant Signature</span></div>
-    <div class="col-md-4"><hr class="my-0"><span class="small text-muted">Customer Signature</span></div>
+    <div class="col-md-4"><hr class="my-0"><span class="small text-muted">Prepared By</span></div>
+    <div class="col-md-4"><hr class="my-0"><span class="small text-muted">Checked By</span></div>
+    <div class="col-md-4"><hr class="my-0"><span class="small text-muted">Authorized By</span></div>
   </div>
+  @endif
 
   {{-- Attachments --}}
   <div class="text-center py-2 border-top">

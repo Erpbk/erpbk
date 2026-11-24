@@ -85,18 +85,25 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Resolve branch for employee voucher stores from request, employee, or account.
+     * Resolve branch for employee voucher stores from accounts (bank→2nd, else 1st), employee, or request.
      */
     private function resolveVoucherBranchId(Request $request): ?int
     {
-        if ($request->filled('branch_id')) {
-            return (int) $request->branch_id;
+        $accountIds = is_array($request->account_id)
+            ? $request->account_id
+            : array_filter([$request->account_id]);
+
+        $fallback = $request->filled('branch_id') ? (int) $request->branch_id : null;
+        $fromAccounts = \App\Support\VoucherAccountKind::resolveVoucherBranchId($accountIds, null);
+        if ($fromAccounts !== null) {
+            return $fromAccounts;
         }
 
-        $accountId = is_array($request->account_id)
-            ? ($request->account_id[0] ?? null)
-            : $request->account_id;
+        if ($fallback !== null) {
+            return $fallback;
+        }
 
+        $accountId = $accountIds[0] ?? null;
         if (empty($accountId)) {
             return null;
         }

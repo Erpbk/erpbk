@@ -100,6 +100,52 @@ final class VoucherAccountKind
     }
 
     /**
+     * Resolve voucher branch_id from line accounts.
+     * If any line is a bank account → second account's branch_id;
+     * otherwise → first account's branch_id. Falls back when the target has none.
+     *
+     * @param  array<int, mixed>  $accountIds
+     */
+    public static function resolveVoucherBranchId(array $accountIds, ?int $fallback = null): ?int
+    {
+        $ids = [];
+        foreach ($accountIds as $accountId) {
+            $id = (int) $accountId;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+        $ids = array_values($ids);
+        if ($ids === []) {
+            return $fallback;
+        }
+
+        $accounts = Accounts::query()
+            ->whereIn('id', $ids)
+            ->get(['id', 'branch_id', 'parent_id', 'account_code', 'name']);
+
+        $hasBank = $accounts->contains(
+            fn (Accounts $account) => self::classifyAccount($account) === self::KIND_BANK
+        );
+
+        $preferredIds = $hasBank
+            ? array_values(array_unique(array_filter([
+                $ids[1] ?? null,
+                $ids[0] ?? null,
+            ])))
+            : [$ids[0]];
+
+        foreach ($preferredIds as $preferredId) {
+            $account = $accounts->firstWhere('id', (int) $preferredId);
+            if ($account && ! empty($account->branch_id)) {
+                return (int) $account->branch_id;
+            }
+        }
+
+        return $fallback;
+    }
+
+    /**
      * Restrict a vouchers query to rows whose paid-from account matches $kind.
      */
     public static function applyKindFilter(Builder $query, string $kind): Builder

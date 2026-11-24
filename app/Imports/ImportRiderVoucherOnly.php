@@ -64,7 +64,9 @@ class ImportRiderVoucherOnly implements ToCollection
                 $account = Accounts::where('account_code', $code)->first();
 
                 if (!$account) {
-                    dd("Account code not found in DB: " . $code);
+                    throw ValidationException::withMessages([
+                        'file' => "Row({$rowNum}) - Account code {$code} not found."
+                    ]);
                 }
 
                 $accountId = $account->id;

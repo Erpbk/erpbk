@@ -15,6 +15,7 @@ use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Support\GlobalAccounts;
 use App\Support\PublicStorageDisk;
+use App\Support\VoucherAccountKind;
 use App\Support\VoucherModulePermissions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -76,6 +77,10 @@ class VoucherService
     //$data = $request->all();
     $id = $request->v_trans_code;
 
+    $data['branch_id'] = VoucherAccountKind::resolveVoucherBranchId(
+      array_values($request->account_id ?? []),
+      $request->filled('branch_id') ? (int) $request->branch_id : null
+    );
 
     $data['remarks'] = ($request->voucher_type === 'TRF')
       ? 'Funds Transfer'
@@ -104,7 +109,7 @@ class VoucherService
             'debit' => $request['dr_amount'][$key] ?? 0,
             //'credit' => $data['credit'] ?? 0,
             'billing_month' => $data['billing_month'] ?? date('Y-m-01'),
-            'branch_id' => $request['branch_id'],
+            'branch_id' => $data['branch_id'],
           ];
           $this->TransactionService->recordTransaction($transactionData);
         }
@@ -121,7 +126,7 @@ class VoucherService
             //'debit' => $request['dr_amount'][$key] ?? 0,
             'credit' => $request['cr_amount'][$key] ?? 0,
             'billing_month' => $data['billing_month'] ?? date('Y-m-01'),
-            'branch_id' => $request['branch_id'],
+            'branch_id' => $data['branch_id'],
           ];
           $this->TransactionService->recordTransaction($transactionData);
         }
@@ -912,7 +917,10 @@ class VoucherService
     $data['payment_type'] = $request->payment_type ?? 0;
     $data['billing_month'] = $request->billing_month;
     $data['reference_number'] = $request->reference_number;
-    $data['branch_id'] = $request->branch_id ;
+    $data['branch_id'] = VoucherAccountKind::resolveVoucherBranchId(
+      $accountIds,
+      $request->filled('branch_id') ? (int) $request->branch_id : null
+    );
     $data['remarks'] = General::VoucherType($request->voucher_type) . ' Month of ' . date('M-Y', strtotime($data['billing_month']));
     $data['amount'] = array_sum($drAmounts);
     $data['custom_field_values'] = $request->input('custom_field_values', []);

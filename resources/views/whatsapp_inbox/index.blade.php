@@ -20,7 +20,7 @@
     return mb_strtoupper($ini !== '' ? $ini : '?');
   };
 @endphp
-<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261125-wa-multi-attach">
+<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261125-wa-multi-select">
 <style>
   /* Inbox page chrome: slim header, full-bleed body */
   .wa-inbox-page .content-header { padding-top: 8px; padding-bottom: 8px; }
@@ -44,7 +44,9 @@
        data-send-url="{{ route('whatsapp.inbox.send', absolute: false) }}"
        data-media-download-url="{{ url('/app/'.$companySlug.'/whatsapp/inbox/messages') }}"
        data-transfer-url="{{ route('whatsapp.inbox.transfer', absolute: false) }}"
+       data-transfer-bulk-url="{{ route('whatsapp.inbox.transfer_bulk', absolute: false) }}"
        data-delete-url="{{ route('whatsapp.inbox.destroy', absolute: false) }}"
+       data-delete-bulk-url="{{ route('whatsapp.inbox.destroy_bulk', absolute: false) }}"
        data-conflict-url="{{ route('whatsapp.inbox.conflict', absolute: false) }}"
        data-csrf="{{ csrf_token() }}"
        data-wa-prefs-url="{{ $waPrefsUrl }}"
@@ -67,13 +69,30 @@
         <input type="search" id="waSearch" placeholder="Search name or phone…" autocomplete="off">
         <div id="waSearchResults" class="mt-1"></div>
       </div>
+      @if($canEdit || $canDelete)
+      <div class="wa-bulk-bar" id="waBulkBar">
+        <label class="wa-bulk-all" title="Select all">
+          <input type="checkbox" id="waSelectAll" aria-label="Select all conversations">
+        </label>
+        <span class="wa-bulk-count" id="waBulkCount">0 selected</span>
+        <div class="wa-bulk-acts">
+          @if($canEdit)
+          <button type="button" class="wa-bulk-btn" id="waBulkTransfer" disabled>Transfer</button>
+          @endif
+          @if($canDelete)
+          <button type="button" class="wa-bulk-btn wa-bulk-danger" id="waBulkDelete" disabled>Delete</button>
+          @endif
+          <button type="button" class="wa-bulk-btn wa-bulk-clear" id="waBulkClear" disabled>Clear</button>
+        </div>
+      </div>
+      @endif
       <div class="wa-inbox-list" id="waList">
         @forelse($conversations as $c)
           @php
             $tkey = $c['thread_key'] ?? ($c['peer_phone'].'|'.(($c['participant_type'] ?? null) ? ($c['participant_type'].'|'.$c['participant_id']) : 'unknown'));
             $unread = (int) ($c['unread_count'] ?? 0);
           @endphp
-          <button type="button" class="wa-inbox-row{{ $unread > 0 ? ' has-unread' : '' }}"
+          <button type="button" class="wa-inbox-row{{ ($canEdit || $canDelete) ? ' has-check' : '' }}{{ $unread > 0 ? ' has-unread' : '' }}"
                   data-peer="{{ $c['peer_phone'] }}"
                   data-tkey="{{ $tkey }}"
                   data-ptype="{{ $c['participant_type'] ?? '' }}"
@@ -81,6 +100,11 @@
                   data-photo="{{ $c['photo'] ?? '' }}"
                   data-unread="{{ $unread }}"
                   data-last-at="{{ $c['last_at'] ?? '' }}">
+            @if($canEdit || $canDelete)
+            <span class="wa-row-check" data-stop-row="1">
+              <input type="checkbox" class="wa-thread-check" aria-label="Select conversation" data-tkey="{{ $tkey }}">
+            </span>
+            @endif
             <div class="wa-av" data-ini="{{ $waInitials($c['label']) }}">
               <span class="ra-av-ini">{{ $waInitials($c['label']) }}</span>
               @if(!empty($c['photo']))
@@ -162,7 +186,7 @@
 <div class="modal fade" id="waTransferModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Transfer chat</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header"><h5 class="modal-title" id="waTransferTitle">Transfer chat</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
         <label class="form-label">To user</label>
         <select id="waTransferUser" class="form-select mb-2">
@@ -198,6 +222,9 @@
   let threadKey = null;
   let pollTimer = null;
   let lastId = 0;
+  const canSelectThreads = root.dataset.canEdit === '1' || root.dataset.canDelete === '1';
+  const selectedThreadKeys = new Set();
+  let transferTargets = null;
   let openByConn = {};
   let pollInFlight = false;
   let listSig = '';
@@ -314,8 +341,11 @@
     const unread = Math.max(0, parseInt(c.unread_count || 0, 10) || 0);
     // Open thread is treated as read in the UI immediately.
     const showUnread = (threadKey === tkey) ? 0 : unread;
+    const selected = selectedThreadKeys.has(tkey);
     btn.className = 'wa-inbox-row'
+      + (canSelectThreads ? ' has-check' : '')
       + (threadKey === tkey ? ' on' : '')
+      + (selected ? ' is-selected' : '')
       + (showUnread > 0 ? ' has-unread' : '');
     btn.dataset.peer = c.peer_phone;
     btn.dataset.tkey = tkey;
@@ -327,12 +357,134 @@
     const unreadHtml = showUnread > 0
       ? ('<span class="wa-unread">' + (showUnread > 99 ? '99+' : showUnread) + '</span>')
       : '';
-    btn.innerHTML = avatarMarkup(c.label, c.photo || '')
+    const checkHtml = canSelectThreads
+      ? ('<span class="wa-row-check" data-stop-row="1"><input type="checkbox" class="wa-thread-check" aria-label="Select conversation" data-tkey="'
+        + escapeHtml(tkey) + '"' + (selected ? ' checked' : '') + '></span>')
+      : '';
+    btn.innerHTML = checkHtml + avatarMarkup(c.label, c.photo || '')
       + '<div class="wa-tx"><div class="wa-inbox-row-top"><b>' + escapeHtml(c.label)
       + (c.trashed ? ' <span class="text-danger">(trash)</span>' : '')
       + '</b>' + unreadHtml + '</div><small>' + escapeHtml(c.last_body || '') + '</small></div>';
-    btn.addEventListener('click', () => openThread(c));
     return btn;
+  }
+
+  function threadPayloadFromRow(el) {
+    const pType = el.dataset.ptype || '';
+    const pId = el.dataset.pid || '';
+    const payload = { peer_phone: el.dataset.peer || '' };
+    if (pType && pType !== 'unknown' && pId) {
+      payload.participant_type = pType;
+      payload.participant_id = +pId;
+    }
+    return payload;
+  }
+
+  function selectedThreadPayloads() {
+    const list = document.getElementById('waList');
+    if (!list) return [];
+    const out = [];
+    list.querySelectorAll('.wa-inbox-row[data-tkey]').forEach(el => {
+      if (!selectedThreadKeys.has(el.dataset.tkey)) return;
+      out.push(threadPayloadFromRow(el));
+    });
+    return out;
+  }
+
+  function actionThreadPayloads() {
+    const selected = selectedThreadPayloads();
+    if (selected.length) return selected;
+    if (!peer) return [];
+    return [Object.assign({ peer_phone: peer }, participantPayload())];
+  }
+
+  function syncHeaderActions() {
+    const hasTargets = selectedThreadKeys.size > 0 || !!peer;
+    const transferBtn = document.getElementById('waTransferBtn');
+    const deleteBtn = document.getElementById('waDeleteBtn');
+    if (transferBtn) transferBtn.disabled = !hasTargets;
+    if (deleteBtn) deleteBtn.disabled = !hasTargets;
+  }
+
+  function syncBulkBar() {
+    const bar = document.getElementById('waBulkBar');
+    if (!bar) return;
+    const count = selectedThreadKeys.size;
+    const countEl = document.getElementById('waBulkCount');
+    if (countEl) countEl.textContent = count + ' selected';
+    const transfer = document.getElementById('waBulkTransfer');
+    const del = document.getElementById('waBulkDelete');
+    const clear = document.getElementById('waBulkClear');
+    if (transfer) transfer.disabled = count === 0;
+    if (del) del.disabled = count === 0;
+    if (clear) clear.disabled = count === 0;
+
+    const selectAll = document.getElementById('waSelectAll');
+    const rows = document.querySelectorAll('#waList .wa-inbox-row[data-tkey]');
+    if (selectAll) {
+      const total = rows.length;
+      selectAll.checked = total > 0 && count > 0 && count === total;
+      selectAll.indeterminate = count > 0 && count < total;
+    }
+    syncHeaderActions();
+  }
+
+  function setThreadSelected(tkey, on) {
+    if (!tkey || !canSelectThreads) return;
+    if (on) selectedThreadKeys.add(tkey);
+    else selectedThreadKeys.delete(tkey);
+    const row = document.querySelector('#waList .wa-inbox-row[data-tkey="' + CSS.escape(tkey) + '"]');
+    if (row) {
+      row.classList.toggle('is-selected', on);
+      const check = row.querySelector('.wa-thread-check');
+      if (check) check.checked = on;
+    }
+    syncBulkBar();
+  }
+
+  function clearThreadSelection() {
+    selectedThreadKeys.clear();
+    document.querySelectorAll('#waList .wa-inbox-row.is-selected').forEach(el => el.classList.remove('is-selected'));
+    document.querySelectorAll('#waList .wa-thread-check').forEach(el => { el.checked = false; });
+    syncBulkBar();
+  }
+
+  function openTransferForThreads(threads) {
+    if (!threads.length) return;
+    transferTargets = threads;
+    const title = document.getElementById('waTransferTitle');
+    if (title) title.textContent = threads.length > 1 ? ('Transfer ' + threads.length + ' chats') : 'Transfer chat';
+    new bootstrap.Modal(document.getElementById('waTransferModal')).show();
+  }
+
+  async function deleteThreads(threads) {
+    if (!threads.length) return;
+    const msg = threads.length > 1
+      ? ('Delete messages in ' + threads.length + ' chats (keeps latest stub in each)?')
+      : 'Delete your messages in this chat (keeps latest stub)?';
+    if (!confirm(msg)) return;
+
+    const url = root.dataset.deleteBulkUrl || root.dataset.deleteUrl;
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: Object.assign({'Content-Type':'application/json'}, headers()),
+      body: JSON.stringify({ threads })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      alert((data && data.message) || 'Delete failed.');
+      return;
+    }
+
+    const openGone = peer && threads.some(t => {
+      const tkey = makeThreadKey(t.peer_phone, t.participant_type || null, t.participant_id || null);
+      return tkey === threadKey;
+    });
+    clearThreadSelection();
+    listSig = '';
+    await loadList(activeType);
+    if (openGone) {
+      openThread({ peer_phone: peer, participant_type: participantType, participant_id: participantId, thread_key: threadKey });
+    }
   }
 
   function captureListAnchor() {
@@ -402,6 +554,12 @@
     if (!conversations.length) {
       list.innerHTML = '<div class="wa-empty">No conversations.</div>';
     }
+    // Drop selections for threads that disappeared after transfer/delete/filter.
+    const visible = new Set(conversations.map(c => c.thread_key || makeThreadKey(c.peer_phone, c.participant_type, c.participant_id)));
+    Array.from(selectedThreadKeys).forEach(key => {
+      if (!visible.has(key)) selectedThreadKeys.delete(key);
+    });
+    syncBulkBar();
     applyListScroll(anchor);
   }
 
@@ -438,18 +596,22 @@
       setPeerAvatar(ref.label, ref.photo || '');
     }
 
+    let clearedUnread = false;
     document.querySelectorAll('.wa-inbox-row').forEach(el => {
       const isOn = el.dataset.tkey === threadKey;
       el.classList.toggle('on', isOn);
       if (isOn) {
+        if ((parseInt(el.dataset.unread || '0', 10) || 0) > 0) clearedUnread = true;
         el.classList.remove('has-unread');
         el.dataset.unread = '0';
         const badge = el.querySelector('.wa-unread');
         if (badge) badge.remove();
       }
     });
-    document.getElementById('waTransferBtn') && (document.getElementById('waTransferBtn').disabled = false);
-    document.getElementById('waDeleteBtn') && (document.getElementById('waDeleteBtn').disabled = false);
+    if (clearedUnread) {
+      try { window.dispatchEvent(new CustomEvent('wa:unread-changed')); } catch (e) {}
+    }
+    syncHeaderActions();
     const url = sameOriginUrl(root.dataset.threadUrl.replace(/\/$/, '') + '/' + encodeURIComponent(peerPhone));
     if (afterId) url.searchParams.set('after_id', String(afterId));
     if (participantType && participantId) {
@@ -1195,8 +1357,28 @@
   });
 
   document.getElementById('waList').addEventListener('click', (e) => {
+    const stop = e.target.closest('[data-stop-row]');
+    if (stop) {
+      e.stopPropagation();
+      // Native checkbox click is handled by the change listener.
+      if (e.target.classList && e.target.classList.contains('wa-thread-check')) return;
+      e.preventDefault();
+      const check = stop.querySelector('.wa-thread-check');
+      if (!check) return;
+      check.checked = !check.checked;
+      const row = stop.closest('.wa-inbox-row');
+      setThreadSelected(check.dataset.tkey || (row && row.dataset.tkey), check.checked);
+      return;
+    }
     const btn = e.target.closest('.wa-inbox-row');
     if (btn) openThread(threadRefFromRow(btn));
+  });
+  document.getElementById('waList').addEventListener('change', (e) => {
+    const check = e.target.closest('.wa-thread-check');
+    if (!check) return;
+    e.stopPropagation();
+    const row = check.closest('.wa-inbox-row');
+    setThreadSelected(check.dataset.tkey || (row && row.dataset.tkey), check.checked);
   });
 
   document.getElementById('waSend').addEventListener('click', () => sendComposerMessage());
@@ -1229,41 +1411,93 @@
   const transferBtn = document.getElementById('waTransferBtn');
   if (transferBtn) {
     transferBtn.addEventListener('click', () => {
-      if (!peer) return;
-      new bootstrap.Modal(document.getElementById('waTransferModal')).show();
+      const threads = actionThreadPayloads();
+      if (!threads.length) return;
+      openTransferForThreads(threads);
     });
     document.getElementById('waTransferConfirm').addEventListener('click', async () => {
       const reason = document.getElementById('waTransferReason').value.trim();
       if (!reason) return;
-      await fetch(root.dataset.transferUrl, {
-        method: 'POST', headers: Object.assign({'Content-Type':'application/json'}, headers()),
-        body: JSON.stringify(Object.assign({
-          peer_phone: peer,
-          to_user_id: +document.getElementById('waTransferUser').value,
-          reason,
-          history_mode: document.getElementById('waTransferMode').value
-        }, participantPayload()))
-      });
-      bootstrap.Modal.getInstance(document.getElementById('waTransferModal')).hide();
-      openThread({ peer_phone: peer, participant_type: participantType, participant_id: participantId, thread_key: threadKey });
-      listSig = '';
-      loadList(activeType);
+      const threads = (transferTargets && transferTargets.length)
+        ? transferTargets
+        : actionThreadPayloads();
+      if (!threads.length) return;
+
+      const confirmBtn = document.getElementById('waTransferConfirm');
+      confirmBtn.disabled = true;
+      try {
+        const res = await fetch(root.dataset.transferBulkUrl || root.dataset.transferUrl, {
+          method: 'POST',
+          headers: Object.assign({'Content-Type':'application/json'}, headers()),
+          body: JSON.stringify({
+            threads,
+            to_user_id: +document.getElementById('waTransferUser').value,
+            reason,
+            history_mode: document.getElementById('waTransferMode').value
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.ok === false) {
+          alert((data && data.message) || 'Transfer failed.');
+          return;
+        }
+        if ((data.failed || 0) > 0) {
+          alert('Transferred ' + (data.transferred || 0) + ', failed ' + data.failed + '.');
+        }
+        bootstrap.Modal.getInstance(document.getElementById('waTransferModal')).hide();
+        document.getElementById('waTransferReason').value = '';
+        transferTargets = null;
+        clearThreadSelection();
+        listSig = '';
+        await loadList(activeType);
+        if (peer) {
+          openThread({ peer_phone: peer, participant_type: participantType, participant_id: participantId, thread_key: threadKey });
+        }
+      } finally {
+        confirmBtn.disabled = false;
+      }
     });
   }
 
   const deleteBtn = document.getElementById('waDeleteBtn');
   if (deleteBtn) {
     deleteBtn.addEventListener('click', async () => {
-      if (!peer || !confirm('Delete your messages in this chat (keeps latest stub)?')) return;
-      await fetch(root.dataset.deleteUrl, {
-        method: 'DELETE', headers: Object.assign({'Content-Type':'application/json'}, headers()),
-        body: JSON.stringify(Object.assign({ peer_phone: peer }, participantPayload()))
-      });
-      openThread({ peer_phone: peer, participant_type: participantType, participant_id: participantId, thread_key: threadKey });
-      listSig = '';
-      loadList(activeType);
+      const threads = actionThreadPayloads();
+      if (!threads.length) return;
+      await deleteThreads(threads);
     });
   }
+
+  const bulkTransfer = document.getElementById('waBulkTransfer');
+  if (bulkTransfer) {
+    bulkTransfer.addEventListener('click', () => {
+      const threads = selectedThreadPayloads();
+      if (!threads.length) return;
+      openTransferForThreads(threads);
+    });
+  }
+  const bulkDelete = document.getElementById('waBulkDelete');
+  if (bulkDelete) {
+    bulkDelete.addEventListener('click', async () => {
+      const threads = selectedThreadPayloads();
+      if (!threads.length) return;
+      await deleteThreads(threads);
+    });
+  }
+  const bulkClear = document.getElementById('waBulkClear');
+  if (bulkClear) {
+    bulkClear.addEventListener('click', () => clearThreadSelection());
+  }
+  const selectAll = document.getElementById('waSelectAll');
+  if (selectAll) {
+    selectAll.addEventListener('change', () => {
+      const on = selectAll.checked;
+      document.querySelectorAll('#waList .wa-inbox-row[data-tkey]').forEach(el => {
+        setThreadSelected(el.dataset.tkey, on);
+      });
+    });
+  }
+  syncBulkBar();
 
   // Seed signatures from server-rendered markup so the first poll can no-op.
   filtersSig = Array.from(document.querySelectorAll('#waFilters button')).map(b => {

@@ -11,6 +11,17 @@ $logoutAction = $isAdminSession
 $homeLink = $isAdminSession
 ? route('admin.dashboard')
 : ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
+$showWhatsAppNav = false;
+$whatsAppUnreadCount = 0;
+if (! $isAdminSession && Auth::check() && ! empty($companySlug)) {
+    $waCompanyId = (int) (\App\Support\CompanyContext::id() ?? 0);
+    $showWhatsAppNav = \App\Support\WhatsApp\WhatsAppCompanyAccess::menuVisible($waCompanyId)
+        && Auth::user()->can('whatsapp_view');
+    if ($showWhatsAppNav) {
+        $whatsAppUnreadCount = app(\App\Services\WhatsApp\WhatsAppInboxService::class)
+            ->unreadTotal(Auth::user(), $waCompanyId);
+    }
+}
 @endphp
 
 <!-- Navbar -->
@@ -84,6 +95,20 @@ $homeLink = $isAdminSession
         @endif
 
         <ul class="navbar-nav flex-row align-items-center flex-shrink-0{{ (!$isAdminSession && Auth::check() && !empty($companySlug)) ? '' : ' ms-auto' }}" id="navbar-nav-icons">
+
+          @if($showWhatsAppNav)
+          <li class="nav-item me-2 me-lg-3 position-relative" id="nav-whatsapp">
+            <a class="nav-link position-relative nav-whatsapp-link"
+               href="{{ route('whatsapp.inbox.index', ['company_slug' => $companySlug]) }}"
+               title="WhatsApp"
+               aria-label="WhatsApp">
+              <i class="ti ti-brand-whatsapp ti-md text-success"></i>
+              <span class="badge rounded-pill bg-danger badge-notifications position-absolute top-0 start-100 translate-middle{{ $whatsAppUnreadCount > 0 ? '' : ' d-none' }}"
+                    style="font-size:0.65rem;"
+                    id="nav-whatsapp-badge">{{ $whatsAppUnreadCount > 99 ? '99+' : $whatsAppUnreadCount }}</span>
+            </a>
+          </li>
+          @endif
 
           @if(!$isAdminSession && Auth::check())
           <li class="nav-item navbar-dropdown dropdown-notifications dropdown me-2 me-lg-3 position-relative" id="nav-notifications">
@@ -349,6 +374,7 @@ $homeLink = $isAdminSession
 <script>
 (function () {
   var badge = document.getElementById('nav-notification-badge');
+  var waBadge = document.getElementById('nav-whatsapp-badge');
   var list = document.getElementById('nav-notification-list');
   var bannerWrap = document.getElementById('nav-notification-banner-wrap');
   var bannerEl = document.getElementById('nav-notification-banner');
@@ -357,7 +383,23 @@ $homeLink = $isAdminSession
   var countUrl = @json(route('notifications.unread-count', ['company_slug' => $companySlug]));
   var dropdownUrl = @json(route('notifications.dropdown', ['company_slug' => $companySlug]));
   var bannersUrl = @json(route('notifications.banners', ['company_slug' => $companySlug]));
+  var waCountUrl = @json($showWhatsAppNav ? route('whatsapp.inbox.unread_count', ['company_slug' => $companySlug]) : null);
   var csrf = @json(csrf_token());
+
+  var COUNT_BASE_MS = 45000;
+  var COUNT_MAX_MS = 180000;
+  var BANNER_BASE_MS = 45000;
+  var BANNER_MAX_MS = 180000;
+  var countPollMs = COUNT_BASE_MS;
+  var bannerPollMs = BANNER_BASE_MS;
+  var countTimer = null;
+  var bannerTimer = null;
+  var lastNotifCount = null;
+  var lastWaCount = {{ (int) $whatsAppUnreadCount }};
+  var countsInFlight = false;
+  var bannersInFlight = false;
+  var countsQueuedForce = false;
+  var bannersQueuedForce = false;
 
   function escapeHtml(s) {
     return String(s == null ? '' : s)
@@ -365,19 +407,99 @@ $homeLink = $isAdminSession
       .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
   }
 
+  function setBadge(el, n) {
+    if (!el) return;
+    n = parseInt(n, 10) || 0;
+    if (n > 0) {
+      el.textContent = n > 99 ? '99+' : String(n);
+      el.classList.remove('d-none');
+    } else {
+      el.classList.add('d-none');
+    }
+  }
+
+  function scheduleCountPoll() {
+    if (countTimer) clearTimeout(countTimer);
+    countTimer = setTimeout(function () {
+      refreshCounts({ fromPoll: true });
+    }, countPollMs);
+  }
+
+  function scheduleBannerPoll() {
+    if (!bannerEl || !bannerTrack) return;
+    if (bannerTimer) clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(function () {
+      refreshBanners({ fromPoll: true });
+    }, bannerPollMs);
+  }
+
+  function bumpPollMs(current, max) {
+    return Math.min(max, Math.round(current * 1.5));
+  }
+
+  function refreshCounts(opts) {
+    opts = opts || {};
+    if (document.hidden && !opts.force) {
+      if (opts.fromPoll) scheduleCountPoll();
+      return;
+    }
+    if (countsInFlight) {
+      if (opts.force) countsQueuedForce = true;
+      if (opts.fromPoll) scheduleCountPoll();
+      return;
+    }
+    countsInFlight = true;
+
+    var jobs = [];
+    if (badge) {
+      jobs.push(
+        fetch(countUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) { return parseInt(data.count || 0, 10) || 0; })
+          .catch(function () { return lastNotifCount; })
+      );
+    } else {
+      jobs.push(Promise.resolve(lastNotifCount));
+    }
+    if (waBadge && waCountUrl) {
+      jobs.push(
+        fetch(waCountUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) { return parseInt(data.count || 0, 10) || 0; })
+          .catch(function () { return lastWaCount; })
+      );
+    } else {
+      jobs.push(Promise.resolve(lastWaCount));
+    }
+
+    Promise.all(jobs).then(function (vals) {
+      var notifN = vals[0];
+      var waN = vals[1];
+      var changed = false;
+      if (badge && notifN != null) {
+        if (lastNotifCount !== notifN) changed = true;
+        lastNotifCount = notifN;
+        setBadge(badge, notifN);
+      }
+      if (waBadge && waN != null) {
+        if (lastWaCount !== waN) changed = true;
+        lastWaCount = waN;
+        setBadge(waBadge, waN);
+      }
+      countPollMs = changed ? COUNT_BASE_MS : bumpPollMs(countPollMs, COUNT_MAX_MS);
+    }).finally(function () {
+      countsInFlight = false;
+      if (countsQueuedForce) {
+        countsQueuedForce = false;
+        refreshCounts({ force: true });
+        return;
+      }
+      scheduleCountPoll();
+    });
+  }
+
   function refreshCount() {
-    if (!badge) return;
-    fetch(countUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var n = parseInt(data.count || 0, 10);
-        if (n > 0) {
-          badge.textContent = n > 99 ? '99+' : String(n);
-          badge.classList.remove('d-none');
-        } else {
-          badge.classList.add('d-none');
-        }
-      }).catch(function () {});
+    refreshCounts({ force: true });
   }
 
   function severityClass(sev) {
@@ -514,14 +636,29 @@ $homeLink = $isAdminSession
     });
   }
 
-  function refreshBanners() {
-    if (!bannerWrap || !bannerEl || !bannerTrack) return;
+  function refreshBanners(opts) {
+    opts = opts || {};
+    if (!bannerWrap || !bannerEl || !bannerTrack) {
+      return;
+    }
+    if (document.hidden && !opts.force) {
+      if (opts.fromPoll) scheduleBannerPoll();
+      return;
+    }
+    if (bannersInFlight) {
+      if (opts.force) bannersQueuedForce = true;
+      if (opts.fromPoll) scheduleBannerPoll();
+      return;
+    }
+    bannersInFlight = true;
+    var prevKey = lastBannerKey;
     fetch(bannersUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var items = data.items || [];
         if (!items.length) {
           clearBannerTrack();
+          bannerPollMs = prevKey === '' ? bumpPollMs(bannerPollMs, BANNER_MAX_MS) : BANNER_BASE_MS;
           return;
         }
 
@@ -529,11 +666,23 @@ $homeLink = $isAdminSession
         // (item dismissed elsewhere, unread state change, or a new one arrives).
         var key = bannerItemsKey(items);
         if (key === lastBannerKey && !bannerEl.classList.contains('d-none')) {
+          bannerPollMs = bumpPollMs(bannerPollMs, BANNER_MAX_MS);
           return;
         }
 
         renderBannerItems(items);
-      }).catch(function () {});
+        bannerPollMs = BANNER_BASE_MS;
+      }).catch(function () {
+        bannerPollMs = bumpPollMs(bannerPollMs, BANNER_MAX_MS);
+      }).finally(function () {
+        bannersInFlight = false;
+        if (bannersQueuedForce) {
+          bannersQueuedForce = false;
+          refreshBanners({ force: true });
+          return;
+        }
+        scheduleBannerPoll();
+      });
   }
 
   function openNotificationAction(item) {
@@ -617,10 +766,10 @@ $homeLink = $isAdminSession
       });
   }
 
-  refreshCount();
-  refreshBanners();
-  setInterval(refreshCount, 60000);
-  setInterval(refreshBanners, 30000);
+  // Seed WhatsApp badge from server; notifications still need first fetch.
+  if (waBadge) setBadge(waBadge, lastWaCount);
+  refreshCounts({ force: true });
+  refreshBanners({ force: true });
 
   var toggle = document.querySelector('#nav-notifications > a');
   if (toggle) {
@@ -628,7 +777,17 @@ $homeLink = $isAdminSession
   }
 
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) refreshBanners();
+    if (document.hidden) return;
+    countPollMs = COUNT_BASE_MS;
+    bannerPollMs = BANNER_BASE_MS;
+    refreshCounts({ force: true });
+    refreshBanners({ force: true });
+  });
+
+  // Inbox marks threads read — refresh badge without waiting for the next poll.
+  window.addEventListener('wa:unread-changed', function () {
+    countPollMs = COUNT_BASE_MS;
+    refreshCounts({ force: true });
   });
 })();
 </script>

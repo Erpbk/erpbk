@@ -168,6 +168,21 @@ class WhatsAppInboxService
     }
 
     /**
+     * Cheap total of unread inbound messages for the navbar badge.
+     */
+    public function unreadTotal(User $user, int $companyId): int
+    {
+        if ($companyId <= 0) {
+            return 0;
+        }
+
+        return (int) $this->visiblePeersQuery($user, $companyId)
+            ->where('direction', WhatsAppMessage::DIRECTION_IN)
+            ->where('status', '!=', WhatsAppMessage::STATUS_READ)
+            ->count();
+    }
+
+    /**
      * @return array<string, int> thread_key => unread inbound count
      */
     private function unreadCountsByThread(
@@ -928,6 +943,75 @@ class WhatsAppInboxService
         }
 
         return WhatsAppMessage::query()->whereIn('id', $deleteIds)->delete();
+    }
+
+    /**
+     * @param  list<array{peer_phone: string, participant_type: ?string, participant_id: ?int}>  $threads
+     * @return array{transferred: int, failed: int}
+     */
+    public function transferMany(
+        User $actor,
+        int $companyId,
+        array $threads,
+        int $toUserId,
+        string $reason,
+        string $historyMode,
+        ?int $connectionId = null
+    ): array {
+        $transferred = 0;
+        $failed = 0;
+
+        foreach ($threads as $thread) {
+            $peerPhone = (string) ($thread['peer_phone'] ?? '');
+            if ($peerPhone === '') {
+                $failed++;
+                continue;
+            }
+
+            try {
+                $this->transfer(
+                    $actor,
+                    $companyId,
+                    $peerPhone,
+                    $toUserId,
+                    $reason,
+                    $historyMode,
+                    $connectionId,
+                    $thread['participant_type'] ?? null,
+                    isset($thread['participant_id']) ? (int) $thread['participant_id'] : null
+                );
+                $transferred++;
+            } catch (\Throwable $e) {
+                $failed++;
+            }
+        }
+
+        return ['transferred' => $transferred, 'failed' => $failed];
+    }
+
+    /**
+     * @param  list<array{peer_phone: string, participant_type: ?string, participant_id: ?int}>  $threads
+     */
+    public function deleteUserChats(User $user, int $companyId, array $threads): int
+    {
+        $deleted = 0;
+
+        foreach ($threads as $thread) {
+            $peerPhone = (string) ($thread['peer_phone'] ?? '');
+            if ($peerPhone === '') {
+                continue;
+            }
+
+            $deleted += $this->deleteUserChat(
+                $user,
+                $companyId,
+                $peerPhone,
+                $thread['participant_type'] ?? null,
+                isset($thread['participant_id']) ? (int) $thread['participant_id'] : null
+            );
+        }
+
+        return $deleted;
     }
 
     /**

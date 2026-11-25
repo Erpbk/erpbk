@@ -7,6 +7,7 @@ use App\Models\Riders;
 use App\Models\WhatsAppConnection;
 use App\Models\WhatsAppTemplate;
 use App\Services\Notifications\CompanyNotificationChannels;
+use App\Services\RiderActivities\RiderActivityWhatsAppAlertService;
 use App\Services\WhatsApp\Context\WhatsAppContextBuilderRegistry;
 use App\Services\WhatsApp\WhatsAppCloudApiClient;
 use App\Services\WhatsApp\WhatsAppConnectionService;
@@ -42,7 +43,10 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
         public array $riderSnapshot = [],
         public ?int $connectionId = null,
         public ?int $actingUserId = null,
-        public bool $preferFreeText = false
+        public bool $preferFreeText = false,
+        public ?string $alertDate = null,
+        public ?int $projectId = null,
+        public ?string $supervisor = null
     ) {
     }
 
@@ -53,8 +57,40 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
         WhatsAppCloudApiClient $client,
         WhatsAppContextBuilderRegistry $contexts,
         WhatsAppMessageStore $messages,
-        WhatsAppInboxService $inbox
+        WhatsAppInboxService $inbox,
+        RiderActivityWhatsAppAlertService $alerts
     ): void {
+        $alertDate = $this->alertDate
+            ?: (isset($this->riderSnapshot['alert_date_iso']) ? (string) $this->riderSnapshot['alert_date_iso'] : null);
+        $projectId = $this->projectId;
+        $supervisor = $this->supervisor;
+        $dedupeKey = $alerts->alertDedupeKey(
+            $this->companyId,
+            $this->triggerKey,
+            $this->riderId,
+            $alertDate,
+            $projectId,
+            $supervisor
+        );
+
+        if ($alerts->hasAlreadySentAlert(
+            $this->companyId,
+            $this->triggerKey,
+            $this->riderId,
+            $alertDate,
+            $projectId,
+            $supervisor
+        )) {
+            Log::info('whatsapp.rider_activity_skipped', [
+                'rider_id' => $this->riderId,
+                'trigger' => $this->triggerKey,
+                'reason' => 'duplicate',
+                'dedupe_key' => $dedupeKey,
+            ]);
+
+            return;
+        }
+
         $resolved = $bindings->resolve($this->triggerKey);
         if (! ($resolved['ready'] ?? false) || ! ($resolved['template'] instanceof WhatsAppTemplate)) {
             Log::info('whatsapp.rider_activity_skipped', [
@@ -154,6 +190,10 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
                 'source' => 'rider_activity_alert',
                 'trigger' => $this->triggerKey,
                 'rider_id' => $this->riderId,
+                'alert_date' => $alertDate,
+                'project_id' => $projectId,
+                'fleet_supervisor' => $supervisor,
+                'dedupe_key' => $dedupeKey,
                 'template_id' => $template->id,
                 'prefer_free_text' => $this->preferFreeText,
             ],

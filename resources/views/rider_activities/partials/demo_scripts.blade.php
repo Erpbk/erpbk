@@ -1,12 +1,12 @@
 <script>
 (function () {
-  function toast(msg) {
+  function toast(msg, ms) {
     var el = document.getElementById('raToast');
     if (!el) return;
     el.textContent = msg;
     el.classList.add('show');
     clearTimeout(el._t);
-    el._t = setTimeout(function () { el.classList.remove('show'); }, 2200);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2200);
   }
 
   // Operations menu
@@ -507,7 +507,16 @@
           waPayload = data || { types: {}, bindings: {} };
           waLoadedType = waType;
           renderWaRows();
-          toast('Filter applied');
+          var excluded = parseInt((data && data.excluded_already_sent) || 0, 10) || 0;
+          toast(excluded > 0
+            ? ('Filter applied · hid ' + excluded + ' already messaged')
+            : 'Filter applied');
+          var note = document.getElementById('raWaNote');
+          if (note) {
+            note.textContent = excluded > 0
+              ? ('Each selected rider gets the message template. Already messaged for these params are hidden (' + excluded + ').')
+              : 'Each selected rider gets the message template on their phone number.';
+          }
         })
         .catch(function () {
           if (rows) rows.innerHTML = '<div class="wa-empty">Filter failed. Try again.</div>';
@@ -520,6 +529,20 @@
 
   var fromSel = document.getElementById('raWaFrom');
   if (fromSel) fromSel.addEventListener('change', syncSendUi);
+
+  function clearFilteredList() {
+    if (!waPayload.types) waPayload.types = {};
+    waPayload.types[waType] = [];
+    waLoadedType = null;
+    waSelected = null;
+    if (waAll) {
+      waAll.checked = false;
+      waAll.disabled = true;
+    }
+    renderWaRows();
+    var note = document.getElementById('raWaNote');
+    if (note) note.textContent = 'Each selected rider gets the message template on their phone number.';
+  }
 
   var sendBtn = document.getElementById('raWaSend');
   if (sendBtn && waDr) {
@@ -543,14 +566,42 @@
       body.append('whatsapp_connection_id', String(fromId));
       appendFilterParams(body);
       ids.forEach(function (id) { body.append('rider_ids[]', String(id)); });
+
+      var rows = document.getElementById('raWaRows');
+      var lh = document.getElementById('raWaLh');
+      var filterBtn = document.getElementById('raWaFilter');
       sendBtn.disabled = true;
+      sendBtn.classList.add('is-sending');
+      if (filterBtn) filterBtn.disabled = true;
+      if (lh) lh.textContent = 'Sending…';
+      if (rows) {
+        rows.innerHTML = '<div class="wa-empty wa-loading" role="status" aria-live="polite">' +
+          '<span class="wa-spin" aria-hidden="true"></span>' +
+          '<span>Sending messages…</span>' +
+          '</div>';
+      }
+
       fetch(url, { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
         .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
         .then(function (res) {
-          toast((res.j && res.j.message) ? res.j.message : (res.ok ? 'Queued' : 'Send failed'));
+          var msg = (res.j && res.j.message) ? res.j.message : (res.ok ? 'Messages queued.' : 'Send failed');
+          if (res.ok) {
+            clearFilteredList();
+            toast(msg, 3600);
+          } else {
+            renderWaRows();
+            toast(msg, 3200);
+          }
         })
-        .catch(function () { toast('Send failed'); })
-        .finally(function () { syncSendUi(); });
+        .catch(function () {
+          renderWaRows();
+          toast('Send failed', 3200);
+        })
+        .finally(function () {
+          sendBtn.classList.remove('is-sending');
+          if (filterBtn) filterBtn.disabled = false;
+          syncSendUi();
+        });
     });
   }
 

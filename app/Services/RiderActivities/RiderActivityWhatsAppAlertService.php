@@ -5,9 +5,11 @@ namespace App\Services\RiderActivities;
 use App\Models\Company;
 use App\Models\Customers;
 use App\Models\liveactivities;
+use App\Models\NotificationDelivery;
 use App\Models\RiderActivities;
 use App\Models\Riders;
 use App\Models\WhatsAppTemplate;
+use App\Services\Notifications\CompanyNotificationChannels;
 use App\Services\WhatsApp\Context\WhatsAppContextBuilderRegistry;
 use App\Services\WhatsApp\WhatsAppTemplateBindingService;
 use App\Services\WhatsApp\WhatsAppTemplateInjector;
@@ -77,8 +79,38 @@ class RiderActivityWhatsAppAlertService
 
         $referenceDate = $resolved['reference_date'];
         $matched = $resolved['rows']; // list of [id, days_absent?, hours?, orders?]
+        $alertDateIso = $alertDate?->toDateString() ?? $referenceDate;
+        $includeAlreadySent = in_array(
+            strtolower((string) $request->input('include_already_sent', '0')),
+            ['1', 'true', 'yes'],
+            true
+        );
 
         $riderIds = array_values(array_unique(array_map(fn ($r) => (int) $r['id'], $matched)));
+        $trigger = 'rider_activity:'.$alertType;
+        $alreadySentIds = ($companyId > 0 && $riderIds !== [])
+            ? $this->alreadySentRiderIds(
+                $companyId,
+                $trigger,
+                $riderIds,
+                $alertDateIso,
+                $projectId,
+                $supervisor !== '' ? $supervisor : null
+            )
+            : [];
+        $alreadySentSet = array_fill_keys($alreadySentIds, true);
+        $excludedAlreadySent = 0;
+
+        if (! $includeAlreadySent && $alreadySentSet !== []) {
+            $before = count($matched);
+            $matched = array_values(array_filter(
+                $matched,
+                fn ($r) => ! isset($alreadySentSet[(int) $r['id']])
+            ));
+            $excludedAlreadySent = $before - count($matched);
+            $riderIds = array_values(array_unique(array_map(fn ($r) => (int) $r['id'], $matched)));
+        }
+
         $riders = $riderIds === []
             ? collect()
             : Riders::query()
@@ -102,8 +134,8 @@ class RiderActivityWhatsAppAlertService
         $bindings = [];
         $typesPayload = [];
         foreach ($typeDefs as $type) {
-            $trigger = 'rider_activity:'.$type['key'];
-            $bindingResolved = $resolvedBindings[$trigger] ?? [
+            $typeTrigger = 'rider_activity:'.$type['key'];
+            $bindingResolved = $resolvedBindings[$typeTrigger] ?? [
                 'ready' => false,
                 'message' => null,
                 'template' => null,
@@ -112,7 +144,7 @@ class RiderActivityWhatsAppAlertService
                 ? $bindingResolved['template']
                 : null;
             $bindings[$type['key']] = [
-                'trigger' => $trigger,
+                'trigger' => $typeTrigger,
                 'bound' => $template !== null,
                 'template_id' => $template?->id,
                 'template_label' => $template?->displayLabel(),
@@ -122,7 +154,6 @@ class RiderActivityWhatsAppAlertService
             $typesPayload[$type['key']] = [];
         }
 
-        $trigger = 'rider_activity:'.$alertType;
         $template = ! empty($bindings[$alertType]['bound'])
             ? (($resolvedBindings[$trigger]['template'] ?? null) instanceof WhatsAppTemplate
                 ? $resolvedBindings[$trigger]['template']
@@ -165,15 +196,115 @@ class RiderActivityWhatsAppAlertService
             'date' => $referenceDate,
             'types' => $typesPayload,
             'bindings' => $bindings,
+            'excluded_already_sent' => $excludedAlreadySent,
             'params' => [
                 'project_id' => $projectId,
                 'fleet_supervisor' => $supervisor !== '' ? $supervisor : null,
                 'hours_target' => $hoursTarget,
                 'orders_target' => $ordersTarget,
                 'days_threshold' => $daysThreshold,
-                'alert_date' => $alertDate?->toDateString() ?? $referenceDate,
+                'alert_date' => $alertDateIso,
             ],
         ];
+    }
+
+    /**
+     * Stable fingerprint for one rider-activity alert send (company + trigger + rider + params).
+     */
+    public function alertDedupeKey(
+        int $companyId,
+        string $triggerKey,
+        int $riderId,
+        ?string $alertDate,
+        ?int $projectId = null,
+        ?string $supervisor = null
+    ): string {
+        return hash('sha256', implode('|', [
+            (string) $companyId,
+            $triggerKey,
+            (string) $riderId,
+            (string) ($alertDate ?: ''),
+            (string) ($projectId ?: 0),
+            mb_strtolower(trim((string) ($supervisor ?? ''))),
+        ]));
+    }
+
+    /**
+     * @param  list<int>  $riderIds
+     * @return list<int>
+     */
+    public function alreadySentRiderIds(
+        int $companyId,
+        string $triggerKey,
+        array $riderIds,
+        ?string $alertDate,
+        ?int $projectId = null,
+        ?string $supervisor = null
+    ): array {
+        $riderIds = array_values(array_unique(array_filter(array_map('intval', $riderIds))));
+        if ($companyId <= 0 || $riderIds === [] || $triggerKey === '') {
+            return [];
+        }
+
+        $keyByRider = [];
+        foreach ($riderIds as $riderId) {
+            $keyByRider[$riderId] = $this->alertDedupeKey(
+                $companyId,
+                $triggerKey,
+                $riderId,
+                $alertDate,
+                $projectId,
+                $supervisor
+            );
+        }
+
+        // Treat in-flight (pending) the same as sent so Filter/Send cannot double-queue.
+        $sentKeys = NotificationDelivery::query()
+            ->where('company_id', $companyId)
+            ->where('channel', CompanyNotificationChannels::CHANNEL_WHATSAPP)
+            ->whereIn('status', [
+                NotificationDelivery::STATUS_SENT,
+                NotificationDelivery::STATUS_PENDING,
+            ])
+            ->where('provider_response->source', 'rider_activity_alert')
+            ->whereIn('provider_response->dedupe_key', array_values($keyByRider))
+            ->pluck('provider_response')
+            ->map(fn ($payload) => is_array($payload) ? (string) ($payload['dedupe_key'] ?? '') : '')
+            ->filter()
+            ->unique()
+            ->all();
+
+        if ($sentKeys === []) {
+            return [];
+        }
+
+        $sentKeySet = array_fill_keys($sentKeys, true);
+        $out = [];
+        foreach ($keyByRider as $riderId => $key) {
+            if (isset($sentKeySet[$key])) {
+                $out[] = (int) $riderId;
+            }
+        }
+
+        return $out;
+    }
+
+    public function hasAlreadySentAlert(
+        int $companyId,
+        string $triggerKey,
+        int $riderId,
+        ?string $alertDate,
+        ?int $projectId = null,
+        ?string $supervisor = null
+    ): bool {
+        return $this->alreadySentRiderIds(
+            $companyId,
+            $triggerKey,
+            [$riderId],
+            $alertDate,
+            $projectId,
+            $supervisor
+        ) !== [];
     }
 
     /**

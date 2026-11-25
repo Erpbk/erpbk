@@ -65,6 +65,18 @@ class WhatsAppInboxController extends Controller
         ]);
     }
 
+    public function unreadCount(Request $request, WhatsAppInboxService $inbox)
+    {
+        $user = $request->user();
+        abort_unless($user && $user->can('whatsapp_view'), 403);
+        $companyId = (int) CompanyContext::id();
+        abort_unless(WhatsAppCompanyAccess::available($companyId), 403);
+
+        return response()->json([
+            'count' => $inbox->unreadTotal($user, $companyId),
+        ]);
+    }
+
     public function thread(Request $request, WhatsAppInboxService $inbox)
     {
         $user = $request->user();
@@ -292,12 +304,10 @@ class WhatsAppInboxController extends Controller
             'participant_id' => 'nullable|integer|min:1',
         ]);
 
-        $participantType = ! empty($validated['participant_type']) && ($validated['participant_type'] !== 'unknown')
-            ? (string) $validated['participant_type']
-            : null;
-        $participantId = $participantType && ! empty($validated['participant_id'])
-            ? (int) $validated['participant_id']
-            : null;
+        [$participantType, $participantId] = $this->normalizeParticipant(
+            $validated['participant_type'] ?? null,
+            $validated['participant_id'] ?? null
+        );
 
         $inbox->transfer(
             $user,
@@ -314,6 +324,41 @@ class WhatsAppInboxController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    public function transferBulk(Request $request, WhatsAppInboxService $inbox)
+    {
+        $user = $request->user();
+        abort_unless($user && $user->can('whatsapp_edit'), 403);
+        $companyId = (int) CompanyContext::id();
+        abort_unless(WhatsAppCompanyAccess::available($companyId), 403);
+
+        $validated = $request->validate([
+            'threads' => 'required|array|min:1|max:100',
+            'threads.*.peer_phone' => 'required|string|max:32',
+            'threads.*.participant_type' => 'nullable|string|max:64',
+            'threads.*.participant_id' => 'nullable|integer|min:1',
+            'to_user_id' => 'required|integer|min:1',
+            'reason' => 'required|string|max:1000',
+            'history_mode' => 'required|in:full,from_now',
+            'whatsapp_connection_id' => 'nullable|integer|min:1',
+        ]);
+
+        $result = $inbox->transferMany(
+            $user,
+            $companyId,
+            $this->normalizeThreads($validated['threads']),
+            (int) $validated['to_user_id'],
+            $validated['reason'],
+            $validated['history_mode'],
+            isset($validated['whatsapp_connection_id']) ? (int) $validated['whatsapp_connection_id'] : null
+        );
+
+        return response()->json([
+            'ok' => $result['transferred'] > 0,
+            'transferred' => $result['transferred'],
+            'failed' => $result['failed'],
+        ]);
+    }
+
     public function destroy(Request $request, WhatsAppInboxService $inbox)
     {
         $user = $request->user();
@@ -327,12 +372,10 @@ class WhatsAppInboxController extends Controller
             'participant_id' => 'nullable|integer|min:1',
         ]);
 
-        $participantType = ! empty($validated['participant_type']) && ($validated['participant_type'] !== 'unknown')
-            ? (string) $validated['participant_type']
-            : null;
-        $participantId = $participantType && ! empty($validated['participant_id'])
-            ? (int) $validated['participant_id']
-            : null;
+        [$participantType, $participantId] = $this->normalizeParticipant(
+            $validated['participant_type'] ?? null,
+            $validated['participant_id'] ?? null
+        );
 
         $deleted = $inbox->deleteUserChat(
             $user,
@@ -343,6 +386,64 @@ class WhatsAppInboxController extends Controller
         );
 
         return response()->json(['ok' => true, 'deleted' => $deleted]);
+    }
+
+    public function destroyBulk(Request $request, WhatsAppInboxService $inbox)
+    {
+        $user = $request->user();
+        abort_unless($user && $user->can('whatsapp_delete'), 403);
+        $companyId = (int) CompanyContext::id();
+        abort_unless(WhatsAppCompanyAccess::available($companyId), 403);
+
+        $validated = $request->validate([
+            'threads' => 'required|array|min:1|max:100',
+            'threads.*.peer_phone' => 'required|string|max:32',
+            'threads.*.participant_type' => 'nullable|string|max:64',
+            'threads.*.participant_id' => 'nullable|integer|min:1',
+        ]);
+
+        $deleted = $inbox->deleteUserChats(
+            $user,
+            $companyId,
+            $this->normalizeThreads($validated['threads'])
+        );
+
+        return response()->json(['ok' => true, 'deleted' => $deleted]);
+    }
+
+    /**
+     * @return array{0: ?string, 1: ?int}
+     */
+    private function normalizeParticipant(?string $participantType, $participantId): array
+    {
+        $type = ! empty($participantType) && $participantType !== 'unknown'
+            ? (string) $participantType
+            : null;
+        $id = $type && ! empty($participantId) ? (int) $participantId : null;
+
+        return [$type, $id];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $threads
+     * @return list<array{peer_phone: string, participant_type: ?string, participant_id: ?int}>
+     */
+    private function normalizeThreads(array $threads): array
+    {
+        $out = [];
+        foreach ($threads as $thread) {
+            [$type, $id] = $this->normalizeParticipant(
+                isset($thread['participant_type']) ? (string) $thread['participant_type'] : null,
+                $thread['participant_id'] ?? null
+            );
+            $out[] = [
+                'peer_phone' => (string) ($thread['peer_phone'] ?? ''),
+                'participant_type' => $type,
+                'participant_id' => $id,
+            ];
+        }
+
+        return $out;
     }
 
     public function resolveConflict(Request $request, WhatsAppInboxService $inbox)

@@ -76,6 +76,8 @@ class RiderActivitiesController extends AppBaseController
         $alertType = $validated['alert_type'];
         $triggerKey = 'rider_activity:'.$alertType;
 
+        // Include already-sent matches so we can count them separately; jobs still hard-skip.
+        $request->merge(['include_already_sent' => '1']);
         $payload = $alerts->filterPayload($request, $mode);
         $allowed = collect($payload['types'][$alertType] ?? [])->keyBy('id');
         $binding = $payload['bindings'][$alertType] ?? null;
@@ -111,10 +113,24 @@ class RiderActivitiesController extends AppBaseController
             ], 422);
         }
 
+        $alertDate = isset($payload['params']['alert_date']) ? (string) $payload['params']['alert_date'] : null;
+        $projectId = isset($payload['params']['project_id']) ? (int) $payload['params']['project_id'] : null;
+        if ($projectId !== null && $projectId <= 0) {
+            $projectId = null;
+        }
+        $supervisor = isset($payload['params']['fleet_supervisor'])
+            ? (string) $payload['params']['fleet_supervisor']
+            : null;
+        if ($supervisor === '') {
+            $supervisor = null;
+        }
+
         $queued = 0;
         $skipped = 0;
+        $alreadySent = 0;
         $selected = [];
         $phones = [];
+        $candidateIds = [];
         foreach ($validated['rider_ids'] as $riderId) {
             $row = $allowed->get((int) $riderId);
             if (! $row) {
@@ -125,8 +141,36 @@ class RiderActivitiesController extends AppBaseController
                 $skipped++;
                 continue;
             }
+            $candidateIds[] = (int) $riderId;
             $selected[] = ['id' => (int) $riderId, 'row' => $row];
             $phones[] = (string) $row['phone'];
+        }
+
+        $alreadySentSet = array_fill_keys(
+            $alerts->alreadySentRiderIds(
+                $companyId,
+                $triggerKey,
+                $candidateIds,
+                $alertDate,
+                $projectId,
+                $supervisor
+            ),
+            true
+        );
+        if ($alreadySentSet !== []) {
+            $selected = array_values(array_filter(
+                $selected,
+                function (array $item) use ($alreadySentSet, &$alreadySent) {
+                    if (isset($alreadySentSet[$item['id']])) {
+                        $alreadySent++;
+
+                        return false;
+                    }
+
+                    return true;
+                }
+            ));
+            $phones = array_map(fn ($item) => (string) $item['row']['phone'], $selected);
         }
 
         // One query for all peers on this sender — jobs only recheck when hint says open.
@@ -141,6 +185,7 @@ class RiderActivitiesController extends AppBaseController
             $phone = (string) ($row['phone'] ?? '');
             $digits = \App\Support\PhoneNumber::toWhatsAppDigits($phone) ?? $phone;
             $preferFreeText = (bool) ($openByPhone[$digits] ?? false);
+            $row['alert_date_iso'] = $alertDate;
 
             \App\Jobs\WhatsApp\SendRiderActivityWhatsAppJob::dispatch(
                 $companyId,
@@ -149,19 +194,28 @@ class RiderActivitiesController extends AppBaseController
                 $row,
                 $connectionId,
                 $actorId,
-                $preferFreeText
+                $preferFreeText,
+                $alertDate,
+                $projectId,
+                $supervisor
             )->onQueue('notifications');
             $queued++;
+        }
+
+        $parts = [__('Queued :queued message(s)', ['queued' => $queued])];
+        if ($alreadySent > 0) {
+            $parts[] = __('already sent :n', ['n' => $alreadySent]);
+        }
+        if ($skipped > 0) {
+            $parts[] = __('skipped :n', ['n' => $skipped]);
         }
 
         return response()->json([
             'ok' => true,
             'queued' => $queued,
             'skipped' => $skipped,
-            'message' => __('Queued :queued message(s); skipped :skipped.', [
-                'queued' => $queued,
-                'skipped' => $skipped,
-            ]),
+            'already_sent' => $alreadySent,
+            'message' => implode('; ', $parts).'.',
         ]);
     }
 

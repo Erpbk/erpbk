@@ -806,12 +806,15 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('rider/activities/whatsapp-send', [RiderActivitiesController::class, 'whatsappSend'])->name('rider.activities.whatsapp_send');
 
     Route::get('whatsapp/inbox', [\App\Http\Controllers\WhatsAppInboxController::class, 'index'])->name('whatsapp.inbox.index');
+    Route::get('whatsapp/inbox/unread-count', [\App\Http\Controllers\WhatsAppInboxController::class, 'unreadCount'])->name('whatsapp.inbox.unread_count');
     Route::get('whatsapp/inbox/participants', [\App\Http\Controllers\WhatsAppInboxController::class, 'searchParticipants'])->name('whatsapp.inbox.participants');
     Route::get('whatsapp/inbox/thread/{peerPhone}', [\App\Http\Controllers\WhatsAppInboxController::class, 'thread'])->where('peerPhone', '[0-9]+')->name('whatsapp.inbox.thread');
     Route::post('whatsapp/inbox/send', [\App\Http\Controllers\WhatsAppInboxController::class, 'send'])->name('whatsapp.inbox.send');
     Route::post('whatsapp/inbox/messages/{id}/media/download', [\App\Http\Controllers\WhatsAppInboxController::class, 'downloadMedia'])->whereNumber('id')->name('whatsapp.inbox.media.download');
     Route::post('whatsapp/inbox/transfer', [\App\Http\Controllers\WhatsAppInboxController::class, 'transfer'])->name('whatsapp.inbox.transfer');
+    Route::post('whatsapp/inbox/transfer-bulk', [\App\Http\Controllers\WhatsAppInboxController::class, 'transferBulk'])->name('whatsapp.inbox.transfer_bulk');
     Route::delete('whatsapp/inbox', [\App\Http\Controllers\WhatsAppInboxController::class, 'destroy'])->name('whatsapp.inbox.destroy');
+    Route::delete('whatsapp/inbox/bulk', [\App\Http\Controllers\WhatsAppInboxController::class, 'destroyBulk'])->name('whatsapp.inbox.destroy_bulk');
     Route::post('whatsapp/inbox/conflict', [\App\Http\Controllers\WhatsAppInboxController::class, 'resolveConflict'])->name('whatsapp.inbox.conflict');
     Route::get('whatsapp/ui-prefs', [\App\Http\Controllers\WhatsAppUiPreferencesController::class, 'show'])->name('whatsapp.ui_prefs');
     Route::post('whatsapp/ui-prefs', [\App\Http\Controllers\WhatsAppUiPreferencesController::class, 'update'])->name('whatsapp.ui_prefs.update');

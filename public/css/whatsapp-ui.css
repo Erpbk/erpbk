@@ -735,6 +735,11 @@ body.wa-dragging {
   opacity: 0.45;
   cursor: not-allowed;
 }
+#raWaDrawer .wa-send.is-sending {
+  opacity: 0.7;
+  cursor: wait;
+  pointer-events: none;
+}
 
 /* ---- customize panel ---- */
 #raWaDrawer .wa-cust {
@@ -978,6 +983,60 @@ body.wa-dragging {
 }
 #waInbox.wa-ui .wa-inbox-search input[type="search"]:focus { background: #e9edef; }
 
+#waInbox.wa-ui .wa-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e9edef;
+  background: #f0f2f5;
+  flex-shrink: 0;
+}
+#waInbox.wa-ui .wa-bulk-bar[hidden] { display: none !important; }
+#waInbox.wa-ui .wa-bulk-all {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  cursor: pointer;
+}
+#waInbox.wa-ui .wa-bulk-all input,
+#waInbox.wa-ui .wa-thread-check {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent, #00a884);
+  cursor: pointer;
+}
+#waInbox.wa-ui .wa-bulk-count {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #54656f;
+  margin-right: auto;
+}
+#waInbox.wa-ui .wa-bulk-acts {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+#waInbox.wa-ui .wa-bulk-btn {
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #fff;
+  color: #111b21;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(11, 20, 26, 0.08);
+}
+#waInbox.wa-ui .wa-bulk-btn:hover:not(:disabled) { background: #f7f8fa; }
+#waInbox.wa-ui .wa-bulk-btn:disabled { opacity: 0.45; cursor: default; }
+#waInbox.wa-ui .wa-bulk-btn.wa-bulk-danger { color: #b42318; }
+#waInbox.wa-ui .wa-bulk-btn.wa-bulk-clear { color: #54656f; font-weight: 500; }
+
 #waInbox.wa-ui .wa-inbox-list {
   flex: 1 1 auto;
   min-height: 0;
@@ -1006,8 +1065,22 @@ body.wa-dragging {
   color: inherit;
   position: relative;
 }
+#waInbox.wa-ui .wa-inbox-row.has-check {
+  grid-template-columns: 22px auto minmax(0, 1fr);
+  padding-left: 6px;
+  column-gap: 6px;
+}
+#waInbox.wa-ui .wa-row-check {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 100%;
+  align-self: stretch;
+}
 #waInbox.wa-ui .wa-inbox-row:hover { background: #f5f6f6; }
 #waInbox.wa-ui .wa-inbox-row.on { background: #f0f2f5; }
+#waInbox.wa-ui .wa-inbox-row.is-selected { background: #e7f8ef; }
+#waInbox.wa-ui .wa-inbox-row.is-selected.on { background: #d9f5e5; }
 #waInbox.wa-ui .wa-av {
   width: var(--av);
   height: var(--av);

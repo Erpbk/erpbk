@@ -11,6 +11,7 @@ const CSRF = CFG.csrf || '';
 const CAN_EDIT = !!CFG.can_edit;
 const IS_ADMIN = !!CFG.is_admin;
 const ADMIN_SECTIONS = CFG.admin_sections || ['cur','time','fy','legal','stamp'];
+const VSA = CFG.voucher_signature || {can_view:false,can_edit:false,module_label:'Voucher Header',documents:[],totals:{documents:0,configured:0,legacy:0}};
 function assetUrl(pathOrUrl){
   if(!pathOrUrl) return '';
   const s=String(pathOrUrl);
@@ -382,6 +383,54 @@ function stampUserBar(){
   return`<div class="syncbar" style="margin-top:14px"><span class="sdot"></span><div><b>User stamp &amp; signature</b><br>Each login user has their own stamp, signature and document permissions. ${canPick?'Administrators can select any user to manage.':'Showing your own stamp &amp; signature.'}</div>
   <div style="min-width:220px"><span class="mini">User</span><select class="in" id="stampUserPick" data-no-select2 ${canPick?'':'disabled'}>${opts}</select></div></div>`;
 }
+function vsaConfigureUrl(code){
+  const tpl=String(ROUTES.voucherSignatureConfigure||'');
+  if(!tpl)return '#';
+  return tpl.indexOf('__CODE__')!==-1?tpl.split('__CODE__').join(encodeURIComponent(code)):tpl.replace(/\/[^/]*$/,'/'+encodeURIComponent(code));
+}
+function vsaHtml(){
+  if(!VSA.can_view){
+    return`<div class="warn" style="margin:14px 24px">You do not have permission to view voucher signature assignments.</div>`;
+  }
+  const totals=VSA.totals||{documents:0,configured:0,legacy:0};
+  const docs=Array.isArray(VSA.documents)?VSA.documents:[];
+  const indexUrl=ROUTES.voucherSignatureIndex||'#';
+  const canEdit=!!VSA.can_edit;
+  const rows=docs.map(d=>{
+    const flow=(d.flow||[]).map(f=>esc(f.label||'')).filter(Boolean).join(' → ')||'—';
+    const st=d.configured?`<span class="st ok">Configured · ${Number(d.active_count||0)|| (d.flow||[]).length}</span>`:`<span class="st none">Legacy layout</span>`;
+    const action=canEdit
+      ?`<a class="cd-btn ghost" style="padding:7px 12px;font-size:12.5px" href="${esc(vsaConfigureUrl(d.code))}">${d.configured?'Edit':'Set up'}</a>`
+      :`<a class="cd-btn ghost" style="padding:7px 12px;font-size:12.5px" href="${esc(vsaConfigureUrl(d.code))}">View</a>`;
+    return`<tr>
+      <td><span class="mono" style="font-weight:700;color:var(--accent)">${esc(d.code)}</span></td>
+      <td><b>${esc(d.label||d.code)}</b><small class="dm" style="display:block;margin-top:2px">${esc(d.module||'Vouchers')}</small></td>
+      <td>${st}</td>
+      <td style="text-align:left!important"><small class="dm" style="margin:0;text-align:left">${flow}</small></td>
+      <td style="text-align:right!important">${action}</td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="5" style="text-align:center;padding:26px;color:var(--muted)">No active voucher types found.</td></tr>`;
+
+  return`<div class="syncbar" style="margin-top:14px">
+    <span class="sdot"></span>
+    <div><b>${esc(VSA.module_label||'Voucher Header')}</b><br>
+      Set the print header and signature slots for each voucher type. Changes apply on View, Print and PDF.
+    </div>
+    <a class="cd-btn ghost" style="padding:8px 14px" href="${esc(indexUrl)}">Open full page</a>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 24px 0">
+    <div class="syncbar" style="margin:0;flex:1;min-width:140px"><div><b>${totals.documents||0}</b><br>Documents</div></div>
+    <div class="syncbar" style="margin:0;flex:1;min-width:140px"><div><b style="color:var(--ok)">${totals.configured||0}</b><br>Configured</div></div>
+    <div class="syncbar" style="margin:0;flex:1;min-width:140px"><div><b>${totals.legacy||0}</b><br>Legacy layout</div></div>
+  </div>
+  <div class="tblw" style="margin-top:14px">
+    <table style="min-width:720px">
+      <thead><tr><th>Code</th><th>Document</th><th>Status</th><th>Signature flow</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+  <div class="tip" style="margin-top:8px">Tip: upload each user\u2019s stamp &amp; signature in <b>Stamp &amp; Signature</b>, then assign those users here per voucher type.</div>`;
+}
 function renderPanel(){
   const s=SECS.find(x=>x.k===curSec);const panel=document.getElementById('panel');
   let h=`<div class="ph"><div><h2>${s.t}</h2><p>${s.s}</p></div>${s.lock?'<span class="lock">Admin only</span>':''}</div>`;
@@ -390,6 +439,7 @@ function renderPanel(){
   if(s.custom==='docs')h+=docsHtml();
   if(s.custom==='branches')h+=branchesHtml();
   if(s.custom==='depts')h+=deptsHtml();
+  if(s.custom==='vsa')h+=vsaHtml();
   if(s.warn)h+=`<div class="warn">Changing this setting can affect existing vouchers, VAT returns and reports. You will be asked to confirm before saving.</div>`;
   if(s.lock && !IS_ADMIN){h+=`<div class="warn">Admin only — you can view these settings but cannot change them.</div>`;}
   panel.innerHTML=h;

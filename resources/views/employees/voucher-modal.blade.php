@@ -11,7 +11,11 @@ $urls = [
 'PN' => safe_route('employees.penalty', ['id' => $employee->id ?? 0], 'employees/penalty/{id}'),
 'INC' => safe_route('employees.incentive', ['id' => $employee->id ?? 0], 'employees/incentive/{id}'),
 'AL' => safe_route('employees.advanceloan', ['id' => $employee->id ?? 0], 'employees/advanceloan/{id}'),
-'PAY' => safe_route('payments.create', ['invoice_type' => 'employee', 'employee_id' => $employee->id ?? 0], 'payments/create'),
+'PAY' => safe_route('payments.create', [
+'invoice_type' => 'employee',
+'employee_id' => $employee->id ?? 0,
+'employee_payment' => 1,
+], 'payments/create'),
 ];
 
 $editMode = isset($voucher_id) && isset($voucher_type);
@@ -242,9 +246,9 @@ $editMode = isset($voucher_id) && isset($voucher_type);
                         const partySubtitle = $party.data('modal-subtitle') || '';
                         $('#modalTopTitle').html(
                             '<span style="color:#1e4b8f;font-weight:700;">' + partyTitle + '</span>' +
-                            (partySubtitle
-                                ? '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + partySubtitle + '</div>'
-                                : '')
+                            (partySubtitle ?
+                                '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + partySubtitle + '</div>' :
+                                '')
                         );
                         $(form).find('[data-rpf-inline-header]').addClass('d-none');
                     }

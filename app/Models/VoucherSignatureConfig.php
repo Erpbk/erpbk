@@ -13,6 +13,9 @@ class VoucherSignatureConfig extends BaseModel
 
     public const POSITION_AFTER = 'after';
 
+    /** Shared print header for invoices and other non-voucher module documents. */
+    public const COMPANY_HEADER_CODE = '__COMPANY__';
+
     protected $table = 'voucher_signature_configs';
 
     protected $fillable = [

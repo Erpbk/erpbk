@@ -1,6 +1,6 @@
 @extends($layout ?? 'layouts.app')
 
-@section('title', ($moduleLabel ?? 'Voucher Signature Assignment') . ' – Site Settings')
+@section('title', ($moduleLabel ?? 'Voucher Header') . ' – Site Settings')
 
 @push('third_party_stylesheets')
 <style>
@@ -94,7 +94,13 @@
           <button type="submit" class="vsa-btnp">Save</button>
           <button type="button" class="vsa-btns" id="vsa-cancel-name">Cancel</button>
         </form>
-        <p>Set the header and signatures for every voucher. They print on the view, print and PDF. Documents without signature slots keep the legacy layout. Drag the dots to change the order.</p>
+        <p>
+          @if(!empty($filterModuleLabel))
+            Headers and signatures for <strong>{{ $filterModuleLabel }}</strong>. Documents without signature slots keep the legacy layout.
+          @else
+            Set the header and signatures for every voucher. They print on the view, print and PDF. Documents without signature slots keep the legacy layout. Drag the dots to change the order.
+          @endif
+        </p>
       </div>
     </div>
     <div class="vsa-stats">
@@ -166,7 +172,7 @@
               </td>
               <td style="text-align:right;padding-right:20px">
                 <a class="vsa-act {{ $on ? 'edit' : '' }}"
-                   href="{{ route('settings-panel.voucher-signature-assignment.configure', ['company_slug' => $company_slug, 'code' => $doc['code']]) }}">
+                   href="{{ route('settings-panel.voucher-signature-assignment.configure', array_filter(['company_slug' => $company_slug, 'code' => $doc['code'], 'module' => $filterModule ?? null])) }}">
                   {{ $on ? 'Edit' : 'Set up' }}
                 </a>
               </td>

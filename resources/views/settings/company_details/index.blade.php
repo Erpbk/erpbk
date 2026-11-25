@@ -18,6 +18,7 @@
   $slug = request()->route('company_slug') ?? session('company_slug');
   $isPanel = (bool) (View::shared('settings_panel') ?? false);
   $routePrefix = $isPanel ? 'settings-panel.company' : 'settings.company';
+  $vsaPrefix = $isPanel ? 'settings-panel.voucher-signature-assignment' : 'settings-panel.voucher-signature-assignment';
   $config = [
     'company' => $bootstrap['company'] ?? null,
     'entities' => $bootstrap['entities'] ?? [],
@@ -31,6 +32,13 @@
     'user_stamps' => $bootstrap['user_stamps'] ?? new \stdClass(),
     'current_user_id' => $bootstrap['current_user_id'] ?? null,
     'departments' => $bootstrap['departments'] ?? [],
+    'voucher_signature' => $bootstrap['voucher_signature'] ?? [
+      'can_view' => false,
+      'can_edit' => false,
+      'module_label' => 'Voucher Header',
+      'documents' => [],
+      'totals' => ['documents' => 0, 'configured' => 0, 'legacy' => 0],
+    ],
     'csrf' => csrf_token(),
     'storage_base' => rtrim(str_replace('\\', '/', request()->getBasePath()), '/') . '/storage/',
     'routes' => [
@@ -45,6 +53,8 @@
       'storeDepartment' => route($routePrefix . '.departments.store', ['company_slug' => $slug]),
       'updateDepartment' => route($routePrefix . '.departments.update', ['company_slug' => $slug, 'department' => '__ID__']),
       'destroyDepartment' => route($routePrefix . '.departments.destroy', ['company_slug' => $slug, 'department' => '__ID__']),
+      'voucherSignatureIndex' => route($vsaPrefix . '.index', ['company_slug' => $slug]),
+      'voucherSignatureConfigure' => route($vsaPrefix . '.configure', ['company_slug' => $slug, 'code' => '__CODE__']),
     ],
   ];
 @endphp

@@ -1,16 +1,16 @@
 @php
-  $voucher_number = 'EXP-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
-  $totalD = 0;
-  $totalC = 0;
-  $i = 0;
-  $settings = company_table('settings')->pluck('value', 'name')->toArray();
-  $__companySlug = \App\Support\CompanyRouteContext::slug();
-  $expenseVoucherRouteParams = ['id' => $voucher->id];
-  $voucherShowParams = ['voucher' => $voucher->id];
-  if (!empty($__companySlug)) {
-    $expenseVoucherRouteParams['company_slug'] = $__companySlug;
-    $voucherShowParams['company_slug'] = $__companySlug;
-  }
+$voucher_number = 'EXP-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
+$totalD = 0;
+$totalC = 0;
+$i = 0;
+$settings = company_table('settings')->pluck('value', 'name')->toArray();
+$__companySlug = \App\Support\CompanyRouteContext::slug();
+$expenseVoucherRouteParams = ['id' => $voucher->id];
+$voucherShowParams = ['voucher' => $voucher->id];
+if (!empty($__companySlug)) {
+$expenseVoucherRouteParams['company_slug'] = $__companySlug;
+$voucherShowParams['company_slug'] = $__companySlug;
+}
 @endphp
 <div class="voucher-modal-content">
   {{-- Action bar: Published ribbon, Edit, PDF/Print, etc. --}}
@@ -20,7 +20,7 @@
     </div>
     <div class="d-flex flex-wrap align-items-center gap-2">
       @can('expenses_edit')
-        <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Edit Expense Voucher {{ $voucher_number }}" data-action="{{ route('expenses.voucher.edit', $expenseVoucherRouteParams) }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
+      <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Edit Expense Voucher {{ $voucher_number }}" data-action="{{ route('expenses.voucher.edit', $expenseVoucherRouteParams) }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
       @endcan
       <a href="{{ route('vouchers.show', $voucherShowParams) }}?print=1" target="_blank" class="btn btn-sm btn-outline-secondary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF/Print</a>
     </div>
@@ -49,17 +49,17 @@
       @if($vf('trans_date'))<div class="col-auto text-muted">Date: {{ \Carbon\Carbon::parse($voucher->trans_date)->format('d M Y') }}</div>@endif
       @if($vf('amount'))<div class="col-auto fw-semibold">Amount: {{ \App\Helpers\Currency::format($voucher->amount, 2) }}</div>@endif
       @if($vf('reference_number') && $voucher->reference_number)
-        <div class="col-12 text-muted small">Reference Number: {{ $voucher->reference_number }}</div>
+      <div class="col-12 text-muted small">Reference Number: {{ $voucher->reference_number }}</div>
       @endif
     </div>
   </div>
 
   {{-- Notes --}}
   @if($vf('remarks') && $voucher->remarks)
-    <div class="mb-3">
-      <label class="form-label small text-uppercase text-muted mb-1">Notes</label>
-      <p class="mb-0">{{ $voucher->remarks }}</p>
-    </div>
+  <div class="mb-3">
+    <label class="form-label small text-uppercase text-muted mb-1">Notes</label>
+    <p class="mb-0">{{ $voucher->remarks }}</p>
+  </div>
   @endif
 
   {{-- Line items table --}}
@@ -76,14 +76,14 @@
       </thead>
       <tbody>
         @foreach($voucher->transactions as $item)
-          @php $i++; $totalD += $item->debit ?? 0; $totalC += $item->credit ?? 0; @endphp
-          <tr>
-            <td class="text-center">{{ $i }}</td>
-            <td>{{ $item->account ? $item->account->account_code . ' - ' . $item->account->name : '—' }}</td>
-            <td>{{ $item->narration ?? '—' }}</td>
-            <td class="text-end">{{ \App\Helpers\Account::show_bal_format($item->debit ?? 0) }}</td>
-            <td class="text-end">{{ \App\Helpers\Account::show_bal_format($item->credit ?? 0) }}</td>
-          </tr>
+        @php $i++; $totalD += $item->debit ?? 0; $totalC += $item->credit ?? 0; @endphp
+        <tr>
+          <td class="text-center">{{ $i }}</td>
+          <td>{{ $item->account ? $item->account->account_code . ' - ' . $item->account->name : '—' }}</td>
+          <td>{{ $item->narration ?? '—' }}</td>
+          <td class="text-end">{{ \App\Helpers\Account::show_bal_format($item->debit ?? 0) }}</td>
+          <td class="text-end">{{ \App\Helpers\Account::show_bal_format($item->credit ?? 0) }}</td>
+        </tr>
         @endforeach
       </tbody>
       <tfoot class="table-light">
@@ -101,29 +101,56 @@
     </table>
   </div>
 
-  {{-- Signature lines --}}
+  {{-- Signature slots from Voucher Signature Assignment (EXP), else legacy blank lines --}}
+  @php
+  $signatureResolver = app(\App\Services\Voucher\VoucherSignatureResolver::class);
+  $signatureSlots = $signatureResolver->slotsForVoucherModule(
+  (string) ($voucher->voucher_type ?? 'EXP'),
+  $voucher->company_id ?? null,
+  ! empty($voucher->Created_By) ? (int) $voucher->Created_By : null
+  );
+  [$printLayout] = $signatureResolver->layoutPartsFor((string) ($voucher->voucher_type ?? 'EXP'));
+  @endphp
+  @include('vouchers.partials.print_layout_styles', [
+  'printLayout' => $printLayout,
+  'isPdf' => false,
+  ])
+  @if($signatureSlots->isNotEmpty())
+  @include('vouchers.partials.signature_block', [
+  'signatureSlots' => $signatureSlots,
+  'signatureVariant' => 'cv',
+  'signaturePerRow' => 3,
+  ])
+  @else
   <div class="row g-3 mb-3 no-print">
-    <div class="col-md-4"><hr class="my-0"><span class="small text-muted">Authorized Signature</span></div>
-    <div class="col-md-4"><hr class="my-0"><span class="small text-muted">Accountant Signature</span></div>
-    <div class="col-md-4"><hr class="my-0"><span class="small text-muted">Customer Signature</span></div>
+    <div class="col-md-4">
+      <hr class="my-0"><span class="small text-muted">Prepared By</span>
+    </div>
+    <div class="col-md-4">
+      <hr class="my-0"><span class="small text-muted">Checked By</span>
+    </div>
+    <div class="col-md-4">
+      <hr class="my-0"><span class="small text-muted">Authorized By</span>
+    </div>
   </div>
+  @endif
 
   {{-- Attachments --}}
   <div class="text-center py-2 border-top">
     @if($voucher->attach_file)
-      @php
-        $attach_url = url('storage/vouchers/' . $voucher->attach_file);
-      @endphp
-      <a href="{{ $attach_url }}" target="_blank" class="text-decoration-none text-body d-inline-flex align-items-center gap-1">
-        <i class="ti ti-paperclip ti-sm"></i>
-        <span>1 Attachment(s) added</span>
-        <i class="ti ti-arrow-up ti-xs text-muted"></i>
-      </a>
+    @php
+    $attach_url = url('storage/vouchers/' . $voucher->attach_file);
+    @endphp
+    <a href="{{ $attach_url }}" target="_blank" class="text-decoration-none text-body d-inline-flex align-items-center gap-1">
+      <i class="ti ti-paperclip ti-sm"></i>
+      <span>1 Attachment(s) added</span>
+      <i class="ti ti-arrow-up ti-xs text-muted"></i>
+    </a>
     @else
-      <span class="text-muted d-inline-flex align-items-center gap-1">
-        <i class="ti ti-paperclip ti-sm"></i>
-        0 Attachment(s) added
-      </span>
+    <span class="text-muted d-inline-flex align-items-center gap-1">
+      <i class="ti ti-paperclip ti-sm"></i>
+      0 Attachment(s) added
+    </span>
     @endif
   </div>
 

@@ -1,6 +1,6 @@
 @extends($layout ?? 'layouts.app')
 
-@section('title', ($moduleLabel ?? 'Voucher Signature Assignment') . ' – ' . ($voucherType->label ?? ''))
+@section('title', ($moduleLabel ?? 'Voucher Header') . ' – ' . ($voucherType->label ?? ''))
 
 @push('third_party_stylesheets')
 <style>
@@ -109,6 +109,9 @@
       class="vsa-wrap"
       data-can-edit="{{ $canEdit ? '1' : '0' }}">
   @csrf
+  @if(!empty($filterModule))
+  <input type="hidden" name="module" value="{{ $filterModule }}">
+  @endif
   <input type="hidden" name="redirect_to" value="list">
   <input type="hidden" name="apply_header_to_all" id="vsa-apply-all" value="0">
   <input type="hidden" name="signature_position" id="vsa-position" value="{{ $pos }}">
@@ -124,7 +127,7 @@
 
   <div class="vsa-card vsa-chead">
     <div style="display:flex;flex-direction:column;gap:6px">
-      <a class="vsa-back" href="{{ route('settings-panel.voucher-signature-assignment.index', ['company_slug' => $company_slug]) }}">
+      <a class="vsa-back" href="{{ route('settings-panel.voucher-signature-assignment.index', array_filter(['company_slug' => $company_slug, 'module' => $filterModule ?? null])) }}">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
         All documents
       </a>
@@ -136,22 +139,22 @@
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <select id="vsa-copy-from" class="vsa-sel" style="width:240px;height:38px;border-radius:9px" @disabled(!$canEdit)>
+      <select id="vsa-copy-from" class="vsa-sel" style="min-width:280px;width:auto;max-width:420px;height:38px;border-radius:9px" @disabled(!$canEdit)>
         <option value="">Copy from another document…</option>
-        @foreach(($copySources ?? []) as $src)
+        @forelse(($copySources ?? []) as $src)
           <option value="{{ $src['code'] }}">{{ $src['code'] }} · {{ $src['label'] }}</option>
-        @endforeach
+        @empty
+          <option value="" disabled>No other configured documents yet</option>
+        @endforelse
+        @if($canEdit)
+          <option value="__legacy__">Reset to legacy</option>
+        @endif
       </select>
-      @if($canEdit && $config)
-      <button type="button" class="vsa-btns danger" id="vsa-reset-legacy"
-              onclick="if(confirm('Reset to legacy layout? This clears signature slots for this document.')){document.getElementById('vsa-clear-form').submit();}">
-        Reset to legacy
-      </button>
-      @endif
     </div>
   </div>
 
-  <div class="vsa-tabs" role="tablist">
+  {{-- TEMP: Signatures tab hidden — restore the Signatures button when ready --}}
+  <div class="vsa-tabs d-none" role="tablist">
     <button type="button" role="tab" data-tab="header" class="on">Header</button>
     <button type="button" role="tab" data-tab="sign">Signatures</button>
   </div>
@@ -159,8 +162,14 @@
   <div class="vsa-card" id="vsa-tab-header">
     <div class="vsa-sec-h">
       <div>
-        <h2>Header for {{ $voucherType->code }}</h2>
-        <p>Printed at the top of this document. The preview below updates as you change it.</p>
+        <h2>Header for {{ $voucherType->label ?? $voucherType->code }}</h2>
+        <p>
+          @if(!empty($isCompanyHeader))
+            Shared print header for invoices and other module documents. Use “Apply this header to all documents” to push it onto every voucher type too.
+          @else
+            Printed at the top of this document. The preview below updates as you change it.
+          @endif
+        </p>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span class="vsa-ctl">Layout</span>
@@ -251,7 +260,7 @@
   <div class="vsa-savebar">
     <div><span class="dot" id="vsa-dirty-dot"></span><span id="vsa-dirty-text">All changes saved</span></div>
     <div style="display:flex;gap:8px">
-      <a class="c" href="{{ route('settings-panel.voucher-signature-assignment.index', ['company_slug' => $company_slug]) }}">Cancel</a>
+      <a class="c" href="{{ route('settings-panel.voucher-signature-assignment.index', array_filter(['company_slug' => $company_slug, 'module' => $filterModule ?? null])) }}">Cancel</a>
       <button type="submit" class="s">Save print layout</button>
     </div>
   </div>
@@ -259,7 +268,10 @@
 </form>
 
 @if($canEdit && $config)
-<form id="vsa-clear-form" method="post" action="{{ route('settings-panel.voucher-signature-assignment.clear', ['company_slug' => $company_slug, 'code' => $voucherType->code]) }}" class="d-none">
+<form id="vsa-clear-form" method="post" action="{{ route('settings-panel.voucher-signature-assignment.clear', array_filter(['company_slug' => $company_slug, 'code' => $voucherType->code, 'module' => $filterModule ?? null])) }}" class="d-none">
+  @if(!empty($filterModule))
+  <input type="hidden" name="module" value="{{ $filterModule }}">
+  @endif
   @csrf
   @method('DELETE')
 </form>
@@ -311,7 +323,10 @@
     dirty: false,
     header: JSON.parse(JSON.stringify(BOOT.header)),
     position: BOOT.position || 'bottom',
-    slots: JSON.parse(JSON.stringify(BOOT.slots || []))
+    slots: JSON.parse(JSON.stringify(BOOT.slots || [])).map(function (s) {
+      s.assignee_type = String(s.assignee_type || 'label_only').toLowerCase();
+      return s;
+    })
   };
   var GRIP = '<svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor"><circle cx="4" cy="3" r="1.6"/><circle cx="10" cy="3" r="1.6"/><circle cx="4" cy="9" r="1.6"/><circle cx="10" cy="9" r="1.6"/><circle cx="4" cy="15" r="1.6"/><circle cx="10" cy="15" r="1.6"/></svg>';
   var TRASH = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
@@ -347,12 +362,32 @@
       if (el) el.value = state.header.on[k] ? '1' : '0';
     });
   }
+  function normalizeAssigneeType(type) {
+    type = String(type || '').toLowerCase().trim();
+    if (type === 'department' || type === 'user' || type === 'employee' || type === 'label_only') {
+      return type;
+    }
+    return 'label_only';
+  }
+  function whoPlaceholder(type) {
+    if (type === 'department') return 'Select department…';
+    if (type === 'user') return 'Select user…';
+    if (type === 'employee') return 'Select employee…';
+    return '— Signed by hand —';
+  }
+  function whoListFor(type) {
+    if (type === 'department') return BOOT.departments || [];
+    if (type === 'user') return BOOT.users || [];
+    if (type === 'employee') return BOOT.employees || [];
+    return [];
+  }
   function whoOptions(type, selected) {
-    if (type === 'label_only') return '<option value="">— Signed by hand —</option>';
-    var list = type === 'department' ? BOOT.departments : (type === 'user' ? BOOT.users : BOOT.employees);
-    var idKey = type === 'department' ? 'department_id' : (type === 'user' ? 'user_id' : 'employee_id');
-    var html = '<option value="">Select ' + type + '…</option>';
-    (list || []).forEach(function (o) {
+    type = normalizeAssigneeType(type);
+    if (type === 'label_only') {
+      return '<option value="">' + esc(whoPlaceholder(type)) + '</option>';
+    }
+    var html = '<option value="">' + esc(whoPlaceholder(type)) + '</option>';
+    whoListFor(type).forEach(function (o) {
       var sel = String(selected || '') === String(o.id) ? ' selected' : '';
       var label = o.name + (o.designation ? (' — ' + o.designation) : '');
       html += '<option value="' + o.id + '"' + sel + '>' + esc(label) + '</option>';
@@ -360,23 +395,34 @@
     return html;
   }
   function assigneeSelectName(i, type) {
+    type = normalizeAssigneeType(type);
     if (type === 'department') return 'slots[' + i + '][department_id]';
     if (type === 'user') return 'slots[' + i + '][user_id]';
     if (type === 'employee') return 'slots[' + i + '][employee_id]';
     return 'slots[' + i + '][_who]';
   }
   function selectedWho(slot) {
-    if (slot.assignee_type === 'department') return slot.department_id;
-    if (slot.assignee_type === 'user') return slot.user_id;
-    if (slot.assignee_type === 'employee') return slot.employee_id;
+    var type = normalizeAssigneeType(slot.assignee_type);
+    if (type === 'department') return slot.department_id;
+    if (type === 'user') return slot.user_id;
+    if (type === 'employee') return slot.employee_id;
     return '';
   }
+  function syncWhoSelect(whoEl, type, selected) {
+    if (!whoEl) return;
+    type = normalizeAssigneeType(type);
+    var i = +whoEl.dataset.i;
+    whoEl.name = assigneeSelectName(isNaN(i) ? 0 : i, type);
+    whoEl.innerHTML = whoOptions(type, selected || '');
+    whoEl.disabled = type === 'label_only' || !canEdit;
+    whoEl.value = selected ? String(selected) : '';
+  }
   function whoDisplay(slot) {
+    var type = normalizeAssigneeType(slot.assignee_type);
     var id = selectedWho(slot);
-    if (slot.assignee_type === 'label_only' || !id) return '';
-    var list = slot.assignee_type === 'department' ? BOOT.departments : (slot.assignee_type === 'user' ? BOOT.users : BOOT.employees);
-    var found = (list || []).find(function (o) { return String(o.id) === String(id); });
-    return found ? found.name : '[' + slot.assignee_type + ' name]';
+    if (type === 'label_only' || !id) return '';
+    var found = whoListFor(type).find(function (o) { return String(o.id) === String(id); });
+    return found ? found.name : '[' + type + ' name]';
   }
   function renderSlots() {
     var rows = document.getElementById('vsa-slot-rows');
@@ -401,7 +447,8 @@
       return { value: k, label: BOOT.assigneeTypes[k] };
     });
     rows.innerHTML = state.slots.map(function (s, i) {
-      var type = s.assignee_type || 'label_only';
+      s.assignee_type = normalizeAssigneeType(s.assignee_type);
+      var type = s.assignee_type;
       var whoSel = whoOptions(type, selectedWho(s));
       var typeHtml = typeOpts.map(function (t) {
         return '<option value="' + t.value + '"' + (type === t.value ? ' selected' : '') + '>' + esc(t.label) + '</option>';
@@ -456,8 +503,8 @@
     }
     if (note) {
       note.textContent = state.position === 'bottom'
-        ? 'Signatures are fixed at the bottom of the last page, whatever the document length. The row never splits across pages.'
-        : 'Signatures print right after the last line. If there is not enough space, the whole row moves to the next page.';
+        ? 'Page bottom: signatures stay at the foot of the last printed page, even when the voucher body is short.'
+        : 'After content: signatures print immediately under the last voucher section (amount / narration), not pinned to the page foot.';
     }
     syncHidden();
   }
@@ -565,24 +612,40 @@
       markDirty(); refreshPreview();
     }
   });
-  slotRows?.addEventListener('change', function (e) {
+  function onSlotFieldChange(e) {
     var t = e.target;
-    if (!t.dataset.f || !canEdit) return;
-    var i = +t.dataset.i;
-    if (t.dataset.f === 'assignee_type') {
-      state.slots[i].assignee_type = t.value;
+    if (!t || !t.getAttribute || !canEdit) return;
+    var field = t.getAttribute('data-f') || t.dataset.f;
+    if (!field) return;
+    var i = parseInt(t.getAttribute('data-i') || t.dataset.i, 10);
+    if (isNaN(i) || !state.slots[i]) return;
+
+    if (field === 'assignee_type') {
+      var type = normalizeAssigneeType(t.value);
+      t.value = type;
+      state.slots[i].assignee_type = type;
       state.slots[i].department_id = null;
       state.slots[i].user_id = null;
       state.slots[i].employee_id = null;
-      markDirty(); renderSlots(); refreshPreview();
-    } else if (t.dataset.f === 'who') {
-      var type = state.slots[i].assignee_type;
-      state.slots[i].department_id = type === 'department' ? (t.value || null) : null;
-      state.slots[i].user_id = type === 'user' ? (t.value || null) : null;
-      state.slots[i].employee_id = type === 'employee' ? (t.value || null) : null;
-      markDirty(); refreshPreview();
+      // Update Signer options in place so Type/Signer stay in sync (full re-render was leaving a stale Signer list).
+      var row = t.closest('.vsa-srow');
+      syncWhoSelect(row ? row.querySelector('[data-f="who"]') : null, type, '');
+      markDirty();
+      refreshPreview();
+      return;
     }
-  });
+
+    if (field === 'who') {
+      var whoType = normalizeAssigneeType(state.slots[i].assignee_type);
+      state.slots[i].department_id = whoType === 'department' ? (t.value || null) : null;
+      state.slots[i].user_id = whoType === 'user' ? (t.value || null) : null;
+      state.slots[i].employee_id = whoType === 'employee' ? (t.value || null) : null;
+      markDirty();
+      refreshPreview();
+    }
+  }
+  slotRows?.addEventListener('change', onSlotFieldChange);
+  slotRows?.addEventListener('input', onSlotFieldChange);
 
   document.getElementById('vsa-add-slot')?.addEventListener('click', function () {
     state.slots.push({
@@ -615,6 +678,45 @@
   document.getElementById('vsa-copy-from')?.addEventListener('change', function () {
     var code = this.value;
     if (!code || !canEdit) return;
+
+    if (code === '__legacy__') {
+      this.value = '';
+      if (!confirm('Reset to legacy layout? This clears signature slots for this document.')) {
+        return;
+      }
+      var clearForm = document.getElementById('vsa-clear-form');
+      if (clearForm) {
+        clearForm.submit();
+        return;
+      }
+      // Not saved on server yet — clear local editor state only.
+      state.slots = [];
+      state.header = JSON.parse(JSON.stringify(BOOT.defaultHeader));
+      state.position = 'bottom';
+      document.querySelectorAll('input[data-h]').forEach(function (inp) {
+        var key = inp.getAttribute('data-h');
+        inp.value = state.header[key];
+        if (inp.nextElementSibling) inp.nextElementSibling.textContent = state.header[key] + 'px';
+      });
+      var line = document.getElementById('vsa-line-cb');
+      if (line) line.checked = !!state.header.line;
+      document.querySelectorAll('#vsa-align-seg button').forEach(function (b) {
+        b.classList.toggle('on', b.getAttribute('data-align') === state.header.align);
+      });
+      document.querySelectorAll('#vsa-pos-seg button').forEach(function (b) {
+        b.classList.toggle('on', b.getAttribute('data-pos') === state.position);
+      });
+      document.querySelectorAll('.vsa-dchip[data-det]').forEach(function (btn) {
+        var k = btn.getAttribute('data-det');
+        btn.classList.toggle('on', !!state.header.on[k]);
+        var mark = btn.querySelector('.vsa-dmark');
+        if (mark) mark.textContent = state.header.on[k] ? '✓' : '+';
+      });
+      markDirty(); renderSlots(); refreshPreview();
+      toast('Reset to legacy layout');
+      return;
+    }
+
     var src = (BOOT.copySources || []).find(function (s) { return s.code === code; });
     if (!src) return;
     state.slots = JSON.parse(JSON.stringify(src.slots || []));

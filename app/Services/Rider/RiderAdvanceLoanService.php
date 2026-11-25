@@ -9,6 +9,7 @@ use App\Models\Transactions;
 use App\Models\VoucherType;
 use App\Models\Vouchers;
 use App\Support\GlobalAccounts;
+use App\Support\VoucherAccountKind;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -100,6 +101,11 @@ class RiderAdvanceLoanService
             ? GlobalAccounts::account('BANK_CHARGES')->id
             : null;
 
+        $branchId = VoucherAccountKind::resolveVoucherBranchId(
+            [$riderAccountId, $bankAccountId],
+            isset($data['branch_id']) ? (int) $data['branch_id'] : null
+        );
+
         return DB::transaction(function () use (
             $data,
             $riderAccount,
@@ -114,7 +120,8 @@ class RiderAdvanceLoanService
             $transDate,
             $debitNarration,
             $creditNarration,
-            $invoiceId
+            $invoiceId,
+            $branchId
         ) {
             $totalWithCharges = round($amount + $bankCharges, 2);
             $bankNarration = $creditNarration;
@@ -137,7 +144,7 @@ class RiderAdvanceLoanService
                 'trans_code' => $transCode,
                 'Created_By' => auth()->id(),
                 'status' => 1,
-                'branch_id' => $data['branch_id'] ?? null,
+                'branch_id' => $branchId,
                 'custom_field_values' => $data['custom_field_values'] ?? [],
                 'attach_file' => $data['attach_file'] ?? null,
             ]);
@@ -151,7 +158,7 @@ class RiderAdvanceLoanService
                 'trans_date' => $transDate,
                 'narration' => $debitNarration,
                 'debit' => $amount,
-                'branch_id' => $data['branch_id'] ?? null,
+                'branch_id' => $branchId,
                 'billing_month' => $billingMonth,
                 'created_By' => auth()->id(),
             ]);
@@ -167,7 +174,7 @@ class RiderAdvanceLoanService
                 'credit' => $totalWithCharges,
                 'billing_month' => $billingMonth,
                 'Created_By' => auth()->id(),
-                'branch_id' => $data['branch_id'] ?? null,
+                'branch_id' => $branchId,
             ]);
 
             // 3. Debit bank charges account
@@ -182,7 +189,7 @@ class RiderAdvanceLoanService
                     'debit' => $bankCharges,
                     'billing_month' => $billingMonth,
                     'Created_By' => auth()->id(),
-                    'branch_id' => $data['branch_id'] ?? null,
+                    'branch_id' => $branchId,
                 ]);
             }
 

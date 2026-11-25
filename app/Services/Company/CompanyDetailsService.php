@@ -10,6 +10,9 @@ use App\Models\CompanyLocationProfile;
 use App\Models\Departments;
 use App\Models\Files;
 use App\Models\Settings;
+use App\Models\VoucherSignatureConfig;
+use App\Models\VoucherSignatureSlot;
+use App\Models\VoucherType;
 use App\Support\CompanyGlobalPreferences;
 use App\Support\PublicStorageDisk;
 use Illuminate\Http\UploadedFile;
@@ -78,6 +81,109 @@ class CompanyDetailsService
             'user_stamps' => $stampBoot['user_stamps'],
             'current_user_id' => $stampBoot['current_user_id'],
             'departments' => $this->departmentsPayload($company),
+            'voucher_signature' => $this->voucherSignaturePayload($company),
+        ];
+    }
+
+    /**
+     * Voucher Signature Assignment summary for Company Details.
+     *
+     * @return array{
+     *   can_view: bool,
+     *   can_edit: bool,
+     *   module_label: string,
+     *   documents: list<array{code: string, label: string, module: string, configured: bool, active_count: int, flow: list<array{label: string}>}>,
+     *   totals: array{documents: int, configured: int, legacy: int}
+     * }
+     */
+    public function voucherSignaturePayload(Company $company): array
+    {
+        $user = Auth::user();
+        $canView = (bool) (
+            $user?->can('voucher_signature_assignment_view')
+            || $user?->can('voucher_signature_assignment_edit')
+            || $user?->can('vouchers_view')
+            || $user?->can('vouchers_edit')
+        );
+        $canEdit = (bool) (
+            $user?->can('voucher_signature_assignment_edit')
+            || $user?->can('voucher_signature_assignment_create')
+            || $user?->can('vouchers_edit')
+        );
+
+        $moduleLabel = Settings::getMenuLabel('voucher_signature_assignment')
+            ?: config('menu_labels.defaults.voucher_signature_assignment', 'Voucher Header');
+
+        if (! $canView) {
+            return [
+                'can_view' => false,
+                'can_edit' => false,
+                'module_label' => $moduleLabel,
+                'documents' => [],
+                'totals' => ['documents' => 0, 'configured' => 0, 'legacy' => 0],
+            ];
+        }
+
+        $voucherTypes = VoucherType::query()
+            ->where('is_active', true)
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get(['id', 'code', 'label', 'display_order']);
+
+        $configs = VoucherSignatureConfig::query()
+            ->with(['slots' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')])
+            ->withCount('activeSlots')
+            ->get()
+            ->keyBy(fn (VoucherSignatureConfig $c) => strtoupper((string) $c->voucher_type_code));
+
+        $companyKey = VoucherSignatureConfig::COMPANY_HEADER_CODE;
+        $companyConfig = $configs->get($companyKey);
+
+        $documents = collect([[
+            'code' => $companyKey,
+            'label' => 'Company / Invoices header',
+            'module' => 'All modules',
+            'configured' => (bool) ($companyConfig && $companyConfig->header_settings !== null),
+            'active_count' => 0,
+            'flow' => [],
+        ]])->concat($voucherTypes->map(function (VoucherType $type) use ($configs) {
+            $key = strtoupper((string) $type->code);
+            $config = $configs->get($key);
+            $slots = $config?->slots ?? collect();
+            $activeFlow = $slots
+                ->where('is_active', true)
+                ->values()
+                ->map(fn (VoucherSignatureSlot $s) => [
+                    'label' => $s->role_label,
+                ])
+                ->all();
+
+            $moduleLabels = $type->module_labels;
+            $moduleLabel = $moduleLabels[0] ?? 'Vouchers';
+
+            return [
+                'code' => (string) $type->code,
+                'label' => (string) $type->label,
+                'module' => $moduleLabel,
+                'configured' => $slots->isNotEmpty() || ($config && $config->header_settings !== null),
+                'active_count' => (int) ($config->active_slots_count ?? 0),
+                'flow' => $activeFlow,
+            ];
+        }))->values()->all();
+
+        $configured = collect($documents)->where('configured', true)->count();
+        $total = count($documents);
+
+        return [
+            'can_view' => true,
+            'can_edit' => $canEdit,
+            'module_label' => $moduleLabel,
+            'documents' => $documents,
+            'totals' => [
+                'documents' => $total,
+                'configured' => $configured,
+                'legacy' => max(0, $total - $configured),
+            ],
         ];
     }
 

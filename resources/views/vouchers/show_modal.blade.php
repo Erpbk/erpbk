@@ -138,7 +138,12 @@ $pdfUrl = route('vouchers.show', array_merge($voucherRouteParams($voucher->id), 
   $voucher->company_id ?? null,
   ! empty($voucher->Created_By) ? (int) $voucher->Created_By : null
   );
+  [$printLayout] = $signatureResolver->layoutPartsFor((string) ($voucher->voucher_type ?? ''));
   @endphp
+  @include('vouchers.partials.print_layout_styles', [
+  'printLayout' => $printLayout,
+  'isPdf' => false,
+  ])
   @if($signatureSlots->isNotEmpty())
   @include('vouchers.partials.signature_block', [
   'signatureSlots' => $signatureSlots,

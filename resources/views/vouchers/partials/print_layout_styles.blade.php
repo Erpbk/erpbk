@@ -1,8 +1,10 @@
 {{--
-  Optional per-voucher-type print header + signature position overrides.
-  Expects $printLayout already resolved, or $printLayoutCode / $voucherTypeCode.
-  Also sets $plHeader / $plPos for use in this same include only; parents should
-  resolve via vouchers.partials.print_layout_boot first.
+  Signature position + sheet flex helpers for voucher print docs.
+  - Page bottom: pin signature row to the bottom of the sheet/page
+  - After content: place signature row right under the last content block
+
+  Header look/size/chips are applied by vouchers.partials.print_company_header.
+  Expects $printLayout and/or $plPos already resolved from layoutPartsFor.
 --}}
 @php
     if (!isset($printLayout)) {
@@ -19,74 +21,65 @@
             ? app(\App\Services\Voucher\VoucherSignatureResolver::class)->layoutFor((string) $layoutCode)
             : null;
     }
-    $plHeader = is_array($printLayout['header'] ?? null)
-        ? \App\Models\VoucherSignatureConfig::normalizeHeaderSettings($printLayout['header'])
-        : null;
-    $plPos = ($printLayout['signature_position'] ?? 'after') === 'bottom' ? 'bottom' : 'after';
-@endphp
-@if($plHeader)
-@php
-    $plAlign = $plHeader['align'];
-    $plLogoMaxH = max(40, (int) round($plHeader['logo'] * 0.38));
-    $plLogoMaxW = max(80, (int) round($plHeader['logo'] * 1.05));
-    $plNameSize = max(12, min(28, (float) $plHeader['name'] * 0.72));
-    $plDetSize = max(9, min(14, (float) $plHeader['det'] * 0.9));
-    $plMinH = max(48, (int) round($plHeader['height'] * 0.45));
-    $plLine = !empty($plHeader['line']);
+
+    if (!isset($plPos) || !in_array($plPos, ['bottom', 'after'], true)) {
+        // Match Voucher Signature Assignment default ("Page bottom").
+        $plPos = ($printLayout['signature_position'] ?? 'bottom') === 'after'
+            ? 'after'
+            : 'bottom';
+    }
+
+    $pinBottom = $plPos === 'bottom';
+    // Bottom pin needs a tall sheet so margin-top:auto has room — including print/PDF.
+    // (Previously print forced min-height:0, which made "Page bottom" behave like "After content".)
+    if ($pinBottom) {
+        $sheetMinHeight = !empty($isPdf) ? '240mm' : '720px';
+    } else {
+        $sheetMinHeight = '0';
+    }
 @endphp
 <style>
-.rpv-doc .rpv-hdr td {
-    @if($plAlign === 'center')
-    text-align: center;
-    @elseif($plAlign === 'right')
-    text-align: right;
-    @else
-    text-align: left;
-    @endif
-    min-height: {{ $plMinH }}px;
-    border-bottom: {{ $plLine ? '2px solid var(--rpv-blue)' : '0' }};
-    padding-bottom: {{ $plLine ? '16px' : '8px' }};
-}
-.rpv-doc .rpv-hdr-logo { text-align: {{ $plAlign === 'right' ? 'right' : ($plAlign === 'center' ? 'center' : 'left') }}; }
-.rpv-doc .rpv-logo {
-    max-height: {{ $plLogoMaxH }}px;
-    max-width: {{ $plLogoMaxW }}px;
-    @if($plAlign === 'center')
-    margin-left: auto; margin-right: auto;
-    @elseif($plAlign === 'right')
-    margin-left: auto; margin-right: 0;
-    @endif
-}
-.rpv-doc .rpv-company { font-size: {{ $plNameSize }}px; text-align: {{ $plAlign }}; }
-.rpv-doc .rpv-meta { font-size: {{ $plDetSize }}px; text-align: {{ $plAlign }}; }
 .rpv-doc .rpv-sheet {
-    display: flex;
-    flex-direction: column;
-    min-height: {{ !empty($isPdf) ? '0' : '720px' }};
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: {{ $sheetMinHeight }} !important;
 }
-.rpv-doc .rpv-sigs,
-.rpv-doc .vsa-sig-wrap {
-    @if($plPos === 'bottom')
+.rpv-doc .rpv-sheet.rpv-sheet--sig-bottom,
+.rpv-doc .rpv-sheet--sig-bottom {
+    min-height: {{ $sheetMinHeight }} !important;
+}
+.rpv-doc .rpv-sheet.rpv-sheet--sig-after,
+.rpv-doc .rpv-sheet--sig-after {
+    min-height: 0 !important;
+}
+
+/* Push signatures to the page/sheet bottom */
+.rpv-doc .rpv-sheet--sig-bottom > .vsa-sig-wrap,
+.rpv-doc .rpv-sheet--sig-bottom > .rpv-sigs,
+.rpv-doc .rpv-sheet--sig-bottom > .rpv-sig-push {
     margin-top: auto !important;
-    @else
+}
+.rpv-doc .rpv-sheet--sig-bottom > .rpv-sig-push {
+    flex: 1 1 auto !important;
+    min-height: 24px;
+    width: 100%;
+}
+
+/* Sit directly under the last content block */
+.rpv-doc .rpv-sheet--sig-after > .vsa-sig-wrap,
+.rpv-doc .rpv-sheet--sig-after > .rpv-sigs {
     margin-top: 28px !important;
-    @endif
+}
+.rpv-doc .rpv-sheet--sig-after > .rpv-sig-push {
+    display: none !important;
+}
+
+@media print {
+    .rpv-doc .rpv-sheet--sig-bottom {
+        min-height: 240mm !important;
+    }
+    .rpv-doc .rpv-sheet--sig-after {
+        min-height: 0 !important;
+    }
 }
 </style>
-@elseif(!empty($printLayout))
-<style>
-.rpv-doc .rpv-sheet {
-    display: flex;
-    flex-direction: column;
-    min-height: {{ !empty($isPdf) ? '0' : '720px' }};
-}
-.rpv-doc .rpv-sigs,
-.rpv-doc .vsa-sig-wrap {
-    @if($plPos === 'bottom')
-    margin-top: auto !important;
-    @else
-    margin-top: 28px !important;
-    @endif
-}
-</style>
-@endif

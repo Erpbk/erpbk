@@ -42,8 +42,8 @@ $voucherType = isset($vt) ? $vt : request('vt');
 </div>
 @endif
 <div class="form-group col-md-2">
-    <label for="exampleInputEmail1">Billing Month</label>
-    <input type="month" name="billing_month" class="form-control " required>
+    <label for="al_billing_month">Billing Month</label>
+    <input type="month" name="billing_month" id="al_billing_month" class="form-control" value="{{ date('Y-m') }}" required>
 </div>
 <div class="form-group col-md-2">
     <label for="reference_number">Reference Number</label>

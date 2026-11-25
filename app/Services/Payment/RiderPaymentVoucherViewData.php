@@ -113,7 +113,9 @@ class RiderPaymentVoucherViewData
             'formatMoney' => static fn(float $amount) => Currency::format($amount),
             'signatureSlots' => $this->signatureResolver->slotsFor(
                 $voucherType,
-                CompanyContext::id() ?? $payment->company_id
+                CompanyContext::id() ?? $payment->company_id,
+                VoucherSignatureResolver::MODULE_VOUCHERS,
+                VoucherSignatureResolver::DOC_KIND_VOUCHER
             ),
         ];
     }

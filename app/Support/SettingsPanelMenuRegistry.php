@@ -11,7 +11,65 @@ class SettingsPanelMenuRegistry
      */
     public static function items(): array
     {
-        return config('settings_panel_menu.items', []);
+        return array_map(
+            [self::class, 'withVoucherHeaderChild'],
+            config('settings_panel_menu.items', [])
+        );
+    }
+
+    /**
+     * Append a "Voucher Header" child under every ERP module settings branch.
+     *
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    protected static function withVoucherHeaderChild(array $item): array
+    {
+        $key = (string) ($item['key'] ?? '');
+        if (
+            $key === ''
+            || $key === 'voucher_signature_assignment'
+            || (array_key_exists('settings', $item) && $item['settings'] === null)
+        ) {
+            return $item;
+        }
+
+        $children = array_values($item['children'] ?? []);
+        foreach ($children as $child) {
+            if (
+                ($child['settings'] ?? null) === 'voucher_signature_assignment'
+                || ($child['key'] ?? null) === 'voucher_signature_assignment'
+            ) {
+                return $item;
+            }
+        }
+
+        if ($children === []) {
+            $children[] = [
+                'key' => $key,
+                'settings' => $item['settings'] ?? $key,
+                'permission' => $item['permission'] ?? null,
+                'visibility' => $item['visibility'] ?? $key,
+            ];
+        }
+
+        $children[] = [
+            'key' => 'voucher_signature_assignment',
+            'label' => 'Voucher Header',
+            'settings' => 'voucher_signature_assignment',
+            'settings_query' => ['module' => $key],
+            'visibility' => $item['visibility'] ?? $key,
+            'permission' => [
+                'voucher_signature_assignment_view',
+                'voucher_signature_assignment_edit',
+                'vouchers_view',
+                'vouchers_edit',
+            ],
+        ];
+
+        $item['children'] = $children;
+
+        return $item;
     }
 
     /**
@@ -105,33 +163,45 @@ class SettingsPanelMenuRegistry
         return route('settings-panel.module-settings.index', $params);
     }
 
-    public static function isActive(string $settingsModuleKey): bool
+    public static function isActive(string $settingsModuleKey, array $query = []): bool
     {
+        if ($settingsModuleKey === 'voucher_signature_assignment' && self::onVoucherHeaderPath()) {
+            $expectedModule = isset($query['module']) ? (string) $query['module'] : '';
+            $currentModule = (string) request()->query('module', '');
+
+            if ($expectedModule !== '') {
+                return $currentModule === $expectedModule;
+            }
+
+            // Top-level Voucher Header (no module filter).
+            return $currentModule === '';
+        }
+
         $patterns = [
-            'riders' => ['settings-panel/rider-settings*', 'settings-panel/module-settings/riders*'],
-            'riders_list' => ['settings-panel/rider-settings*'],
-            'employees' => ['settings-panel/employee-settings*', 'settings-panel/module-settings/employees*'],
-            'cheques' => ['settings-panel/cheques-settings*', 'settings-panel/module-settings/cheques*'],
-            'accounts' => ['settings-panel/account-fields*'],
-            'chart_of_accounts' => ['settings-panel/account-fields*'],
-            'ledger' => ['settings-panel/account-fields*'],
-            'vouchers' => ['settings-panel/voucher-settings*'],
-            'voucher_signature_assignment' => ['settings-panel/voucher-signature-assignment*'],
-            'vat' => ['settings-panel/vat-settings*'],
-            'vat_ledger' => ['settings-panel/vat-settings*'],
-            'vat_return_file' => ['settings-panel/vat-settings*'],
-            'visa_expense' => ['settings-panel/visa-statuses*', 'settings-panel/visa-renewal-categories*', 'settings-panel/module-settings/visa_expense*'],
-            'rider_inventory_items' => ['settings-panel/rider-inventory-items*'],
-            'rider_invoice_templates' => ['settings-panel/rider-invoice-templates*'],
-            'activities' => ['settings-panel/rider-activity-import-settings*', 'settings-panel/module-settings/activities*'],
-            'live_activities' => ['settings-panel/rider-activity-import-settings*', 'settings-panel/module-settings/live_activities*'],
-            'sim_invoices' => ['settings-panel/module-settings/sim_invoices*', 'settings-panel/excel-import-mappings/sim_invoices*'],
-            'bike_registration' => ['settings-panel/bike-registration-statuses*', 'settings-panel/module-settings/bike_registration*'],
-            'bike_list' => ['settings-panel/module-settings/bike_list*'],
-            'dashboard' => ['settings-panel/module-settings/dashboard*'],
-            'rta_fines' => ['settings-panel/module-settings/rta_fines*'],
-            'rta_fines_unpaid' => ['settings-panel/module-settings/rta_fines*'],
-            'rta_fines_paid' => ['settings-panel/module-settings/rta_fines*'],
+            'riders' => ['*settings-panel/rider-settings*', '*settings-panel/module-settings/riders*'],
+            'riders_list' => ['*settings-panel/rider-settings*'],
+            'employees' => ['*settings-panel/employee-settings*', '*settings-panel/module-settings/employees*'],
+            'cheques' => ['*settings-panel/cheques-settings*', '*settings-panel/module-settings/cheques*'],
+            'accounts' => ['*settings-panel/account-fields*'],
+            'chart_of_accounts' => ['*settings-panel/account-fields*'],
+            'ledger' => ['*settings-panel/account-fields*'],
+            'vouchers' => ['*settings-panel/voucher-settings*'],
+            'voucher_signature_assignment' => ['*settings-panel/voucher-signature-assignment*'],
+            'vat' => ['*settings-panel/vat-settings*'],
+            'vat_ledger' => ['*settings-panel/vat-settings*'],
+            'vat_return_file' => ['*settings-panel/vat-settings*'],
+            'visa_expense' => ['*settings-panel/visa-statuses*', '*settings-panel/visa-renewal-categories*', '*settings-panel/module-settings/visa_expense*'],
+            'rider_inventory_items' => ['*settings-panel/rider-inventory-items*'],
+            'rider_invoice_templates' => ['*settings-panel/rider-invoice-templates*'],
+            'activities' => ['*settings-panel/rider-activity-import-settings*', '*settings-panel/module-settings/activities*'],
+            'live_activities' => ['*settings-panel/rider-activity-import-settings*', '*settings-panel/module-settings/live_activities*'],
+            'sim_invoices' => ['*settings-panel/module-settings/sim_invoices*', '*settings-panel/excel-import-mappings/sim_invoices*'],
+            'bike_registration' => ['*settings-panel/bike-registration-statuses*', '*settings-panel/module-settings/bike_registration*'],
+            'bike_list' => ['*settings-panel/module-settings/bike_list*'],
+            'dashboard' => ['*settings-panel/module-settings/dashboard*'],
+            'rta_fines' => ['*settings-panel/module-settings/rta_fines*'],
+            'rta_fines_unpaid' => ['*settings-panel/module-settings/rta_fines*'],
+            'rta_fines_paid' => ['*settings-panel/module-settings/rta_fines*'],
         ];
 
         foreach ($patterns[$settingsModuleKey] ?? [] as $pattern) {
@@ -140,7 +210,7 @@ class SettingsPanelMenuRegistry
             }
         }
 
-        return request()->is('settings-panel/module-settings/' . $settingsModuleKey . '*');
+        return request()->is('*settings-panel/module-settings/' . $settingsModuleKey . '*');
     }
 
     public static function branchIsOpen(array $item): bool
@@ -150,13 +220,36 @@ class SettingsPanelMenuRegistry
             return true;
         }
 
-        if (request()->is('settings-panel/module-settings/' . ($item['key'] ?? '') . '*')) {
+        if (request()->is('*settings-panel/module-settings/' . ($item['key'] ?? '') . '*')) {
             return true;
         }
 
         foreach ($item['children'] ?? [] as $child) {
             $childSettings = (string) ($child['settings'] ?? $child['key'] ?? '');
-            if ($childSettings !== '' && self::isActive($childSettings)) {
+            if ($childSettings !== '' && self::isActive($childSettings, $child['settings_query'] ?? [])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * True on Voucher Header index or configure pages under /app/{slug}/settings-panel/...
+     */
+    public static function onVoucherHeaderPath(): bool
+    {
+        return request()->is('*settings-panel/voucher-signature-assignment*');
+    }
+
+    /**
+     * Whether any visible child of this branch is the active menu item.
+     */
+    public static function branchHasActiveChild(array $item): bool
+    {
+        foreach ($item['children'] ?? [] as $child) {
+            $childSettings = (string) ($child['settings'] ?? $child['key'] ?? '');
+            if ($childSettings !== '' && self::isActive($childSettings, $child['settings_query'] ?? [])) {
                 return true;
             }
         }

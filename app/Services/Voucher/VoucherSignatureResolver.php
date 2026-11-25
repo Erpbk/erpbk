@@ -15,9 +15,7 @@ class VoucherSignatureResolver
 
     public const DOC_KIND_VOUCHER = 'v';
 
-    public function __construct(private UserStampSignatureService $stampService)
-    {
-    }
+    public function __construct(private UserStampSignatureService $stampService) {}
 
     /**
      * Signature slots for the Vouchers module document only.
@@ -64,6 +62,34 @@ class VoucherSignatureResolver
     }
 
     /**
+     * Shared company print header for invoices and other module documents
+     * that are not tied to one voucher type.
+     *
+     * @return array{align: string, height: int, logo: int, name: float, det: float, line: bool, on: array<string, int>}
+     */
+    public function companyHeaderSettings(?int $companyId = null): array
+    {
+        $companyId = $companyId ?? CompanyContext::id();
+
+        $companyConfig = $this->configFor(VoucherSignatureConfig::COMPANY_HEADER_CODE, $companyId);
+        if ($companyConfig && $companyConfig->header_settings !== null) {
+            return $companyConfig->resolvedHeaderSettings();
+        }
+
+        $query = VoucherSignatureConfig::query()->whereNotNull('header_settings');
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+
+        $fallback = (clone $query)->where('voucher_type_code', 'JV')->first()
+            ?? $query->orderByDesc('updated_at')->orderByDesc('id')->first();
+
+        return $fallback
+            ? $fallback->resolvedHeaderSettings()
+            : VoucherSignatureConfig::defaultHeaderSettings();
+    }
+
+    /**
      * Unpack layout for Blade document bodies.
      *
      * @return array{0: ?array, 1: ?array, 2: string}
@@ -77,9 +103,24 @@ class VoucherSignatureResolver
             is_array($layout['header'] ?? null)
                 ? VoucherSignatureConfig::normalizeHeaderSettings($layout['header'])
                 : null,
-            ($layout['signature_position'] ?? VoucherSignatureConfig::POSITION_AFTER) === VoucherSignatureConfig::POSITION_BOTTOM
-                ? VoucherSignatureConfig::POSITION_BOTTOM
-                : VoucherSignatureConfig::POSITION_AFTER,
+            // Default matches Settings → Voucher Signature Assignment ("Page bottom").
+            ($layout['signature_position'] ?? VoucherSignatureConfig::POSITION_BOTTOM) === VoucherSignatureConfig::POSITION_AFTER
+                ? VoucherSignatureConfig::POSITION_AFTER
+                : VoucherSignatureConfig::POSITION_BOTTOM,
+        ];
+    }
+
+    /**
+     * Layout parts for invoices / module prints that share the company header.
+     *
+     * @return array{0: null, 1: array, 2: string}
+     */
+    public function layoutPartsForCompany(?int $companyId = null): array
+    {
+        return [
+            null,
+            $this->companyHeaderSettings($companyId),
+            VoucherSignatureConfig::POSITION_BOTTOM,
         ];
     }
 
@@ -109,8 +150,8 @@ class VoucherSignatureResolver
                 ['id', 'asc'],
             ])
             ->values()
-            ->map(fn (VoucherSignatureSlot $slot) => $this->resolveSlot($slot, $company, $module, $docKind))
-            ->filter(fn (array $slot) => empty($slot['_blocked']))
+            ->map(fn(VoucherSignatureSlot $slot) => $this->resolveSlot($slot, $company, $module, $docKind))
+            ->filter(fn(array $slot) => empty($slot['_blocked']))
             ->map(function (array $slot) {
                 unset($slot['_blocked']);
 
@@ -199,7 +240,7 @@ class VoucherSignatureResolver
             return collect();
         }
 
-        $blank = static fn (string $label, int $order): array => [
+        $blank = static fn(string $label, int $order): array => [
             'role_label' => $label,
             'display_name' => null,
             'designation' => null,

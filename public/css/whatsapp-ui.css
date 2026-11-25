@@ -308,13 +308,14 @@ body.sidebar-collapse #raWaDrawer {
 }
 #raWaDrawer .wa-row {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   padding: 4px 10px;
   min-height: var(--rh);
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.12s;
+  position: relative;
 }
 #raWaDrawer .wa-row:hover {
   background: #f5f6f6;
@@ -352,6 +353,14 @@ body.sidebar-collapse #raWaDrawer {
   overflow: hidden;
   position: relative;
   line-height: 1;
+  cursor: zoom-in;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  transform-origin: center center;
+}
+#raWaDrawer .wa-av:hover {
+  transform: scale(2.35);
+  z-index: 40;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
 }
 #raWaDrawer .wa-av .ra-av-ini {
   display: grid;
@@ -376,6 +385,24 @@ body.sidebar-collapse #raWaDrawer {
   display: block;
   border-radius: inherit;
   background: #cbd5e1;
+}
+#raWaDrawer .wa-profile-link {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  border-radius: 8px;
+  color: #667781;
+  text-decoration: none;
+  flex: none;
+}
+#raWaDrawer .wa-profile-link:hover {
+  background: #e9edef;
+  color: var(--wa-accent, #00a884);
+}
+#raWaDrawer .wa-profile-link svg {
+  display: block;
 }
 
 #raWaDrawer .wa-tx {
@@ -532,6 +559,9 @@ body.wa-dragging {
   padding: 10px 16px;
   background: var(--head);
   border-bottom: 1px solid #e9edef;
+  position: relative;
+  z-index: 2;
+  overflow: visible;
 }
 #raWaDrawer .wa-ch .wa-av {
   width: 40px;
@@ -974,6 +1004,7 @@ body.wa-dragging {
   cursor: pointer;
   transition: background 0.12s;
   color: inherit;
+  position: relative;
 }
 #waInbox.wa-ui .wa-inbox-row:hover { background: #f5f6f6; }
 #waInbox.wa-ui .wa-inbox-row.on { background: #f0f2f5; }
@@ -991,6 +1022,14 @@ body.wa-dragging {
   overflow: hidden;
   position: relative;
   line-height: 1;
+  cursor: zoom-in;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  transform-origin: center center;
+}
+#waInbox.wa-ui .wa-av:hover {
+  transform: scale(2.35);
+  z-index: 40;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
 }
 #waInbox.wa-ui .wa-av .ra-av-ini {
   display: grid;
@@ -1111,6 +1150,9 @@ body.wa-dragging {
   background: var(--head);
   border-bottom: 1px solid #e9edef;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  overflow: visible;
 }
 #waInbox.wa-ui .wa-ch .wa-av { width: 40px; height: 40px; font-size: 14px; }
 #waInbox.wa-ui .wa-ch .who { flex: 1; min-width: 0; }
@@ -1244,6 +1286,97 @@ body.wa-dragging {
   border-bottom: 10px solid transparent;
 }
 #waInbox.wa-ui .wa-bub .txt { white-space: pre-wrap; word-break: break-word; }
+#waInbox.wa-ui .wa-bub .wa-reply {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+#waInbox.wa-ui .wa-bub.out .wa-reply { background: rgba(0, 0, 0, 0.08); }
+#waInbox.wa-ui .wa-bub .wa-reply-bar {
+  width: 4px;
+  border-radius: 4px;
+  background: #06cf9c;
+  flex: 0 0 auto;
+}
+#waInbox.wa-ui .wa-bub.in .wa-reply-bar { background: #53bdeb; }
+#waInbox.wa-ui .wa-bub .wa-reply-content {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+#waInbox.wa-ui .wa-bub .wa-reply-who {
+  font-size: 12px;
+  font-weight: 600;
+  color: #027eb5;
+}
+#waInbox.wa-ui .wa-bub.out .wa-reply-who { color: #1fa855; }
+#waInbox.wa-ui .wa-bub .wa-reply-text {
+  font-size: 12.5px;
+  color: #667781;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#waInbox.wa-ui .wa-bub.wa-flash {
+  outline: 2px solid #53bdeb;
+  outline-offset: 2px;
+}
+#waInbox.wa-ui .wa-bub .wa-media { display: grid; gap: 6px; min-width: 0; }
+#waInbox.wa-ui .wa-bub .wa-media img,
+#waInbox.wa-ui .wa-bub .wa-media video {
+  max-width: min(280px, 100%);
+  max-height: 280px;
+  border-radius: 8px;
+  display: block;
+}
+#waInbox.wa-ui .wa-bub:has(.wa-media-audio) {
+  min-width: min(280px, 100%);
+  max-width: min(320px, var(--mw));
+}
+#waInbox.wa-ui .wa-bub .wa-media-audio {
+  min-width: 240px;
+  width: 100%;
+}
+#waInbox.wa-ui .wa-bub .wa-media audio {
+  display: block;
+  width: 100%;
+  min-width: 220px;
+  height: 40px;
+  max-width: 100%;
+}
+#waInbox.wa-ui .wa-bub .wa-doc-link {
+  color: #027eb5;
+  text-decoration: underline;
+  word-break: break-word;
+}
+#waInbox.wa-ui .wa-bub .wa-media-dl {
+  justify-self: start;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: rgba(0, 0, 0, 0.06);
+  color: #111b21;
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+}
+#waInbox.wa-ui .wa-bub .wa-media-dl svg { width: 18px; height: 18px; display: block; }
+#waInbox.wa-ui .wa-bub .wa-media-dl:disabled { opacity: 0.6; cursor: wait; }
+#waInbox.wa-ui .wa-bub .wa-media-dl.is-loading svg { animation: wa-ui-spin 0.7s linear infinite; }
 #waInbox.wa-ui .wa-bub .meta {
   display: block;
   text-align: right;
@@ -1251,9 +1384,17 @@ body.wa-dragging {
   font-size: 11px;
   color: #667781;
 }
+#waInbox.wa-ui .wa-bub.is-queued { opacity: 0.72; }
 #waInbox.wa-ui .wa-bub.is-pending { opacity: 0.85; }
 #waInbox.wa-ui .wa-bub.is-failed { --bb: #fde8e8; }
 #waInbox.wa-ui .wa-bub.is-failed .txt { color: #991b1b; }
+#waInbox.wa-ui .wa-msg-queued {
+  display: inline-block;
+  min-width: 0.9em;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+  font-weight: 600;
+}
 #waInbox.wa-ui .wa-gap {
   align-self: center;
   text-align: center;
@@ -1317,6 +1458,66 @@ body.wa-dragging {
   max-width: 210px;
   box-shadow: none;
 }
+#waInbox.wa-ui .wa-comp .wa-attach {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fff;
+  color: #54656f;
+  cursor: pointer;
+}
+#waInbox.wa-ui .wa-comp .wa-attach svg { width: 22px; height: 22px; }
+#waInbox.wa-ui .wa-comp .wa-attach-chips {
+  flex: 0 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: min(220px, 40%);
+  max-height: 84px;
+  overflow-y: auto;
+}
+#waInbox.wa-ui .wa-comp .wa-attach-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  padding: 0 4px 0 8px;
+  border-radius: 18px;
+  background: #fff;
+  color: #54656f;
+  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.08);
+}
+#waInbox.wa-ui .wa-comp .wa-attach-chip[data-kind="image"] { color: #0284c7; }
+#waInbox.wa-ui .wa-comp .wa-attach-chip[data-kind="audio"] { color: #7c3aed; }
+#waInbox.wa-ui .wa-comp .wa-attach-chip[data-kind="video"] { color: #db2777; }
+#waInbox.wa-ui .wa-comp .wa-attach-chip[data-kind="document"] { color: #b45309; }
+#waInbox.wa-ui .wa-comp .wa-attach-chip-icon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#waInbox.wa-ui .wa-comp .wa-attach-chip-icon svg { width: 20px; height: 20px; display: block; }
+#waInbox.wa-ui .wa-comp .wa-attach-chip-x {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #667781;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+#waInbox.wa-ui .wa-comp .wa-attach-chip-x:hover { background: rgba(0, 0, 0, 0.06); color: #111b21; }
 #waInbox.wa-ui .wa-comp #waBody {
   flex: 1;
   min-width: 0;

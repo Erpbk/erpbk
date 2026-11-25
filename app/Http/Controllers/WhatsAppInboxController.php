@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Jobs\WhatsApp\SendWhatsAppComposeJob;
 use App\Models\User;
+use App\Models\WhatsAppMessage;
 use App\Services\WhatsApp\WhatsAppConnectionService;
 use App\Services\WhatsApp\WhatsAppInboxService;
+use App\Services\WhatsApp\WhatsAppMediaService;
 use App\Support\CompanyContext;
 use App\Support\PhoneNumber;
 use App\Support\WhatsApp\WhatsAppCompanyAccess;
@@ -134,8 +136,12 @@ class WhatsAppInboxController extends Controller
         return response()->json(['results' => $results]);
     }
 
-    public function send(Request $request, WhatsAppInboxService $inbox, WhatsAppConnectionService $connections)
-    {
+    public function send(
+        Request $request,
+        WhatsAppInboxService $inbox,
+        WhatsAppConnectionService $connections,
+        WhatsAppMediaService $media
+    ) {
         $user = $request->user();
         abort_unless($user && $user->can('whatsapp_create'), 403);
         $companyId = (int) CompanyContext::id();
@@ -144,10 +150,17 @@ class WhatsAppInboxController extends Controller
         $validated = $request->validate([
             'peer_phone' => 'required|string|max:32',
             'whatsapp_connection_id' => 'required|integer|min:1',
-            'body' => 'required|string|max:4096',
+            'body' => 'nullable|string|max:4096',
+            'file' => 'nullable|file',
             'participant_type' => 'nullable|string|max:64',
             'participant_id' => 'nullable|integer|min:1',
         ]);
+
+        $hasFile = $request->hasFile('file');
+        $body = trim((string) ($validated['body'] ?? ''));
+        if (! $hasFile && $body === '') {
+            return response()->json(['ok' => false, 'message' => 'Message body or file is required.'], 422);
+        }
 
         $to = PhoneNumber::toWhatsAppDigits($validated['peer_phone']);
         abort_unless(PhoneNumber::isValidWhatsAppDigits($to), 422, 'Invalid phone.');
@@ -175,22 +188,91 @@ class WhatsAppInboxController extends Controller
             ? (int) $validated['participant_id']
             : null;
 
-        SendWhatsAppComposeJob::dispatch(
-            $companyId,
-            (int) $user->id,
-            $connectionId,
-            $to,
-            'text',
-            (string) $validated['body'],
-            null,
-            'en',
-            [],
-            false,
-            $participantType,
-            $participantId
-        )->onQueue('notifications');
+        if ($hasFile) {
+            $stored = $media->storeOutboundUpload($request->file('file'), $companyId);
+            if (! ($stored['ok'] ?? false)) {
+                return response()->json(['ok' => false, 'message' => $stored['error'] ?? 'Invalid file.'], 422);
+            }
+
+            SendWhatsAppComposeJob::dispatch(
+                $companyId,
+                (int) $user->id,
+                $connectionId,
+                $to,
+                'media',
+                $body !== '' ? $body : null,
+                null,
+                'en',
+                [],
+                false,
+                $participantType,
+                $participantId,
+                $stored['path'],
+                $stored['mime'],
+                $stored['filename'],
+                $stored['type'],
+                $stored['size']
+            )->onQueue('notifications');
+        } else {
+            SendWhatsAppComposeJob::dispatch(
+                $companyId,
+                (int) $user->id,
+                $connectionId,
+                $to,
+                'text',
+                $body,
+                null,
+                'en',
+                [],
+                false,
+                $participantType,
+                $participantId
+            )->onQueue('notifications');
+        }
 
         return response()->json(['ok' => true, 'message' => 'Message queued.']);
+    }
+
+    public function downloadMedia(Request $request, WhatsAppMediaService $media)
+    {
+        $user = $request->user();
+        abort_unless($user && $user->can('whatsapp_view'), 403);
+        $companyId = (int) CompanyContext::id();
+        abort_unless(WhatsAppCompanyAccess::available($companyId), 403);
+
+        // Read id from the route by name. Do NOT type-hint it: under
+        // app/{company_slug}/..., Laravel passes route params by position
+        // after DI and company_slug would be injected as $id/$message.
+        $messageId = (int) $request->route('id', 0);
+        abort_unless($messageId > 0, 404);
+
+        $message = WhatsAppMessage::query()
+            ->whereKey($messageId)
+            ->where('company_id', $companyId)
+            ->firstOrFail();
+        abort_unless((int) $message->user_id === (int) $user->id, 403);
+
+        $message->loadMissing('connection');
+        $result = $media->ensureCached($message);
+        if (! ($result['ok'] ?? false)) {
+            return response()->json([
+                'ok' => false,
+                'message' => $result['error'] ?? 'Media no longer available from WhatsApp.',
+            ], 422);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'media' => [
+                'ready' => true,
+                'downloadable' => false,
+                'url' => $result['url'] ?? null,
+                'mime' => $result['mime'] ?? null,
+                'filename' => $result['filename'] ?? null,
+                'size' => $result['size'] ?? null,
+                'cached_until' => $result['cached_until'] ?? null,
+            ],
+        ]);
     }
 
     public function transfer(Request $request, WhatsAppInboxService $inbox)

@@ -373,15 +373,20 @@
       }
       // No phone: blocked. Missing data: selectable but unchecked by default.
       var checked = !noPhone && !missing;
+      var profileLink = r.activities_url
+        ? ('<a class="wa-profile-link" href="' + esc(r.activities_url) + '" target="_blank" rel="noopener" title="Open rider activities" aria-label="Open rider activities" onclick="event.stopPropagation()">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>' +
+          '</a>')
+        : '';
       return '<div class="wa-row' + (noPhone ? ' is-err' : '') + (missing ? ' is-warn' : '') + '" data-id="' + r.id + '"' + (noPhone ? ' data-blocked="1"' : '') + '>' +
         '<input type="checkbox"' + (noPhone ? ' disabled title="' + esc(tip) + '"' : (checked ? ' checked' : '')) + (missing && tip ? ' title="' + esc(tip) + '"' : '') + '>' +
         avatarHtml(r) +
         '<div class="wa-tx"><b title="' + esc(r.phone ? '+' + r.phone : 'No phone') + '">' + esc(r.name) + '</b><small>' + sub + '</small>' +
-        '<span class="wa-chips">' + chips + '</span></div></div>';
+        '<span class="wa-chips">' + chips + '</span></div>' + profileLink + '</div>';
     }).join('');
     rows.querySelectorAll('.wa-row').forEach(function (row) {
       row.addEventListener('click', function (e) {
-        if (e.target && e.target.tagName === 'INPUT') return;
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.closest('.wa-profile-link'))) return;
         rows.querySelectorAll('.wa-row').forEach(function (x) { x.classList.remove('sel'); });
         row.classList.add('sel');
         var id = +row.getAttribute('data-id');

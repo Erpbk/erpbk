@@ -10,6 +10,7 @@ use App\Services\Notifications\CompanyNotificationChannels;
 use App\Services\WhatsApp\Context\WhatsAppContextBuilderRegistry;
 use App\Services\WhatsApp\WhatsAppCloudApiClient;
 use App\Services\WhatsApp\WhatsAppConnectionService;
+use App\Services\WhatsApp\WhatsAppInboxService;
 use App\Services\WhatsApp\WhatsAppTemplateBindingService;
 use App\Services\WhatsApp\WhatsAppMessageStore;
 use App\Services\WhatsApp\WhatsAppTemplateInjector;
@@ -40,7 +41,8 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
         public int $riderId,
         public array $riderSnapshot = [],
         public ?int $connectionId = null,
-        public ?int $actingUserId = null
+        public ?int $actingUserId = null,
+        public bool $preferFreeText = false
     ) {
     }
 
@@ -50,7 +52,8 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
         WhatsAppTemplateInjector $injector,
         WhatsAppCloudApiClient $client,
         WhatsAppContextBuilderRegistry $contexts,
-        WhatsAppMessageStore $messages
+        WhatsAppMessageStore $messages,
+        WhatsAppInboxService $inbox
     ): void {
         $resolved = $bindings->resolve($this->triggerKey);
         if (! ($resolved['ready'] ?? false) || ! ($resolved['template'] instanceof WhatsAppTemplate)) {
@@ -94,14 +97,14 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
             return;
         }
 
-        // Missing template injects are sent as "-" (same as drawer preview).
-        $built = $injector->build($template, $context, '-');
-        if (! ($built['ok'] ?? false)) {
+        // Missing template injects are sent as "-" (same as drawer preview). One pass.
+        $payload = $injector->previewPayload($template, $context, '-');
+        if (! ($payload['ok'] ?? false)) {
             Log::info('whatsapp.rider_activity_skipped', [
                 'rider_id' => $this->riderId,
                 'reason' => 'inject_failed',
-                'error' => $built['error'] ?? null,
-                'missing_injects' => $built['missing_injects'] ?? [],
+                'error' => $payload['error'] ?? null,
+                'missing_injects' => $payload['missing_injects'] ?? [],
             ]);
 
             return;
@@ -132,6 +135,13 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
         /** @var WhatsAppConnection $connection */
         $connection = $prepared['connection'];
 
+        $preview = trim((string) ($payload['text'] ?? ''));
+        $useFreeText = false;
+        if ($this->preferFreeText && $preview !== '') {
+            // Recheck at send time — window may have closed while queued.
+            $useFreeText = $inbox->hasOpenWindow($this->companyId, (string) $to, (int) $connection->id);
+        }
+
         $delivery = NotificationDelivery::query()->create([
             'company_id' => $this->companyId,
             'user_notification_id' => null,
@@ -145,18 +155,29 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
                 'trigger' => $this->triggerKey,
                 'rider_id' => $this->riderId,
                 'template_id' => $template->id,
+                'prefer_free_text' => $this->preferFreeText,
             ],
         ]);
 
-        $preview = $injector->previewText($template, $context, '-');
+        $templateName = (string) ($payload['template_name'] ?? $template->name);
+        $templateLanguage = (string) ($payload['language'] ?? ($template->language ?: 'en'));
+        $components = $payload['components'] ?? [];
 
-        $result = $client->sendTemplate(
-            $connection,
-            $to,
-            (string) $built['template_name'],
-            (string) ($built['language'] ?? 'en'),
-            $built['components'] ?? []
-        );
+        if ($useFreeText) {
+            $result = $client->sendText($connection, $to, $preview);
+            $mode = 'text';
+            $downgraded = true;
+        } else {
+            $result = $client->sendTemplate(
+                $connection,
+                $to,
+                $templateName,
+                $templateLanguage,
+                is_array($components) ? $components : []
+            );
+            $mode = 'template';
+            $downgraded = false;
+        }
 
         $ok = (bool) ($result['ok'] ?? false);
         $delivery->forceFill($ok
@@ -165,6 +186,8 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
                 'sent_at' => now(),
                 'provider_response' => array_merge($delivery->provider_response ?? [], [
                     'ok' => true,
+                    'mode' => $mode,
+                    'downgraded_from_template' => $downgraded,
                     'message_id' => $result['message_id'] ?? null,
                     'response' => $result['response'] ?? null,
                     'connection_id' => $connection->id,
@@ -173,6 +196,8 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
             : [
                 'status' => NotificationDelivery::STATUS_FAILED,
                 'provider_response' => array_merge($delivery->provider_response ?? [], [
+                    'mode' => $mode,
+                    'downgraded_from_template' => $downgraded,
                     'error' => $result['error'] ?? 'send_failed',
                     'response' => $result['response'] ?? null,
                 ]),
@@ -185,11 +210,11 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
             'phone_number_id' => $connection->phone_number_id,
             'peer_phone' => $to,
             'wa_message_id' => $result['message_id'] ?? null,
-            'message_type' => 'template',
-            'body' => $preview,
-            'template_name' => (string) $built['template_name'],
-            'template_language' => (string) ($built['language'] ?? 'en'),
-            'components' => $built['components'] ?? null,
+            'message_type' => $mode,
+            'body' => $preview !== '' ? $preview : null,
+            'template_name' => $mode === 'template' ? $templateName : null,
+            'template_language' => $mode === 'template' ? $templateLanguage : null,
+            'components' => $mode === 'template' ? (is_array($components) ? $components : null) : null,
             'status' => $ok ? WhatsAppMessage::STATUS_SENT : WhatsAppMessage::STATUS_FAILED,
             'notification_delivery_id' => $delivery->id,
             'source' => 'rider_activity_alert',
@@ -199,6 +224,7 @@ class SendRiderActivityWhatsAppJob implements ShouldQueue
             'payload' => [
                 'result' => $result['response'] ?? null,
                 'error' => $ok ? null : ($result['error'] ?? null),
+                'downgraded_from_template' => $downgraded,
             ],
         ]);
 

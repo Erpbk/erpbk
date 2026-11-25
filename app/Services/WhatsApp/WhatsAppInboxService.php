@@ -151,7 +151,7 @@ class WhatsAppInboxService
                 'photo' => WhatsAppRecipientTypes::photoUrl($participant),
                 'last_body' => $latest->is_system
                     ? (string) $latest->body
-                    : ($latest->body ?: ($latest->message_type ?: '')),
+                    : $this->previewBody($latest),
                 'last_at' => optional($latest->occurred_at)?->toIso8601String(),
                 'participant_type' => $pType,
                 'participant_id' => $pId,
@@ -513,6 +513,46 @@ class WhatsAppInboxService
     }
 
     /**
+     * Batch 24h inbound-window checks for many peers on one sender connection.
+     *
+     * @param  list<string>  $peerPhones
+     * @return array<string, bool> normalized peer_phone => open
+     */
+    public function openWindowsForPeers(int $companyId, int $connectionId, array $peerPhones): array
+    {
+        $normalized = [];
+        foreach ($peerPhones as $phone) {
+            $digits = PhoneNumber::toWhatsAppDigits(is_string($phone) ? $phone : null);
+            if (PhoneNumber::isValidWhatsAppDigits($digits)) {
+                $normalized[$digits] = false;
+            }
+        }
+
+        if ($normalized === [] || $connectionId <= 0 || $companyId <= 0) {
+            return $normalized;
+        }
+
+        $openPhones = WhatsAppMessage::query()
+            ->where('company_id', $companyId)
+            ->where('whatsapp_connection_id', $connectionId)
+            ->whereIn('peer_phone', array_keys($normalized))
+            ->where('direction', WhatsAppMessage::DIRECTION_IN)
+            ->where('occurred_at', '>=', now()->subHours(24))
+            ->distinct()
+            ->pluck('peer_phone')
+            ->map(fn ($phone) => (string) $phone)
+            ->all();
+
+        foreach ($openPhones as $phone) {
+            if (array_key_exists($phone, $normalized)) {
+                $normalized[$phone] = true;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     private function buildGapAwareTimeline(Collection $messages, int $viewerId): array
@@ -521,6 +561,7 @@ class WhatsAppInboxService
         $gapStart = null;
         $gapUserId = null;
         $gapUserName = null;
+        $replyParents = $this->loadReplyParents($messages);
 
         $flushGap = function () use (&$items, &$gapStart, &$gapUserId, &$gapUserName) {
             if ($gapStart && $gapUserId) {
@@ -542,7 +583,7 @@ class WhatsAppInboxService
 
             if ($ownerId === $viewerId) {
                 $flushGap();
-                $items[] = $this->serializeBubble($message, false);
+                $items[] = $this->serializeBubble($message, false, $replyParents);
                 continue;
             }
 
@@ -573,23 +614,132 @@ class WhatsAppInboxService
     /**
      * @return array<string, mixed>
      */
-    private function serializeBubble(WhatsAppMessage $message, bool $showOwner): array
+    private function previewBody(WhatsAppMessage $message): string
     {
+        if ($message->body) {
+            return (string) $message->body;
+        }
+
+        $type = (string) ($message->message_type ?: '');
+        if (in_array($type, WhatsAppMediaService::TYPES, true)) {
+            if ($type === 'document' && $message->media_filename) {
+                return 'Document: '.$message->media_filename;
+            }
+
+            return ucfirst($type);
+        }
+
+        return $type !== '' ? $type : '';
+    }
+
+    /**
+     * Meta puts reply/quote context on inbound messages as:
+     * payload.context.id (wamid of the quoted message) and payload.context.from.
+     *
+     * @param  Collection<int, WhatsAppMessage>  $messages
+     * @return array<string, WhatsAppMessage> keyed by wa_message_id
+     */
+    private function loadReplyParents(Collection $messages): array
+    {
+        $ids = [];
+        foreach ($messages as $message) {
+            $id = $this->replyToWaId($message);
+            if ($id !== null) {
+                $ids[$id] = true;
+            }
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return WhatsAppMessage::withoutGlobalScope('company')
+            ->whereIn('wa_message_id', array_keys($ids))
+            ->orderByDesc('id')
+            ->get()
+            ->unique('wa_message_id')
+            ->keyBy(fn (WhatsAppMessage $m) => (string) $m->wa_message_id)
+            ->all();
+    }
+
+    private function replyToWaId(WhatsAppMessage $message): ?string
+    {
+        $payload = is_array($message->payload) ? $message->payload : [];
+        $id = data_get($payload, 'context.id')
+            ?? data_get($payload, 'context.message_id');
+        $id = is_string($id) ? trim($id) : '';
+
+        return $id !== '' ? $id : null;
+    }
+
+    /**
+     * @param  array<string, WhatsAppMessage>  $replyParents
+     * @return array{id: ?int, wa_message_id: string, direction: ?string, message_type: ?string, body: ?string}|null
+     */
+    private function serializeReplyTo(WhatsAppMessage $message, array $replyParents): ?array
+    {
+        $replyWaId = $this->replyToWaId($message);
+        if ($replyWaId === null) {
+            return null;
+        }
+
+        $parent = $replyParents[$replyWaId] ?? null;
+        if ($parent instanceof WhatsAppMessage) {
+            $preview = $this->previewBody($parent);
+            if ($preview === '' && in_array((string) $parent->message_type, WhatsAppMediaService::TYPES, true)) {
+                $preview = ucfirst((string) $parent->message_type);
+            }
+
+            return [
+                'id' => (int) $parent->id,
+                'wa_message_id' => $replyWaId,
+                'direction' => $parent->direction,
+                'message_type' => $parent->message_type,
+                'body' => $preview !== '' ? $preview : 'Original message',
+            ];
+        }
+
+        return [
+            'id' => null,
+            'wa_message_id' => $replyWaId,
+            'direction' => null,
+            'message_type' => null,
+            'body' => 'Original message',
+        ];
+    }
+
+    /**
+     * @param  array<string, WhatsAppMessage>  $replyParents
+     */
+    private function serializeBubble(WhatsAppMessage $message, bool $showOwner, array $replyParents = []): array
+    {
+        $type = (string) ($message->message_type ?: 'message');
         $body = $message->body;
         if ($body === null || $body === '') {
-            $type = (string) ($message->message_type ?: 'message');
-            $body = in_array($type, ['image', 'audio', 'video', 'document', 'sticker'], true)
-                ? ucfirst($type)
-                : ($message->template_name ?: $type);
+            // Media bubbles use message_type + media payload; keep body as caption only
+            // so the UI does not show leftover "Image"/"Audio" labels after download.
+            if (in_array($type, WhatsAppMediaService::TYPES, true)) {
+                $body = $type === 'document' ? ($message->media_filename ?: null) : null;
+            } elseif ($type === 'sticker') {
+                $body = 'Sticker';
+            } else {
+                $body = $message->template_name ?: $type;
+            }
         }
 
         $occurredAt = $message->occurred_at ?? $message->created_at;
+        $media = in_array($type, WhatsAppMediaService::TYPES, true)
+            ? app(WhatsAppMediaService::class)->serializeMedia($message)
+            : null;
 
         return [
             'type' => 'message',
             'id' => $message->id,
             'direction' => $message->direction,
+            'message_type' => $type,
             'body' => $body,
+            'media' => $media,
+            'reply_to' => $this->serializeReplyTo($message, $replyParents),
             'status' => $message->status,
             'is_system' => (bool) $message->is_system,
             // Absolute instant (ISO) — browser formats in the reader's local timezone.
@@ -819,7 +969,7 @@ class WhatsAppInboxService
             $rows[] = [
                 'peer_phone' => $peer,
                 'label' => $peer,
-                'last_body' => $latest->body ?: ($latest->message_type ?: ''),
+                'last_body' => $this->previewBody($latest),
                 'last_at' => optional($latest->occurred_at)?->toIso8601String(),
                 'has_conflict' => ! empty($latest->participant_conflict),
             ];
@@ -891,8 +1041,10 @@ class WhatsAppInboxService
         $latest = $messages->last();
         [$peerLabel] = $this->formatPeerHeader($latest, $peerPhone);
 
+        $replyParents = $this->loadReplyParents($messages);
+
         return [
-            'items' => $messages->map(fn ($m) => $this->serializeBubble($m, true))->all(),
+            'items' => $messages->map(fn ($m) => $this->serializeBubble($m, true, $replyParents))->all(),
             'conflict' => $conflict,
             'open_window' => $open,
             'peer_phone' => $peerPhone,

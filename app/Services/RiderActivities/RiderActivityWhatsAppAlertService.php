@@ -548,6 +548,7 @@ class RiderActivityWhatsAppAlertService
             'phone' => PhoneNumber::isValidWhatsAppDigits($phone) ? $phone : '',
             'ini' => $initials !== '' ? $initials : 'R',
             'photo' => $photo,
+            'activities_url' => route('rider.activities', (int) $rider->id, absolute: false),
             'days_absent' => $daysAbsent,
             'last_date' => $lastDate ?: '—',
             'last_worked_date' => $lastDate,

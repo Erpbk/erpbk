@@ -142,6 +142,9 @@
         <a href="{{ route('accounts.reports.profit_loss', ['company_slug' => $__companySlug]) }}" class="btn btn-outline-secondary btn-sm no-print">
           <i class="ti ti-refresh"></i> Reset
         </a>
+        <a href="{{ route('accounts.reports.profit_loss.export', array_merge(['company_slug' => $__companySlug], request()->only(['from_date', 'to_date', 'month']))) }}" class="btn btn-outline-success btn-sm no-print">
+          <i class="ti ti-file-spreadsheet"></i> Export Excel
+        </a>
         <button type="button" class="btn btn-primary btn-sm no-print" onclick="printReport()">
           <i class="ti ti-printer"></i> Print
         </button>

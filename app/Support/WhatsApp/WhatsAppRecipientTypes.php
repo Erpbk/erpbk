@@ -219,6 +219,12 @@ class WhatsAppRecipientTypes
 
     /**
      * Public URL for a known participant photo, or null when unavailable.
+     *
+     * Storage by WhatsApp party type:
+     * - riders  → image_name under public disk `profile/`
+     * - users   → image_name under public disk `uploads/`
+     * - employees → profile_image (path like `employees/profile/...`) via profile_image_url
+     * - customers / recruiters / suppliers / bike-rent / garage / leasing → no photo field
      */
     public static function photoUrl(?Model $model): ?string
     {
@@ -226,26 +232,39 @@ class WhatsAppRecipientTypes
             return null;
         }
 
-        $imageName = trim((string) ($model->image_name ?? ''));
+        if ($model instanceof Employee) {
+            $url = trim((string) ($model->profile_image_url ?? ''));
+            if ($url !== '') {
+                return $url;
+            }
+            // Fallback if accessor empty but raw path exists.
+            $path = trim((string) ($model->profile_image ?? ''));
+
+            return $path !== '' ? (storage_url($path) ?: null) : null;
+        }
+
+        if ($model instanceof Riders) {
+            return self::storedImageUrl($model->image_name ?? null, 'profile/');
+        }
+
+        if ($model instanceof User) {
+            return self::storedImageUrl($model->image_name ?? null, 'uploads/');
+        }
+
+        // Customers, recruiters, suppliers, bike-rent/garage, leasing: no profile pic column.
+        return null;
+    }
+
+    private static function storedImageUrl(?string $imageName, string $directoryPrefix): ?string
+    {
+        $imageName = trim((string) $imageName);
         if ($imageName === '' || in_array(strtolower($imageName), ['default.png', 'default.jpg'], true)) {
             return null;
         }
 
-        if ($model instanceof Riders) {
-            return storage_url('profile/'.$imageName) ?: null;
-        }
+        $path = $directoryPrefix.ltrim(str_replace('\\', '/', $imageName), '/');
 
-        if ($model instanceof User) {
-            return storage_url('uploads/'.$imageName) ?: null;
-        }
-
-        // Other recipient types may store a generic image_name on the public disk.
-        if (isset($model->image_name)) {
-            return storage_url('profile/'.$imageName)
-                ?: (storage_url('uploads/'.$imageName) ?: null);
-        }
-
-        return null;
+        return storage_url($path) ?: null;
     }
 
     public static function isTrashed(Model $model): bool

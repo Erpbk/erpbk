@@ -113,6 +113,8 @@ class RiderActivitiesController extends AppBaseController
 
         $queued = 0;
         $skipped = 0;
+        $selected = [];
+        $phones = [];
         foreach ($validated['rider_ids'] as $riderId) {
             $row = $allowed->get((int) $riderId);
             if (! $row) {
@@ -123,14 +125,31 @@ class RiderActivitiesController extends AppBaseController
                 $skipped++;
                 continue;
             }
+            $selected[] = ['id' => (int) $riderId, 'row' => $row];
+            $phones[] = (string) $row['phone'];
+        }
+
+        // One query for all peers on this sender — jobs only recheck when hint says open.
+        $openByPhone = $phones === []
+            ? []
+            : app(\App\Services\WhatsApp\WhatsAppInboxService::class)
+                ->openWindowsForPeers($companyId, $connectionId, $phones);
+
+        $actorId = (int) (auth()->id() ?? 0) ?: null;
+        foreach ($selected as $item) {
+            $row = $item['row'];
+            $phone = (string) ($row['phone'] ?? '');
+            $digits = \App\Support\PhoneNumber::toWhatsAppDigits($phone) ?? $phone;
+            $preferFreeText = (bool) ($openByPhone[$digits] ?? false);
 
             \App\Jobs\WhatsApp\SendRiderActivityWhatsAppJob::dispatch(
                 $companyId,
                 $triggerKey,
-                (int) $riderId,
+                (int) $item['id'],
                 $row,
                 $connectionId,
-                (int) (auth()->id() ?? 0) ?: null
+                $actorId,
+                $preferFreeText
             )->onQueue('notifications');
             $queued++;
         }

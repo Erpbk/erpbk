@@ -36,6 +36,13 @@ class WhatsAppMessage extends BaseModel
         'wa_message_id',
         'message_type',
         'body',
+        'media_id',
+        'media_mime',
+        'media_filename',
+        'media_path',
+        'media_size',
+        'media_sha256',
+        'media_cached_at',
         'template_name',
         'template_language',
         'components',
@@ -60,6 +67,8 @@ class WhatsAppMessage extends BaseModel
         'is_system' => 'boolean',
         'status_at' => 'datetime',
         'occurred_at' => 'datetime',
+        'media_cached_at' => 'datetime',
+        'media_size' => 'integer',
     ];
 
     public function participant(): MorphTo

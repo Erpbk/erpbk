@@ -278,6 +278,9 @@ class WhatsAppOutbound
         $resolvedTemplateName = $templateName;
         $resolvedLanguage = $language;
 
+        $downgradedFromTemplate = false;
+        $sendMode = $mode;
+
         if ($mode === 'template') {
             if (! $catalogTemplate instanceof WhatsAppTemplate || ! $sendContext instanceof WhatsAppSendContext) {
                 $delivery->forceFill([
@@ -291,32 +294,44 @@ class WhatsAppOutbound
                 return;
             }
 
-            $built = $this->injector->build($catalogTemplate, $sendContext);
-            if (! ($built['ok'] ?? false)) {
+            // Single-pass inject + preview (no "-" — missing injects skip).
+            $payload = $this->injector->previewPayload($catalogTemplate, $sendContext);
+            if (! ($payload['ok'] ?? false)) {
                 $delivery->forceFill([
                     'status' => NotificationDelivery::STATUS_SKIPPED,
                     'provider_response' => [
                         'dedupe_key' => $dedupeKey,
                         'reason' => 'inject_failed',
-                        'error' => $built['error'] ?? null,
+                        'error' => $payload['error'] ?? null,
                     ],
                 ])->save();
 
                 return;
             }
 
-            $resolvedTemplateName = (string) $built['template_name'];
-            $resolvedLanguage = (string) ($built['language'] ?? 'en');
-            $components = $built['components'] ?? null;
-            $previewBody = $this->injector->previewText($catalogTemplate, $sendContext);
+            $resolvedTemplateName = (string) ($payload['template_name'] ?? $catalogTemplate->name);
+            $resolvedLanguage = (string) ($payload['language'] ?? 'en');
+            $components = $payload['components'] ?? null;
+            $previewBody = trim((string) ($payload['text'] ?? ''));
 
-            $result = $this->client->sendTemplate(
-                $connection,
-                $to,
-                $resolvedTemplateName,
-                $resolvedLanguage,
-                $components ?? []
-            );
+            $useFreeText = $previewBody !== ''
+                && app(\App\Services\WhatsApp\WhatsAppInboxService::class)
+                    ->hasOpenWindow($companyId, (string) $to, (int) $connection->id);
+
+            if ($useFreeText) {
+                $result = $this->client->sendText($connection, $to, $previewBody);
+                $sendMode = 'text';
+                $downgradedFromTemplate = true;
+                $components = null;
+            } else {
+                $result = $this->client->sendTemplate(
+                    $connection,
+                    $to,
+                    $resolvedTemplateName,
+                    $resolvedLanguage,
+                    is_array($components) ? $components : []
+                );
+            }
         } else {
             $result = $this->client->sendText($connection, $to, (string) $body);
         }
@@ -328,7 +343,8 @@ class WhatsAppOutbound
                 'sent_at' => now(),
                 'provider_response' => [
                     'dedupe_key' => $dedupeKey,
-                    'mode' => $mode,
+                    'mode' => $sendMode,
+                    'downgraded_from_template' => $downgradedFromTemplate,
                     'ok' => true,
                     'to' => $to,
                     'message_id' => $result['message_id'] ?? null,
@@ -348,7 +364,8 @@ class WhatsAppOutbound
                 'status' => NotificationDelivery::STATUS_FAILED,
                 'provider_response' => [
                     'dedupe_key' => $dedupeKey,
-                    'mode' => $mode,
+                    'mode' => $sendMode,
+                    'downgraded_from_template' => $downgradedFromTemplate,
                     'error' => $result['error'] ?? 'send_failed',
                     'to' => $to,
                     'response' => $result['response'] ?? null,
@@ -363,11 +380,11 @@ class WhatsAppOutbound
             'phone_number_id' => $connection->phone_number_id,
             'peer_phone' => $to,
             'wa_message_id' => $result['message_id'] ?? null,
-            'message_type' => $mode === 'template' ? 'template' : 'text',
+            'message_type' => $sendMode === 'template' ? 'template' : 'text',
             'body' => $previewBody,
-            'template_name' => $mode === 'template' ? $resolvedTemplateName : null,
-            'template_language' => $mode === 'template' ? $resolvedLanguage : null,
-            'components' => $components,
+            'template_name' => $sendMode === 'template' ? $resolvedTemplateName : null,
+            'template_language' => $sendMode === 'template' ? $resolvedLanguage : null,
+            'components' => $sendMode === 'template' ? $components : null,
             'status' => $ok ? WhatsAppMessage::STATUS_SENT : WhatsAppMessage::STATUS_FAILED,
             'notification_delivery_id' => $delivery->id,
             'source' => 'notification',
@@ -377,6 +394,7 @@ class WhatsAppOutbound
                 'dedupe_key' => $dedupeKey,
                 'result' => $result['response'] ?? null,
                 'error' => $ok ? null : ($result['error'] ?? null),
+                'downgraded_from_template' => $downgradedFromTemplate,
             ],
         ]);
     }

@@ -159,12 +159,18 @@ class WhatsAppTemplateInjector
     }
 
     /**
+     * Single-pass inject + preview. On success also returns Meta send fields
+     * (template_name / language / components) so callers need not call build() again.
+     *
      * @return array{
      *   ok: bool,
      *   text: ?string,
      *   missing_injects: list<string>,
      *   missing_inject_labels: list<string>,
-     *   error: ?string
+     *   error: ?string,
+     *   template_name?: string,
+     *   language?: string,
+     *   components?: list<array<string, mixed>>
      * }
      */
     public function previewPayload(WhatsAppTemplate $template, WhatsAppSendContext $context, ?string $missingPlaceholder = null): array
@@ -186,8 +192,16 @@ class WhatsAppTemplateInjector
                 'missing_injects' => $missing,
                 'missing_inject_labels' => $labels,
                 'error' => (string) ($built['error'] ?? 'inject_failed'),
+                'template_name' => $built['template_name'] ?? null,
+                'language' => $built['language'] ?? null,
             ];
         }
+
+        $meta = [
+            'template_name' => (string) ($built['template_name'] ?? $template->name),
+            'language' => (string) ($built['language'] ?? ($template->language ?: 'en')),
+            'components' => $built['components'] ?? [],
+        ];
 
         $preview = trim((string) ($template->body_preview ?? ''));
         if ($preview !== '') {
@@ -207,13 +221,13 @@ class WhatsAppTemplateInjector
                 }
             }
 
-            return [
+            return array_merge([
                 'ok' => true,
                 'text' => $preview,
                 'missing_injects' => $missing,
                 'missing_inject_labels' => $labels,
                 'error' => null,
-            ];
+            ], $meta);
         }
 
         $parts = [];
@@ -223,13 +237,13 @@ class WhatsAppTemplateInjector
             }
         }
 
-        return [
+        return array_merge([
             'ok' => true,
             'text' => implode(' · ', array_filter($parts, fn ($p) => $p !== '')),
             'missing_injects' => $missing,
             'missing_inject_labels' => $labels,
             'error' => null,
-        ];
+        ], $meta);
     }
 
     /**

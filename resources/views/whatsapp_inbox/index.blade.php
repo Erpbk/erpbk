@@ -20,7 +20,7 @@
     return mb_strtoupper($ini !== '' ? $ini : '?');
   };
 @endphp
-<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261125-wa-media">
+<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261125-wa-media-icon">
 <style>
   /* Inbox page chrome: slim header, full-bleed body */
   .wa-inbox-page .content-header { padding-top: 8px; padding-bottom: 8px; }
@@ -671,11 +671,15 @@
       const label = media.filename || it.body || (mtype ? (mtype.charAt(0).toUpperCase() + mtype.slice(1)) : 'Media');
       return '<div class="wa-media wa-media-pending">'
         + '<div class="txt">' + escapeHtml(label) + '</div>'
-        + '<button type="button" class="wa-media-dl" data-mid="' + escapeHtml(String(it.id || '')) + '">Download</button>'
+        + '<button type="button" class="wa-media-dl" data-mid="' + escapeHtml(String(it.id || '')) + '" title="Download" aria-label="Download">'
+        + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        + '</button>'
         + '</div>';
     }
     return '<div class="txt">' + escapeHtml(it.body || '') + '</div>';
   }
+
+  const mediaDlIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
   function bindMediaDownload(rootEl) {
     rootEl.querySelectorAll('.wa-media-dl').forEach(btn => {
@@ -687,7 +691,7 @@
         const mid = btn.dataset.mid;
         if (!mid || !root.dataset.mediaDownloadUrl) return;
         btn.disabled = true;
-        btn.textContent = 'Downloading…';
+        btn.classList.add('is-loading');
         try {
           const res = await fetch(root.dataset.mediaDownloadUrl.replace(/\/$/, '') + '/' + encodeURIComponent(mid) + '/media/download', {
             method: 'POST',
@@ -697,7 +701,8 @@
           if (!res.ok || !data.ok) {
             alert((data && data.message) || 'Media no longer available from WhatsApp.');
             btn.disabled = false;
-            btn.textContent = 'Download';
+            btn.classList.remove('is-loading');
+            btn.innerHTML = mediaDlIcon;
             return;
           }
           const bub = btn.closest('.wa-bub');
@@ -719,7 +724,8 @@
         } catch (err) {
           alert('Download failed.');
           btn.disabled = false;
-          btn.textContent = 'Download';
+          btn.classList.remove('is-loading');
+          btn.innerHTML = mediaDlIcon;
         }
       });
     });

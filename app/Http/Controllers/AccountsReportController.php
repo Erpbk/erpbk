@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ProfitLossExport;
 use App\Helpers\Accounts as AccountsHelper;
 use App\Models\Accounts;
 use App\Models\Transactions;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AccountsReportController extends Controller
 {
@@ -79,6 +81,39 @@ class AccountsReportController extends Controller
             'netProfit' => $totalRevenue - $totalExpense,
             'period' => $period,
         ]);
+    }
+
+    /**
+     * Export Profit & Loss for the current filters as Excel (.xlsx).
+     */
+    public function exportProfitLoss($company_slug, Request $request)
+    {
+        if (! auth()->user()->hasPermissionTo('accounts_ledger_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $period = $this->resolvePeriod($request);
+
+        $query = Transactions::selectRaw('account_id, SUM(debit) as debit_sum, SUM(credit) as credit_sum')
+            ->groupBy('account_id');
+
+        if ($period['mode'] === 'range') {
+            $query->whereBetween('trans_date', [$period['from_date'], $period['to_date']]);
+        } else {
+            $query->whereDate('billing_month', $period['month'].'-01');
+        }
+
+        $balances = $query->get()->keyBy('account_id');
+        [$revenue, $expense, $totalRevenue, $totalExpense] = $this->buildProfitLossSections($balances);
+        $netProfit = $totalRevenue - $totalExpense;
+
+        $periodSlug = preg_replace('/[^A-Za-z0-9\-]+/', '_', (string) ($period['label'] ?? 'period')) ?: 'period';
+        $filename = 'profit_loss_'.$periodSlug.'_exported('.date('d-M-Y_H-i').').xlsx';
+
+        return Excel::download(
+            new ProfitLossExport($period, $revenue, $expense, $totalRevenue, $totalExpense, $netProfit),
+            $filename
+        );
     }
 
     /**

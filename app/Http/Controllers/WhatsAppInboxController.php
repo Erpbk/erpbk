@@ -233,17 +233,23 @@ class WhatsAppInboxController extends Controller
         return response()->json(['ok' => true, 'message' => 'Message queued.']);
     }
 
-    public function downloadMedia(
-        Request $request,
-        WhatsAppMessage $message,
-        WhatsAppMediaService $media
-    ) {
+    public function downloadMedia(Request $request, WhatsAppMediaService $media)
+    {
         $user = $request->user();
         abort_unless($user && $user->can('whatsapp_view'), 403);
         $companyId = (int) CompanyContext::id();
         abort_unless(WhatsAppCompanyAccess::available($companyId), 403);
 
-        abort_unless((int) $message->company_id === $companyId, 404);
+        // Read id from the route by name. Do NOT type-hint it: under
+        // app/{company_slug}/..., Laravel passes route params by position
+        // after DI and company_slug would be injected as $id/$message.
+        $messageId = (int) $request->route('id', 0);
+        abort_unless($messageId > 0, 404);
+
+        $message = WhatsAppMessage::query()
+            ->whereKey($messageId)
+            ->where('company_id', $companyId)
+            ->firstOrFail();
         abort_unless((int) $message->user_id === (int) $user->id, 403);
 
         $message->loadMissing('connection');

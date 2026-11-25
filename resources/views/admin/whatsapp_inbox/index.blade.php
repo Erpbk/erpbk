@@ -28,13 +28,19 @@
   .wa-inbox .wa-media audio { width: 220px; }
   .wa-inbox .wa-media-dl {
     margin-top: 6px;
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: 1px solid #94a3b8;
     background: #fff;
-    border-radius: 6px;
-    padding: 4px 10px;
-    font-size: 12px;
+    border-radius: 50%;
+    padding: 0;
     cursor: pointer;
   }
+  .wa-inbox .wa-media-dl svg { width: 16px; height: 16px; display: block; }
+  .wa-inbox .wa-media-dl:disabled { opacity: 0.6; cursor: wait; }
   .wa-attach-btn { border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
   .wa-attach-name { font-size: 12px; color: #64748b; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
@@ -98,24 +104,25 @@
       if (mtype === 'document') return '<div class="wa-media"><a href="'+esc(media.url)+'" target="_blank" rel="noopener">'+esc(media.filename||it.body||'Document')+'</a></div>';
     }
     if (media.downloadable) {
-      return '<div class="wa-media"><div class="txt">'+esc(media.filename||it.body||mtype)+'</div><button type="button" class="wa-media-dl" data-mid="'+esc(it.id)+'" data-mtype="'+esc(mtype)+'">Download</button></div>';
+      return '<div class="wa-media"><div class="txt">'+esc(media.filename||it.body||mtype)+'</div><button type="button" class="wa-media-dl" data-mid="'+esc(it.id)+'" data-mtype="'+esc(mtype)+'" title="Download" aria-label="Download"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
     }
     return '<div class="txt">'+esc(it.body||'')+'</div>';
   }
+  const mediaDlIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function bindDl(scope){
     scope.querySelectorAll('.wa-media-dl').forEach(btn => {
       if (btn.dataset.bound==='1') return;
       btn.dataset.bound='1';
       btn.onclick = async () => {
-        btn.disabled = true; btn.textContent = 'Downloading…';
+        btn.disabled = true;
         try {
           const res = await fetch(root.dataset.mediaDownloadUrl.replace(/\/$/,'') + '/' + encodeURIComponent(btn.dataset.mid) + '/media/download', {
             method:'POST', headers:Object.assign({'Content-Type':'application/json'}, headers())
           });
           const data = await res.json().catch(()=>({}));
-          if (!res.ok || !data.ok) { alert((data&&data.message)||'Media no longer available from WhatsApp.'); btn.disabled=false; btn.textContent='Download'; return; }
+          if (!res.ok || !data.ok) { alert((data&&data.message)||'Media no longer available from WhatsApp.'); btn.disabled=false; btn.innerHTML=mediaDlIcon; return; }
           openThread(peer);
-        } catch(e) { alert('Download failed.'); btn.disabled=false; btn.textContent='Download'; }
+        } catch(e) { alert('Download failed.'); btn.disabled=false; btn.innerHTML=mediaDlIcon; }
       };
     });
   }

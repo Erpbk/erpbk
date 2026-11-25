@@ -809,7 +809,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('whatsapp/inbox/participants', [\App\Http\Controllers\WhatsAppInboxController::class, 'searchParticipants'])->name('whatsapp.inbox.participants');
     Route::get('whatsapp/inbox/thread/{peerPhone}', [\App\Http\Controllers\WhatsAppInboxController::class, 'thread'])->where('peerPhone', '[0-9]+')->name('whatsapp.inbox.thread');
     Route::post('whatsapp/inbox/send', [\App\Http\Controllers\WhatsAppInboxController::class, 'send'])->name('whatsapp.inbox.send');
-    Route::post('whatsapp/inbox/messages/{message}/media/download', [\App\Http\Controllers\WhatsAppInboxController::class, 'downloadMedia'])->name('whatsapp.inbox.media.download');
+    Route::post('whatsapp/inbox/messages/{id}/media/download', [\App\Http\Controllers\WhatsAppInboxController::class, 'downloadMedia'])->whereNumber('id')->name('whatsapp.inbox.media.download');
     Route::post('whatsapp/inbox/transfer', [\App\Http\Controllers\WhatsAppInboxController::class, 'transfer'])->name('whatsapp.inbox.transfer');
     Route::delete('whatsapp/inbox', [\App\Http\Controllers\WhatsAppInboxController::class, 'destroy'])->name('whatsapp.inbox.destroy');
     Route::post('whatsapp/inbox/conflict', [\App\Http\Controllers\WhatsAppInboxController::class, 'resolveConflict'])->name('whatsapp.inbox.conflict');
@@ -1047,6 +1047,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::get('/ledger/print', [LedgerController::class, 'print'])->name('ledger.print');
         Route::get('/reports/trial-balance', [AccountsReportController::class, 'trialBalance'])->name('accounts.reports.trial_balance');
         Route::get('/reports/profit-loss', [AccountsReportController::class, 'profitLoss'])->name('accounts.reports.profit_loss');
+        Route::get('/reports/profit-loss/export', [AccountsReportController::class, 'exportProfitLoss'])->name('accounts.reports.profit_loss.export');
         Route::get('/vat', [VatController::class, 'index'])->name('vat.index');
         Route::get('/vat/returns', [VatController::class, 'returnsIndex'])->name('vat.returns.index');
         Route::get('/vat/returns/{vat_return}/entries', [VatController::class, 'returnsEntries'])->name('vat.returns.entries');

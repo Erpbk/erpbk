@@ -146,19 +146,26 @@
         @php
         $settings = company_table('settings')->pluck('value', 'name')->toArray();
         @endphp
-        <table width="100%" style="font-family: sans-serif;">
-            <tr>
-                <td width="33.33%"><img src="{{ $companyLogoUrl ?? URL::asset('assets/img/logo-full.png') }}" width="150" /></td>
-                <td width="33.33%" style="text-align: center;">
-                    <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{$settings['company_name'] ?? ''}}</h4>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{$settings['company_address'] ?? ''}}</p>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;"> TRN {{$settings['vat_number'] ?? ''}}</p>
-                </td>
-                <td width="33.33%" style="text-align: right;">
-                    <h2 style="margin: 0; font-size: 24px; font-weight: bold;">Tax Invoice</h2>
-                </td>
-            </tr>
-        </table>
+        @php
+            [, $plHeader] = app(\App\Services\Voucher\VoucherSignatureResolver::class)->layoutPartsForCompany();
+        @endphp
+        <div style="display:flex;align-items:flex-end;gap:16px;width:100%;margin:0 0 14px;padding:0 0 12px;border-bottom:2px solid #004aad;box-sizing:border-box;">
+            <div style="flex:1 1 auto;min-width:0;">
+                @include('vouchers.partials.print_company_header', [
+                    'plHeader' => $plHeader,
+                    'companyName' => $settings['company_name'] ?? '',
+                    'logoSrc' => $companyLogoUrl ?? URL::asset('assets/img/logo-full.png'),
+                    'companyPhone' => $settings['company_phone'] ?? '',
+                    'companyEmail' => $settings['company_email'] ?? '',
+                    'companyAddress' => $settings['company_address'] ?? '',
+                    'companyTrn' => $settings['vat_number'] ?? '',
+                    'headerWithBorder' => false,
+                ])
+            </div>
+            <div style="flex:0 0 auto;text-align:right;">
+                <h2 style="margin: 0; font-size: 24px; font-weight: bold;">Tax Invoice</h2>
+            </div>
+        </div>
 
         <!-- Customer and Invoice Details -->
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">

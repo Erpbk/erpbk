@@ -1,5 +1,6 @@
 {{--
   Shared header for screen + PDF (same markup).
+  Uses Voucher Signature Assignment company header; keeps invoice stamp on the right.
   Expected: $settings, $invoiceTitle, $invoiceNumber, $invoiceDateLabel, $billingLabel
 --}}
 @php
@@ -11,68 +12,93 @@ $accentLine = ($brand['border_color'] ?? null) ?: '#c5d8f0';
 
 $logoSrc = null;
 if (!empty($brand['logo_src']) && !empty($isPdf)) {
-$logoSrc = $brand['logo_src'];
+    $logoSrc = $brand['logo_src'];
 } elseif (!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo'])) {
-if (!empty($isPdf)) {
-$absolute = Storage::disk('public')->path($settings['company_logo']);
-if (is_string($absolute) && is_file($absolute)) {
-$mime = @mime_content_type($absolute) ?: 'image/png';
-$logoSrc = 'data:' . $mime . ';base64,' . base64_encode((string) file_get_contents($absolute));
+    if (!empty($isPdf)) {
+        $absolute = Storage::disk('public')->path($settings['company_logo']);
+        if (is_string($absolute) && is_file($absolute)) {
+            $mime = @mime_content_type($absolute) ?: 'image/png';
+            $logoSrc = 'data:' . $mime . ';base64,' . base64_encode((string) file_get_contents($absolute));
+        }
+    } else {
+        $logoSrc = storage_url($settings['company_logo']);
+    }
 }
-} else {
-$logoSrc = storage_url($settings['company_logo']);
-}
-}
+
+[, $plHeader] = app(\App\Services\Voucher\VoucherSignatureResolver::class)
+    ->layoutPartsForCompany(\App\Support\CompanyContext::id());
+
+$invPdf = $invPdf ?? [];
 @endphp
 
-@php $invPdf = $invPdf ?? []; @endphp
-<table class="inv-hdr" width="100%" cellpadding="0" cellspacing="0"@if(!empty($invPdf['hdr'])) style="{{ $invPdf['hdr'] }}"@endif>
-    <tr>
-        <td class="inv-hdr-logo" width="22%" valign="middle">
-            @if(!empty($logoSrc))
-            <img src="{{ $logoSrc }}" alt="{{ $settings['company_name'] ?? 'Logo' }}"@if(!empty($isPdf)) style="display:block;max-width:110px;max-height:52px;width:auto;height:auto;"@endif>
-            @else
-            <div class="inv-logo-ph">Logo</div>
+<style>
+.inv-hdr-vsa {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    width: 100%;
+    margin: 0 0 14px;
+    padding: 0 0 12px;
+    border-bottom: 2px solid {{ $accent }};
+    box-sizing: border-box;
+}
+.inv-hdr-vsa-main { flex: 1 1 auto; min-width: 0; }
+.inv-hdr-vsa-main .rpv-print-hdr {
+    margin: 0 !important;
+    padding: 0 !important;
+    border-bottom: 0 !important;
+}
+.inv-hdr-vsa-stamp { flex: 0 0 auto; text-align: right; max-width: 42%; }
+.inv-hdr-vsa .inv-badge {
+    display: inline-block;
+    background: {{ $accentSoft }};
+    color: {{ $accent }};
+    border: 1px solid {{ $accentLine }};
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    margin-bottom: 8px;
+}
+.inv-hdr-vsa .inv-kv { border-collapse: collapse; margin-left: auto; font-size: 9.5px; }
+.inv-hdr-vsa .inv-kv .k { color: #64748b; font-weight: 500; text-align: left; padding: 2px 0 2px 12px; white-space: nowrap; }
+.inv-hdr-vsa .inv-kv .v { color: #0f172a; font-weight: 700; text-align: right; padding: 2px 0 2px 12px; white-space: nowrap; }
+</style>
+
+<div class="inv-hdr-vsa"@if(!empty($invPdf['hdr'])) style="{{ $invPdf['hdr'] }}"@endif>
+    <div class="inv-hdr-vsa-main">
+        @include('vouchers.partials.print_company_header', [
+            'plHeader' => $plHeader,
+            'companyName' => ucwords((string) ($settings['company_name'] ?? '')),
+            'logoSrc' => $logoSrc,
+            'companyPhone' => $settings['company_phone'] ?? '',
+            'companyEmail' => $settings['company_email'] ?? '',
+            'companyAddress' => isset($settings['company_address']) ? ucwords((string) $settings['company_address']) : '',
+            'companyTrn' => $settings['vat_number'] ?? '',
+            'headerWithBorder' => false,
+        ])
+    </div>
+    <div class="inv-hdr-vsa-stamp">
+        <div class="inv-badge"@if(!empty($invPdf['badge'])) style="{{ $invPdf['badge'] }}"@endif>{{ $invoiceTitle }}</div>
+        <table class="inv-kv" cellpadding="0" cellspacing="0" align="right">
+            <tr>
+                <td class="k">Invoice No</td>
+                <td class="v">{{ $invoiceNumber }}</td>
+            </tr>
+            @if($invoiceDateLabel !== '')
+            <tr>
+                <td class="k">Date</td>
+                <td class="v">{{ $invoiceDateLabel }}</td>
+            </tr>
             @endif
-        </td>
-        <td class="inv-hdr-brand" width="46%" valign="middle" align="center">
-            <div class="inv-company"@if(!empty($invPdf['company'])) style="{{ $invPdf['company'] }}"@endif>{{ ucwords($settings['company_name'] ?? '') }}</div>
-            <div class="inv-meta"@if(!empty($invPdf['meta'])) style="{{ $invPdf['meta'] }}"@endif>
-                @if(!empty($settings['vat_number']))
-                TRN: {{ $settings['vat_number'] }}
-                @endif
-                @if(!empty($settings['company_phone']))
-                @if(!empty($settings['vat_number'])) · @endif
-                Tel: {{ $settings['company_phone'] }}
-                @endif
-                @if(!empty($settings['company_email']))
-                {{ $settings['company_email'] }}
-                @endif
-                @if(!empty($settings['company_address']))
-                <br>{{ ucwords($settings['company_address']) }}
-                @endif
-            </div>
-        </td>
-        <td class="inv-hdr-stamp" width="32%" valign="top" align="right">
-            <div class="inv-badge"@if(!empty($invPdf['badge'])) style="{{ $invPdf['badge'] }}"@endif>{{ $invoiceTitle }}</div>
-            <table class="inv-kv" cellpadding="0" cellspacing="0" align="right"@if(!empty($isPdf)) style="border-collapse:collapse;margin-left:auto;font-size:9.5px;"@endif>
-                <tr>
-                    <td class="k"@if(!empty($isPdf)) style="color:#64748b;font-weight:500;text-align:left;padding:2px 0 2px 12px;border:none;white-space:nowrap;"@endif>Invoice No</td>
-                    <td class="v"@if(!empty($isPdf)) style="color:#0f172a;font-weight:700;text-align:right;padding:2px 0 2px 12px;border:none;white-space:nowrap;"@endif>{{ $invoiceNumber }}</td>
-                </tr>
-                @if($invoiceDateLabel !== '')
-                <tr>
-                    <td class="k"@if(!empty($isPdf)) style="color:#64748b;font-weight:500;text-align:left;padding:2px 0 2px 12px;border:none;white-space:nowrap;"@endif>Date</td>
-                    <td class="v"@if(!empty($isPdf)) style="color:#0f172a;font-weight:700;text-align:right;padding:2px 0 2px 12px;border:none;white-space:nowrap;"@endif>{{ $invoiceDateLabel }}</td>
-                </tr>
-                @endif
-                @if($billingLabel !== '')
-                <tr>
-                    <td class="k"@if(!empty($isPdf)) style="color:#64748b;font-weight:500;text-align:left;padding:2px 0 2px 12px;border:none;white-space:nowrap;"@endif>Billing</td>
-                    <td class="v"@if(!empty($isPdf)) style="color:#0f172a;font-weight:700;text-align:right;padding:2px 0 2px 12px;border:none;white-space:nowrap;"@endif>{{ $billingLabel }}</td>
-                </tr>
-                @endif
-            </table>
-        </td>
-    </tr>
-</table>
+            @if($billingLabel !== '')
+            <tr>
+                <td class="k">Billing</td>
+                <td class="v">{{ $billingLabel }}</td>
+            </tr>
+            @endif
+        </table>
+    </div>
+</div>

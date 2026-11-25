@@ -11,7 +11,7 @@ const CSRF = CFG.csrf || '';
 const CAN_EDIT = !!CFG.can_edit;
 const IS_ADMIN = !!CFG.is_admin;
 const ADMIN_SECTIONS = CFG.admin_sections || ['cur','time','fy','legal','stamp'];
-const VSA = CFG.voucher_signature || {can_view:false,can_edit:false,module_label:'Voucher Signature Assignment',documents:[],totals:{documents:0,configured:0,legacy:0}};
+const VSA = CFG.voucher_signature || {can_view:false,can_edit:false,module_label:'Voucher Header',documents:[],totals:{documents:0,configured:0,legacy:0}};
 function assetUrl(pathOrUrl){
   if(!pathOrUrl) return '';
   const s=String(pathOrUrl);
@@ -187,7 +187,7 @@ const SECTIONS=[
   {id:'signer',label:'Authorized signatory',help:'Printed below the signature for this user',noInh:1,grid:1,f:[{id:'signame',type:'text',mini:'Name'},{id:'sigdes',type:'text',mini:'Designation',ph:'Manager / Partner'}]},
   {id:'apply',label:'Apply automatically',help:'Admin assigns which modules this user may stamp and sign (vouchers, invoices, agreements)',noInh:1,wide:1,f:[{id:'apm',type:'docmatrix'}]},
   {id:'apother',label:'Other documents',help:'Documents not tied to one module that this user may stamp and sign',noInh:1,f:[{id:'ap4',type:'tile',icon:'user',text:'Salary slips'},{id:'ap5',type:'tile',icon:'mail',text:'Official letters'},{id:'ap7',type:'tile',icon:'receipt',text:'Quotations'},{id:'ap8',type:'tile',icon:'inv',text:'Statements of account'}]}]},
- {k:'vsa',icon:'pen',t:'Voucher Signatures',s:'Header and signature flow for every voucher type',custom:'vsa'},
+ {k:'vsa',icon:'pen',t:'Voucher Header',s:'Header and signature flow for every voucher type',custom:'vsa'},
  {k:'theme',icon:'palette',t:'Theme & Colors',s:'Mode, colors, ready-made themes',custom:'theme'},
  {k:'docs',icon:'folder',t:'Company Documents',s:'Copies with expiry tracking',custom:'docs'}
 ];
@@ -414,7 +414,7 @@ function vsaHtml(){
 
   return`<div class="syncbar" style="margin-top:14px">
     <span class="sdot"></span>
-    <div><b>${esc(VSA.module_label||'Voucher Signature Assignment')}</b><br>
+    <div><b>${esc(VSA.module_label||'Voucher Header')}</b><br>
       Set the print header and signature slots for each voucher type. Changes apply on View, Print and PDF.
     </div>
     <a class="cd-btn ghost" style="padding:8px 14px" href="${esc(indexUrl)}">Open full page</a>

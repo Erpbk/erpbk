@@ -1,6 +1,6 @@
 @extends($layout ?? 'layouts.app')
 
-@section('title', ($moduleLabel ?? 'Voucher Signature Assignment') . ' – ' . ($voucherType->label ?? ''))
+@section('title', ($moduleLabel ?? 'Voucher Header') . ' – ' . ($voucherType->label ?? ''))
 
 @push('third_party_stylesheets')
 <style>
@@ -109,6 +109,9 @@
       class="vsa-wrap"
       data-can-edit="{{ $canEdit ? '1' : '0' }}">
   @csrf
+  @if(!empty($filterModule))
+  <input type="hidden" name="module" value="{{ $filterModule }}">
+  @endif
   <input type="hidden" name="redirect_to" value="list">
   <input type="hidden" name="apply_header_to_all" id="vsa-apply-all" value="0">
   <input type="hidden" name="signature_position" id="vsa-position" value="{{ $pos }}">
@@ -124,7 +127,7 @@
 
   <div class="vsa-card vsa-chead">
     <div style="display:flex;flex-direction:column;gap:6px">
-      <a class="vsa-back" href="{{ route('settings-panel.voucher-signature-assignment.index', ['company_slug' => $company_slug]) }}">
+      <a class="vsa-back" href="{{ route('settings-panel.voucher-signature-assignment.index', array_filter(['company_slug' => $company_slug, 'module' => $filterModule ?? null])) }}">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
         All documents
       </a>
@@ -159,8 +162,14 @@
   <div class="vsa-card" id="vsa-tab-header">
     <div class="vsa-sec-h">
       <div>
-        <h2>Header for {{ $voucherType->code }}</h2>
-        <p>Printed at the top of this document. The preview below updates as you change it.</p>
+        <h2>Header for {{ $voucherType->label ?? $voucherType->code }}</h2>
+        <p>
+          @if(!empty($isCompanyHeader))
+            Shared print header for invoices and other module documents. Use “Apply this header to all documents” to push it onto every voucher type too.
+          @else
+            Printed at the top of this document. The preview below updates as you change it.
+          @endif
+        </p>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span class="vsa-ctl">Layout</span>
@@ -251,7 +260,7 @@
   <div class="vsa-savebar">
     <div><span class="dot" id="vsa-dirty-dot"></span><span id="vsa-dirty-text">All changes saved</span></div>
     <div style="display:flex;gap:8px">
-      <a class="c" href="{{ route('settings-panel.voucher-signature-assignment.index', ['company_slug' => $company_slug]) }}">Cancel</a>
+      <a class="c" href="{{ route('settings-panel.voucher-signature-assignment.index', array_filter(['company_slug' => $company_slug, 'module' => $filterModule ?? null])) }}">Cancel</a>
       <button type="submit" class="s">Save print layout</button>
     </div>
   </div>
@@ -259,7 +268,10 @@
 </form>
 
 @if($canEdit && $config)
-<form id="vsa-clear-form" method="post" action="{{ route('settings-panel.voucher-signature-assignment.clear', ['company_slug' => $company_slug, 'code' => $voucherType->code]) }}" class="d-none">
+<form id="vsa-clear-form" method="post" action="{{ route('settings-panel.voucher-signature-assignment.clear', array_filter(['company_slug' => $company_slug, 'code' => $voucherType->code, 'module' => $filterModule ?? null])) }}" class="d-none">
+  @if(!empty($filterModule))
+  <input type="hidden" name="module" value="{{ $filterModule }}">
+  @endif
   @csrf
   @method('DELETE')
 </form>

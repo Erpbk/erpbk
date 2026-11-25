@@ -112,7 +112,7 @@ class CompanyDetailsService
         );
 
         $moduleLabel = Settings::getMenuLabel('voucher_signature_assignment')
-            ?: config('menu_labels.defaults.voucher_signature_assignment', 'Voucher Signature Assignment');
+            ?: config('menu_labels.defaults.voucher_signature_assignment', 'Voucher Header');
 
         if (! $canView) {
             return [
@@ -136,7 +136,17 @@ class CompanyDetailsService
             ->get()
             ->keyBy(fn (VoucherSignatureConfig $c) => strtoupper((string) $c->voucher_type_code));
 
-        $documents = $voucherTypes->map(function (VoucherType $type) use ($configs) {
+        $companyKey = VoucherSignatureConfig::COMPANY_HEADER_CODE;
+        $companyConfig = $configs->get($companyKey);
+
+        $documents = collect([[
+            'code' => $companyKey,
+            'label' => 'Company / Invoices header',
+            'module' => 'All modules',
+            'configured' => (bool) ($companyConfig && $companyConfig->header_settings !== null),
+            'active_count' => 0,
+            'flow' => [],
+        ]])->concat($voucherTypes->map(function (VoucherType $type) use ($configs) {
             $key = strtoupper((string) $type->code);
             $config = $configs->get($key);
             $slots = $config?->slots ?? collect();
@@ -155,11 +165,11 @@ class CompanyDetailsService
                 'code' => (string) $type->code,
                 'label' => (string) $type->label,
                 'module' => $moduleLabel,
-                'configured' => $slots->isNotEmpty(),
+                'configured' => $slots->isNotEmpty() || ($config && $config->header_settings !== null),
                 'active_count' => (int) ($config->active_slots_count ?? 0),
                 'flow' => $activeFlow,
             ];
-        })->values()->all();
+        }))->values()->all();
 
         $configured = collect($documents)->where('configured', true)->count();
         $total = count($documents);

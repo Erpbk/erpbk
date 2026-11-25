@@ -17,22 +17,26 @@
     </div>
 
     <div class="invoice-box">
-        <!-- Header: Logo + Company + Title (same structure as rider_invoices/show) -->
-        <table class="no-border" style="margin-bottom: 20px; border: none; background: transparent;">
-            <tr style="border: none;">
-                <td style="width: 33%; border: none !important; vertical-align: middle;">
-                    <img src="{{ $companyLogoUrl ?? \Illuminate\Support\Facades\URL::asset('assets/img/logo-full.png') }}" width="150" alt="logo" />
-                </td>
-                <td style="width: 34%; text-align: center; border: none !important;">
-                    <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ $settings['company_name'] ?? ($companyDisplayName ?? config('variables.templateName')) }}</h4>
-                    <p style="margin: 3px 0; font-size: 12px;">{{ $settings['company_address'] ?? '' }}</p>
-                    <p style="margin: 3px 0; font-size: 12px;">TRN {{ $settings['vat_number'] ?? '' }}</p>
-                </td>
-                <td style="width: 33%; text-align: center; border: none !important;">
-                    <h2 style="margin: 0; font-weight: 800; color: #004aad; font-size: 24px;">INSTALLMENT PLAN</h2>
-                </td>
-            </tr>
-        </table>
+        @php
+            [, $plHeader] = app(\App\Services\Voucher\VoucherSignatureResolver::class)->layoutPartsForCompany();
+        @endphp
+        <div style="display:flex;align-items:flex-end;gap:16px;width:100%;margin:0 0 20px;padding:0 0 12px;border-bottom:2px solid #004aad;box-sizing:border-box;">
+            <div style="flex:1 1 auto;min-width:0;">
+                @include('vouchers.partials.print_company_header', [
+                    'plHeader' => $plHeader,
+                    'companyName' => $settings['company_name'] ?? ($companyDisplayName ?? config('variables.templateName')),
+                    'logoSrc' => $companyLogoUrl ?? \Illuminate\Support\Facades\URL::asset('assets/img/logo-full.png'),
+                    'companyPhone' => $settings['company_phone'] ?? '',
+                    'companyEmail' => $settings['company_email'] ?? '',
+                    'companyAddress' => $settings['company_address'] ?? '',
+                    'companyTrn' => $settings['vat_number'] ?? '',
+                    'headerWithBorder' => false,
+                ])
+            </div>
+            <div style="flex:0 0 auto;text-align:right;">
+                <h2 style="margin: 0; font-weight: 800; color: #004aad; font-size: 24px;">INSTALLMENT PLAN</h2>
+            </div>
+        </div>
 
         <div class="flex-row-cards">
             <div class="rider-card">

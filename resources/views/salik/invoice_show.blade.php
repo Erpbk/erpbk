@@ -178,24 +178,29 @@
         $settings = company_table('settings')->pluck('value', 'name')->toArray();
         $firstTrip = $summary->transactions->first();
         @endphp
-        <table width="100%" style="font-family: sans-serif;">
-            <tr>
-                <td width="33.33%" style="border: none !important;">
-                    @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
-                        <img src="{{ storage_url($settings['company_logo']) }}" width="150" alt="logo" />
-                    @endif
-                </td>
-                <td width="33.33%" style="text-align: center; align-content: center; border: none !important;">
-                    <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{ ucwords($settings['company_name'] ?? '') }}</h4>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{ ucwords($settings['company_address'] ?? '') }}</p>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TEL: {{ $settings['company_phone'] ?? '' }}</p>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TRN: {{ $settings['vat_number'] ?? '' }}</p>
-                </td>
-                <td width="33.33%" style="text-align: center; align-content: center; border: none !important;">
-                    <h2 style="margin: 0; font-weight: 600; color: #004aad; font-size: 24px;">SALIK INVOICE</h2>
-                </td>
-            </tr>
-        </table>
+        @php
+            [, $plHeader] = app(\App\Services\Voucher\VoucherSignatureResolver::class)->layoutPartsForCompany();
+            $salikLogoSrc = (!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
+                ? storage_url($settings['company_logo'])
+                : null;
+        @endphp
+        <div style="display:flex;align-items:flex-end;gap:16px;width:100%;margin:0 0 14px;padding:0 0 12px;border-bottom:2px solid #004aad;box-sizing:border-box;">
+            <div style="flex:1 1 auto;min-width:0;">
+                @include('vouchers.partials.print_company_header', [
+                    'plHeader' => $plHeader,
+                    'companyName' => ucwords((string) ($settings['company_name'] ?? '')),
+                    'logoSrc' => $salikLogoSrc,
+                    'companyPhone' => $settings['company_phone'] ?? '',
+                    'companyEmail' => $settings['company_email'] ?? '',
+                    'companyAddress' => isset($settings['company_address']) ? ucwords((string) $settings['company_address']) : '',
+                    'companyTrn' => $settings['vat_number'] ?? '',
+                    'headerWithBorder' => false,
+                ])
+            </div>
+            <div style="flex:0 0 auto;text-align:right;">
+                <h2 style="margin: 0; font-weight: 600; color: #004aad; font-size: 24px;">SALIK INVOICE</h2>
+            </div>
+        </div>
 
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
             <div class="rider-card" style="flex: 1;">

@@ -35,7 +35,7 @@
     'voucher_signature' => $bootstrap['voucher_signature'] ?? [
       'can_view' => false,
       'can_edit' => false,
-      'module_label' => 'Voucher Signature Assignment',
+      'module_label' => 'Voucher Header',
       'documents' => [],
       'totals' => ['documents' => 0, 'configured' => 0, 'legacy' => 0],
     ],

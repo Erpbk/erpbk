@@ -113,9 +113,25 @@ class VoucherType extends BaseModel
             return [];
         }
 
+        return static::codesForModuleKeys([$moduleKey]);
+    }
+
+    /**
+     * Active voucher type codes mapped to any of the given module keys.
+     *
+     * @param  list<string>  $moduleKeys
+     * @return list<string>
+     */
+    public static function codesForModuleKeys(array $moduleKeys): array
+    {
+        $moduleKeys = array_values(array_filter(array_map('strval', $moduleKeys)));
+        if ($moduleKeys === []) {
+            return [];
+        }
+
         $codes = [];
-        foreach (static::defaultModuleAssignmentMap() as $code => $moduleKeys) {
-            if (in_array($moduleKey, $moduleKeys, true)) {
+        foreach (static::defaultModuleAssignmentMap() as $code => $keys) {
+            if (count(array_intersect($keys, $moduleKeys)) > 0) {
                 $codes[] = $code;
             }
         }

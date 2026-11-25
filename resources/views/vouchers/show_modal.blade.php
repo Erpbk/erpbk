@@ -63,7 +63,7 @@ $pdfUrl = route('vouchers.show', array_merge($voucherRouteParams($voucher->id), 
       @endcanany
       @canany(['vouchers_delete', 'voucher_delete'])
       @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']))
-      <button type="button" class="btn btn-sm btn-outline-danger" onclick='confirmDelete(@json($moduleActions['delete_url']))'>
+      <button type="button" class="btn btn-sm btn-outline-danger" onclick='confirmDelete(@json($moduleActions[' delete_url']))'>
         <i class="fa fa-trash my-1"></i> Delete
       </button>
       @endif

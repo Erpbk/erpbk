@@ -264,7 +264,7 @@ return [
             'extras' => ['upload'],
         ],
         [
-            'parent' => 'Voucher Signature Assignment',
+            'parent' => 'Voucher Header',
             'slug' => 'voucher_signature_assignment',
             'submodules' => [],
         ],

@@ -30,11 +30,22 @@ class VoucherSignatureAssignmentController extends Controller
     {
         $this->authorizeView();
 
+        $filterModule = trim((string) request()->query('module', ''));
+        $filterModuleKeys = $this->moduleFilterKeys($filterModule);
+        $isModuleScoped = $filterModule !== '';
+
         $voucherTypes = VoucherType::query()
             ->where('is_active', true)
             ->orderBy('display_order')
             ->orderBy('id')
             ->get(['id', 'code', 'label', 'display_order']);
+
+        if ($isModuleScoped) {
+            $allowedCodes = VoucherType::codesForModuleKeys($filterModuleKeys);
+            $voucherTypes = $voucherTypes
+                ->filter(fn (VoucherType $type) => in_array((string) $type->code, $allowedCodes, true))
+                ->values();
+        }
 
         $configs = VoucherSignatureConfig::query()
             ->with(['slots' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')])
@@ -42,7 +53,7 @@ class VoucherSignatureAssignmentController extends Controller
             ->get()
             ->keyBy(fn (VoucherSignatureConfig $c) => strtoupper((string) $c->voucher_type_code));
 
-        $documents = $voucherTypes->map(function (VoucherType $type) use ($configs) {
+        $voucherDocuments = $voucherTypes->map(function (VoucherType $type) use ($configs) {
             $key = strtoupper((string) $type->code);
             $config = $configs->get($key);
             $slots = $config?->slots ?? collect();
@@ -63,18 +74,44 @@ class VoucherSignatureAssignmentController extends Controller
                 'kind' => 'v',
                 'kind_label' => 'Voucher',
                 'module' => $moduleLabel,
-                'configured' => $slots->isNotEmpty(),
+                'configured' => $slots->isNotEmpty() || ($config && $config->header_settings !== null),
                 'active_count' => (int) ($config->active_slots_count ?? 0),
                 'flow' => $activeFlow,
             ];
         })->values();
 
+        // Global list includes the shared company/invoice header.
+        // Module-scoped lists show only that module's voucher types.
+        if ($isModuleScoped) {
+            $documents = $voucherDocuments;
+        } else {
+            $companyKey = VoucherSignatureConfig::COMPANY_HEADER_CODE;
+            $companyConfig = $configs->get($companyKey);
+            $companyConfigured = $companyConfig && $companyConfig->header_settings !== null;
+
+            $documents = collect([[
+                'code' => $companyKey,
+                'label' => 'Company / Invoices header',
+                'kind' => 'i',
+                'kind_label' => 'Invoice',
+                'module' => 'All modules',
+                'configured' => (bool) $companyConfigured,
+                'active_count' => 0,
+                'flow' => [],
+            ]])->concat($voucherDocuments)->values();
+        }
+
         $moduleLabel = Settings::getMenuLabel('voucher_signature_assignment')
-            ?: config('menu_labels.defaults.voucher_signature_assignment', 'Voucher Signature Assignment');
+            ?: config('menu_labels.defaults.voucher_signature_assignment', 'Voucher Header');
+        $filterModuleLabel = $filterModule !== ''
+            ? (Settings::getMenuLabel($filterModule) ?: config('menu_labels.defaults.' . $filterModule, ucwords(str_replace('_', ' ', $filterModule))))
+            : null;
 
         return view('settings.voucher_signature_assignment.index', [
             'documents' => $documents,
             'moduleLabel' => $moduleLabel,
+            'filterModule' => $filterModule !== '' ? $filterModule : null,
+            'filterModuleLabel' => $filterModuleLabel,
             'company_slug' => $company_slug,
             'canEdit' => $this->canEdit(),
         ]);
@@ -106,7 +143,7 @@ class VoucherSignatureAssignmentController extends Controller
 
         $codes = collect($validated['order'])
             ->map(fn ($c) => strtoupper(trim((string) $c)))
-            ->filter()
+            ->filter(fn ($c) => $c !== '' && $c !== VoucherSignatureConfig::COMPANY_HEADER_CODE)
             ->unique()
             ->values();
 
@@ -125,9 +162,9 @@ class VoucherSignatureAssignmentController extends Controller
     {
         $this->authorizeView();
 
-        $voucherType = $this->findVoucherType($code);
+        $voucherType = $this->resolveDocument($code);
         if (!$voucherType) {
-            Flash::error('Voucher type not found.');
+            Flash::error('Document type not found.');
 
             return redirect()->route('settings-panel.voucher-signature-assignment.index', [
                 'company_slug' => $company_slug,
@@ -135,7 +172,7 @@ class VoucherSignatureAssignmentController extends Controller
         }
 
         $config = VoucherSignatureConfig::query()
-            ->where('voucher_type_code', strtoupper($voucherType->code))
+            ->where('voucher_type_code', strtoupper((string) $voucherType->code))
             ->with(['slots.department', 'slots.user', 'slots.employee'])
             ->first();
 
@@ -173,7 +210,7 @@ class VoucherSignatureAssignmentController extends Controller
         })->values();
 
         $moduleLabel = Settings::getMenuLabel('voucher_signature_assignment')
-            ?: config('menu_labels.defaults.voucher_signature_assignment', 'Voucher Signature Assignment');
+            ?: config('menu_labels.defaults.voucher_signature_assignment', 'Voucher Header');
 
         $branding = app(CompanyEmailBrandingService::class)->resolve(CompanyContext::id());
         $companyPreview = [
@@ -188,8 +225,11 @@ class VoucherSignatureAssignmentController extends Controller
             'po' => ($po = trim((string) (Common::getSetting('po_box') ?? ''))) !== '' ? ('PO Box: ' . $po) : 'PO Box: [PO Box]',
         ];
 
+        $filterModule = trim((string) request()->query('module', ''));
+
         return view('settings.voucher_signature_assignment.configure', [
             'voucherType' => $voucherType,
+            'isCompanyHeader' => strtoupper((string) $voucherType->code) === VoucherSignatureConfig::COMPANY_HEADER_CODE,
             'config' => $config,
             'slots' => $slots,
             'headerSettings' => $config
@@ -202,6 +242,7 @@ class VoucherSignatureAssignmentController extends Controller
             'users' => User::query()->orderBy('name')->get(['id', 'name', 'first_name', 'last_name']),
             'employees' => Employee::query()->orderBy('name')->get(['id', 'name', 'designation']),
             'moduleLabel' => $moduleLabel,
+            'filterModule' => $filterModule !== '' ? $filterModule : null,
             'company_slug' => $company_slug,
             'canEdit' => $this->canEdit(),
             'copySources' => $copyPayload,
@@ -228,9 +269,9 @@ class VoucherSignatureAssignmentController extends Controller
     {
         $this->authorizeEdit();
 
-        $voucherType = $this->findVoucherType($code);
+        $voucherType = $this->resolveDocument($code);
         if (!$voucherType) {
-            Flash::error('Voucher type not found.');
+            Flash::error('Document type not found.');
 
             return redirect()->route('settings-panel.voucher-signature-assignment.index', [
                 'company_slug' => $company_slug,
@@ -340,6 +381,9 @@ class VoucherSignatureAssignmentController extends Controller
                             ->pluck('code')
                             ->map(fn ($c) => strtoupper((string) $c))
                             ->unique()
+                            ->values()
+                            ->push(VoucherSignatureConfig::COMPANY_HEADER_CODE)
+                            ->unique()
                             ->values();
 
                         foreach ($codes as $otherCode) {
@@ -377,30 +421,35 @@ class VoucherSignatureAssignmentController extends Controller
 
         Flash::success('Print layout saved for ' . $voucherType->label . '.');
 
+        $moduleQuery = trim((string) $request->input('module', request()->query('module', '')));
+        $moduleParams = $moduleQuery !== '' ? ['module' => $moduleQuery] : [];
+
         $redirectTo = ($validated['redirect_to'] ?? 'list') === 'configure' ? 'configure' : 'list';
         if ($redirectTo === 'configure') {
-            return redirect()->route('settings-panel.voucher-signature-assignment.configure', [
+            return redirect()->route('settings-panel.voucher-signature-assignment.configure', array_merge([
                 'company_slug' => $company_slug,
                 'code' => $typeCode,
-            ]);
+            ], $moduleParams));
         }
 
-        return redirect()->route('settings-panel.voucher-signature-assignment.index', [
+        return redirect()->route('settings-panel.voucher-signature-assignment.index', array_merge([
             'company_slug' => $company_slug,
-        ]);
+        ], $moduleParams));
     }
 
     public function clear(Request $request, string $company_slug, string $code)
     {
         $this->authorizeEdit();
 
-        $voucherType = $this->findVoucherType($code);
+        $voucherType = $this->resolveDocument($code);
+        $moduleQuery = trim((string) $request->input('module', request()->query('module', '')));
+        $moduleParams = $moduleQuery !== '' ? ['module' => $moduleQuery] : [];
         if (!$voucherType) {
-            Flash::error('Voucher type not found.');
+            Flash::error('Document type not found.');
 
-            return redirect()->route('settings-panel.voucher-signature-assignment.index', [
+            return redirect()->route('settings-panel.voucher-signature-assignment.index', array_merge([
                 'company_slug' => $company_slug,
-            ]);
+            ], $moduleParams));
         }
 
         $typeCode = strtoupper((string) $voucherType->code);
@@ -432,9 +481,9 @@ class VoucherSignatureAssignmentController extends Controller
 
         Flash::success('Signature assignment cleared for ' . $voucherType->label . '. Legacy signature layout will be used.');
 
-        return redirect()->route('settings-panel.voucher-signature-assignment.index', [
+        return redirect()->route('settings-panel.voucher-signature-assignment.index', array_merge([
             'company_slug' => $company_slug,
-        ]);
+        ], $moduleParams));
     }
 
     protected function findVoucherType(string $code): ?VoucherType
@@ -442,6 +491,66 @@ class VoucherSignatureAssignmentController extends Controller
         return VoucherType::query()
             ->whereRaw('UPPER(code) = ?', [strtoupper(trim($code))])
             ->first();
+    }
+
+    /**
+     * Resolve a Voucher Type or the shared company/invoice header document.
+     */
+    protected function resolveDocument(string $code): ?object
+    {
+        $normalized = strtoupper(trim($code));
+        if ($normalized === VoucherSignatureConfig::COMPANY_HEADER_CODE) {
+            return (object) [
+                'code' => VoucherSignatureConfig::COMPANY_HEADER_CODE,
+                'label' => 'Company / Invoices header',
+                'is_company_header' => true,
+            ];
+        }
+
+        return $this->findVoucherType($normalized);
+    }
+
+    /**
+     * Map a settings-panel module key to voucher-type assignment keys.
+     * Keep these tight — do not include the shared "vouchers" bucket or every
+     * type that also happens to be assigned to Vouchers will appear.
+     *
+     * @return list<string>
+     */
+    protected function moduleFilterKeys(string $moduleKey): array
+    {
+        $moduleKey = trim($moduleKey);
+        if ($moduleKey === '') {
+            return [];
+        }
+
+        return match ($moduleKey) {
+            'riders', 'riders_list' => ['riders', 'riders_list'],
+            'invoices', 'rider_invoices' => ['invoices', 'riders_list'],
+            'employees', 'employee_invoices' => ['employees'],
+            'customer_invoices', 'customers' => ['cash_banks'],
+            'cash_banks', 'receipts' => ['cash_banks'],
+            'payments', 'cheques' => ['cash_banks', 'cheques'],
+            'supplier', 'supplier_invoices' => ['cash_banks'],
+            'sim_invoices', 'sims' => ['sims'],
+            'leasing_companies', 'leasing_invoices', 'leasing_billing_invoice' => ['bikes', 'bike_list'],
+            'visa_expense', 'installments' => ['visa_expense'],
+            'rta_fines', 'rta_fines_unpaid', 'rta_fines_paid' => ['rta_fines'],
+            'rta_saliks' => ['rta_saliks'],
+            'bike_list', 'bikes', 'bike_registration', 'bike_on_rent' => ['bikes', 'bike_list'],
+            'expenses' => ['expenses'],
+            'garages' => ['garage_items'],
+            'vat' => ['vat'],
+            'assets' => ['assets'],
+            'vouchers' => ['vouchers'],
+            // Modules with no dedicated voucher types → empty list.
+            'dashboard', 'documents', 'agreements', 'leads', 'vendors', 'recruiters',
+            'fuel_cards', 'passport_handover', 'items', 'inventory', 'legal_case',
+            'license_expense', 'attendance', 'attendance_records', 'attendance_summary',
+            'activities', 'live_activities', 'rider_inventory_items', 'rider_invoice_templates',
+            'rider_report' => [],
+            default => [$moduleKey],
+        };
     }
 
     /**

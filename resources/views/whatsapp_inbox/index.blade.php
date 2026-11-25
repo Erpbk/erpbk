@@ -20,7 +20,7 @@
     return mb_strtoupper($ini !== '' ? $ini : '?');
   };
 @endphp
-<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261125-wa-media-icon">
+<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261125-wa-attach-icon">
 <style>
   /* Inbox page chrome: slim header, full-bleed body */
   .wa-inbox-page .content-header { padding-top: 8px; padding-bottom: 8px; }
@@ -137,7 +137,10 @@
           <input type="file" id="waFile" hidden accept="image/jpeg,image/png,image/webp,audio/*,video/mp4,video/3gpp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 6.5v8.75a4.75 4.75 0 1 1-9.5 0V6.25a3.25 3.25 0 0 1 6.5 0v8.5a1.75 1.75 0 1 1-3.5 0V7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </label>
-        <span class="wa-attach-name" id="waFileName" hidden></span>
+        <span class="wa-attach-chip" id="waFileChip" hidden title="">
+          <span class="wa-attach-chip-icon" id="waFileChipIcon" aria-hidden="true"></span>
+          <button type="button" class="wa-attach-chip-x" id="waFileClear" title="Remove attachment" aria-label="Remove attachment">&times;</button>
+        </span>
         <textarea id="waBody" rows="1" placeholder="Type a message…"></textarea>
         <button type="button" class="wa-send" id="waSend" title="Send" aria-label="Send">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5V14l9-2-9-2V3.5L22 12z"/></svg>
@@ -560,11 +563,40 @@
     if (anchor.scrollTop != null) chat.scrollTop = anchor.scrollTop;
   }
 
+  function optimisticMatchesServer(entry, it) {
+    if (!it || it.direction !== 'out' || !it.id || it.send_state) return false;
+    if (Number(it.id) <= Number(entry.lastIdAtSend || 0)) return false;
+
+    const serverBody = String(it.body || '').trim();
+    const caption = String(entry.caption || '').trim();
+    const filename = entry.file && entry.file.name ? String(entry.file.name).trim() : '';
+    const mediaType = entry.mediaType || (entry.file ? attachKindFromFile(entry.file) : '');
+    const serverType = String(it.message_type || '');
+
+    // Text: exact body match (legacy optimistic text sends).
+    if (!entry.file && !mediaType) {
+      return serverBody !== '' && serverBody === String(entry.body || '').trim();
+    }
+
+    // Media: server body is caption (or filename fallback), not "caption · filename".
+    const isMediaType = ['image', 'audio', 'video', 'document'].includes(serverType)
+      || ['image', 'audio', 'video', 'document'].includes(mediaType);
+    if (!isMediaType) return false;
+    if (mediaType && serverType && mediaType !== serverType) return false;
+
+    if (caption && serverBody === caption) return true;
+    if (!caption && filename && (serverBody === filename || serverBody === '' || serverBody.toLowerCase() === mediaType)) return true;
+    if (filename && it.media && String(it.media.filename || '') === filename) return true;
+    if (serverBody && serverBody === String(entry.body || '').trim()) return true;
+
+    return false;
+  }
+
   function reconcileOptimistic(items) {
-    // Match each pending bubble to at most one *new* server outbound (id > lastId at send) with same body.
+    // Match each pending bubble to at most one *new* server outbound after send.
     const available = [];
     (items || []).forEach(it => {
-      if (it && it.direction === 'out' && it.body && it.id && !it.send_state) {
+      if (it && it.direction === 'out' && it.id && !it.send_state) {
         available.push(it);
       }
     });
@@ -574,9 +606,7 @@
     });
     entries.sort((a, b) => a.seq - b.seq);
     entries.forEach((entry) => {
-      const idx = available.findIndex(it =>
-        String(it.body) === entry.body && Number(it.id) > Number(entry.lastIdAtSend || 0)
-      );
+      const idx = available.findIndex(it => optimisticMatchesServer(entry, it));
       if (idx === -1) return;
       available.splice(idx, 1);
       optimistic.delete(entry.id);
@@ -642,33 +672,44 @@
     return dt.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
   }
 
+  function mediaCaption(it) {
+    const mtype = (it.message_type || '').toLowerCase();
+    const body = String(it.body || '').trim();
+    if (!body) return '';
+    // Ignore type placeholders ("Image", "Audio", …) — only real captions.
+    if (mtype && body.toLowerCase() === mtype) return '';
+    if (['image', 'audio', 'video', 'document', 'sticker', 'media'].includes(body.toLowerCase())) return '';
+    return body;
+  }
+
   function mediaBodyHtml(it) {
     const media = it.media || null;
     const mtype = it.message_type || '';
+    const caption = mediaCaption(it);
     if (!media) {
       return '<div class="txt">' + escapeHtml(it.body || '') + '</div>';
     }
     if (media.ready && media.url) {
       if (mtype === 'image') {
         return '<div class="wa-media wa-media-image"><a href="' + escapeHtml(media.url) + '" target="_blank" rel="noopener"><img src="' + escapeHtml(media.url) + '" alt=""></a>'
-          + (it.body ? ('<div class="txt">' + escapeHtml(it.body) + '</div>') : '') + '</div>';
+          + (caption ? ('<div class="txt">' + escapeHtml(caption) + '</div>') : '') + '</div>';
       }
       if (mtype === 'audio') {
-        return '<div class="wa-media wa-media-audio"><audio controls preload="metadata" src="' + escapeHtml(media.url) + '"></audio>'
-          + (it.body ? ('<div class="txt">' + escapeHtml(it.body) + '</div>') : '') + '</div>';
+        return '<div class="wa-media wa-media-audio"><audio controls preload="metadata" controlsList="nodownload" src="' + escapeHtml(media.url) + '"></audio>'
+          + (caption ? ('<div class="txt">' + escapeHtml(caption) + '</div>') : '') + '</div>';
       }
       if (mtype === 'video') {
         return '<div class="wa-media wa-media-video"><video controls preload="metadata" src="' + escapeHtml(media.url) + '"></video>'
-          + (it.body ? ('<div class="txt">' + escapeHtml(it.body) + '</div>') : '') + '</div>';
+          + (caption ? ('<div class="txt">' + escapeHtml(caption) + '</div>') : '') + '</div>';
       }
       if (mtype === 'document') {
-        const name = media.filename || it.body || 'Document';
+        const name = media.filename || caption || 'Document';
         return '<div class="wa-media wa-media-doc"><a class="wa-doc-link" href="' + escapeHtml(media.url) + '" target="_blank" rel="noopener">' + escapeHtml(name) + '</a>'
-          + (it.body && it.body !== name ? ('<div class="txt">' + escapeHtml(it.body) + '</div>') : '') + '</div>';
+          + (caption && caption !== name ? ('<div class="txt">' + escapeHtml(caption) + '</div>') : '') + '</div>';
       }
     }
     if (media.downloadable) {
-      const label = media.filename || it.body || (mtype ? (mtype.charAt(0).toUpperCase() + mtype.slice(1)) : 'Media');
+      const label = media.filename || caption || (mtype ? (mtype.charAt(0).toUpperCase() + mtype.slice(1)) : 'Media');
       return '<div class="wa-media wa-media-pending">'
         + '<div class="txt">' + escapeHtml(label) + '</div>'
         + '<button type="button" class="wa-media-dl" data-mid="' + escapeHtml(String(it.id || '')) + '" title="Download" aria-label="Download">'
@@ -707,12 +748,18 @@
           }
           const bub = btn.closest('.wa-bub');
           if (bub && data.media) {
+            const mtype = bub.dataset.mtype || '';
+            const rawTxt = String((bub.querySelector('.txt') || {}).textContent || '').trim();
+            const body = (rawTxt && rawTxt.toLowerCase() !== mtype.toLowerCase()
+              && !['image', 'audio', 'video', 'document', 'sticker', 'media'].includes(rawTxt.toLowerCase()))
+              ? rawTxt
+              : '';
             const rebuilt = itemEl({
               type: 'message',
               id: +mid,
               direction: bub.classList.contains('out') ? 'out' : 'in',
-              message_type: bub.dataset.mtype || '',
-              body: (bub.querySelector('.txt') || {}).textContent || '',
+              message_type: mtype,
+              body: body,
               media: Object.assign({ ready: true, downloadable: false }, data.media),
               status: '',
               occurred_at: new Date().toISOString()
@@ -764,7 +811,7 @@
       bits.push(escapeHtml(it.status));
     }
     const meta = bits.join(' · ');
-    d.innerHTML = mediaBodyHtml(it) +
+    d.innerHTML = replyToHtml(it) + mediaBodyHtml(it) +
       (meta ? ('<div class="meta"><span>' + meta + '</span></div>') : '');
     const resendBtn = d.querySelector('.wa-msg-resend');
     if (resendBtn && it.optimistic_id) {
@@ -774,8 +821,36 @@
         resendOptimistic(it.optimistic_id);
       });
     }
+    const replyBtn = d.querySelector('.wa-reply[data-jump]');
+    if (replyBtn) {
+      replyBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const jumpId = replyBtn.getAttribute('data-jump');
+        if (!jumpId) return;
+        const target = document.querySelector('#waStack .wa-bub[data-mid="' + jumpId + '"]');
+        if (!target) return;
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('wa-flash');
+        setTimeout(() => target.classList.remove('wa-flash'), 1200);
+      });
+    }
     bindMediaDownload(d);
     return d;
+  }
+
+  function replyToHtml(it) {
+    const r = it.reply_to;
+    if (!r) return '';
+    const label = r.direction === 'out' ? 'You' : (r.direction === 'in' ? 'Contact' : 'Reply');
+    const preview = String(r.body || r.message_type || 'Original message').trim();
+    const jump = r.id ? (' data-jump="' + escapeHtml(String(r.id)) + '"') : '';
+    return '<button type="button" class="wa-reply"' + jump + ' title="Go to message">'
+      + '<span class="wa-reply-bar" aria-hidden="true"></span>'
+      + '<span class="wa-reply-content">'
+      + '<span class="wa-reply-who">' + escapeHtml(label) + '</span>'
+      + '<span class="wa-reply-text">' + escapeHtml(preview) + '</span>'
+      + '</span></button>';
   }
 
   function setOptimisticState(id, status) {
@@ -854,13 +929,17 @@
 
   function queueOutgoing(body, connectionId, file) {
     const id = 'tmp-' + (++optimisticSeq);
-    const label = file ? ((body ? body + ' · ' : '') + (file.name || 'Attachment')) : body;
+    const mediaType = file ? attachKindFromFile(file) : '';
+    const label = file
+      ? (body || (file.name || (mediaType ? (mediaType.charAt(0).toUpperCase() + mediaType.slice(1)) : 'Attachment')))
+      : body;
     optimistic.set(id, {
       id,
       seq: optimisticSeq,
       body: label,
       caption: body || '',
       file: file || null,
+      mediaType: mediaType || null,
       threadKey: threadKey,
       connectionId: +connectionId,
       status: 'pending',
@@ -871,6 +950,7 @@
       type: 'message',
       direction: 'out',
       body: label,
+      message_type: mediaType || undefined,
       status: 'sending',
       occurred_at: new Date().toISOString(),
       optimistic_id: id,
@@ -887,11 +967,51 @@
     postSend(entry.caption || entry.body, entry.connectionId, id, entry.file || null);
   }
 
+  function attachKindFromFile(file) {
+    if (!file) return 'document';
+    const mime = String(file.type || '').toLowerCase();
+    const name = String(file.name || '').toLowerCase();
+    if (mime.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(name)) return 'image';
+    if (mime.startsWith('audio/') || /\.(aac|m4a|mp3|amr|ogg|opus)$/i.test(name)) return 'audio';
+    if (mime.startsWith('video/') || /\.(mp4|3gp|mov)$/i.test(name)) return 'video';
+    return 'document';
+  }
+
+  function attachKindIcon(kind) {
+    if (kind === 'image') {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="8.5" cy="10" r="1.5" fill="currentColor"/><path d="m21 16-5.5-5.5L7 19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    }
+    if (kind === 'audio') {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17" cy="16" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
+    }
+    if (kind === 'video') {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m16 10 5-2.5v9L16 14z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+    }
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3v6h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+  }
+
+  function setAttachPreview(file) {
+    const chip = document.getElementById('waFileChip');
+    const icon = document.getElementById('waFileChipIcon');
+    if (!chip || !icon) return;
+    if (!file) {
+      chip.hidden = true;
+      chip.removeAttribute('data-kind');
+      chip.title = '';
+      icon.innerHTML = '';
+      return;
+    }
+    const kind = attachKindFromFile(file);
+    chip.hidden = false;
+    chip.dataset.kind = kind;
+    chip.title = file.name || kind;
+    icon.innerHTML = attachKindIcon(kind);
+  }
+
   function clearAttach() {
     const fileEl = document.getElementById('waFile');
-    const nameEl = document.getElementById('waFileName');
     if (fileEl) fileEl.value = '';
-    if (nameEl) { nameEl.hidden = true; nameEl.textContent = ''; }
+    setAttachPreview(null);
   }
 
   function sendComposerMessage() {
@@ -1038,15 +1158,15 @@
   const waFile = document.getElementById('waFile');
   if (waFile) {
     waFile.addEventListener('change', () => {
-      const nameEl = document.getElementById('waFileName');
-      if (!nameEl) return;
-      if (waFile.files && waFile.files[0]) {
-        nameEl.hidden = false;
-        nameEl.textContent = waFile.files[0].name;
-      } else {
-        nameEl.hidden = true;
-        nameEl.textContent = '';
-      }
+      setAttachPreview(waFile.files && waFile.files[0] ? waFile.files[0] : null);
+    });
+  }
+  const waFileClear = document.getElementById('waFileClear');
+  if (waFileClear) {
+    waFileClear.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      clearAttach();
     });
   }
 

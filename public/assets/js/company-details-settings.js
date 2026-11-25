@@ -187,7 +187,6 @@ const SECTIONS=[
   {id:'signer',label:'Authorized signatory',help:'Printed below the signature for this user',noInh:1,grid:1,f:[{id:'signame',type:'text',mini:'Name'},{id:'sigdes',type:'text',mini:'Designation',ph:'Manager / Partner'}]},
   {id:'apply',label:'Apply automatically',help:'Admin assigns which modules this user may stamp and sign (vouchers, invoices, agreements)',noInh:1,wide:1,f:[{id:'apm',type:'docmatrix'}]},
   {id:'apother',label:'Other documents',help:'Documents not tied to one module that this user may stamp and sign',noInh:1,f:[{id:'ap4',type:'tile',icon:'user',text:'Salary slips'},{id:'ap5',type:'tile',icon:'mail',text:'Official letters'},{id:'ap7',type:'tile',icon:'receipt',text:'Quotations'},{id:'ap8',type:'tile',icon:'inv',text:'Statements of account'}]}]},
- {k:'vsa',icon:'pen',t:'Voucher Header',s:'Header and signature flow for every voucher type',custom:'vsa'},
  {k:'theme',icon:'palette',t:'Theme & Colors',s:'Mode, colors, ready-made themes',custom:'theme'},
  {k:'docs',icon:'folder',t:'Company Documents',s:'Copies with expiry tracking',custom:'docs'}
 ];

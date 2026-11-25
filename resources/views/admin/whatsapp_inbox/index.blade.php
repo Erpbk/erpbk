@@ -56,6 +56,7 @@
   .wa-inbox .wa-media-dl svg { width: 16px; height: 16px; display: block; }
   .wa-inbox .wa-media-dl:disabled { opacity: 0.6; cursor: wait; }
   .wa-attach-btn { border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+  .wa-attach-chips { display: flex; flex-wrap: wrap; gap: 6px; max-width: 180px; max-height: 70px; overflow-y: auto; }
   .wa-attach-chip {
     display: inline-flex; align-items: center; gap: 2px; height: 32px; padding: 0 4px 0 8px;
     border-radius: 16px; background: #fff; border: 1px solid #cbd5e1; color: #54656f;
@@ -99,13 +100,10 @@
       </div>
       <div class="wa-inbox-composer" id="waComposer" hidden>
         <label class="wa-attach-btn" title="Attach">
-          <input type="file" id="waFile" hidden accept="image/jpeg,image/png,image/webp,audio/*,video/mp4,video/3gpp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt">
+          <input type="file" id="waFile" hidden multiple accept="image/jpeg,image/png,image/webp,audio/*,video/mp4,video/3gpp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt">
           Attach
         </label>
-        <span class="wa-attach-chip" id="waFileChip" hidden title="">
-          <span class="wa-attach-chip-icon" id="waFileChipIcon" aria-hidden="true"></span>
-          <button type="button" class="wa-attach-chip-x" id="waFileClear" title="Remove attachment" aria-label="Remove attachment">&times;</button>
-        </span>
+        <span class="wa-attach-chips" id="waFileChips" hidden></span>
         <input type="text" id="waBody" class="form-control form-control-sm" placeholder="Type a message…">
         <button type="button" class="btn btn-sm btn-success" id="waSend" disabled>Send</button>
       </div>
@@ -245,6 +243,8 @@
   document.getElementById('waList').addEventListener('click', e => {
     const b = e.target.closest('.wa-inbox-row'); if (b) openThread(b.dataset.peer);
   });
+  let pendingFiles = [];
+  const MAX_ATTACHMENTS = 10;
   function attachKindFromFile(file){
     if (!file) return 'document';
     const mime = String(file.type||'').toLowerCase();
@@ -260,44 +260,70 @@
     if (kind === 'video') return '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m16 10 5-2.5v9L16 14z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
     return '<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3v6h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
   }
-  function setAttachPreview(file){
-    const chip = document.getElementById('waFileChip');
-    const icon = document.getElementById('waFileChipIcon');
-    if (!chip || !icon) return;
-    if (!file) { chip.hidden = true; chip.removeAttribute('data-kind'); chip.title=''; icon.innerHTML=''; return; }
-    const kind = attachKindFromFile(file);
-    chip.hidden = false; chip.dataset.kind = kind; chip.title = file.name || kind; icon.innerHTML = attachKindIcon(kind);
+  function renderAttachChips(){
+    const wrap = document.getElementById('waFileChips');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    wrap.hidden = pendingFiles.length === 0;
+    pendingFiles.forEach((file, idx) => {
+      const kind = attachKindFromFile(file);
+      const chip = document.createElement('span');
+      chip.className = 'wa-attach-chip';
+      chip.dataset.kind = kind;
+      chip.title = file.name || kind;
+      chip.innerHTML = '<span class="wa-attach-chip-icon" aria-hidden="true">'+attachKindIcon(kind)+'</span>'
+        + '<button type="button" class="wa-attach-chip-x" data-idx="'+idx+'" title="Remove" aria-label="Remove">&times;</button>';
+      wrap.appendChild(chip);
+    });
+    wrap.querySelectorAll('.wa-attach-chip-x').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        pendingFiles.splice(Number(btn.dataset.idx), 1);
+        renderAttachChips();
+      };
+    });
+  }
+  function clearAttach(){
+    document.getElementById('waFile').value = '';
+    pendingFiles = [];
+    renderAttachChips();
   }
   document.getElementById('waFile').addEventListener('change', () => {
-    const f = document.getElementById('waFile').files[0];
-    setAttachPreview(f || null);
+    const input = document.getElementById('waFile');
+    Array.from(input.files || []).forEach(f => {
+      if (pendingFiles.length < MAX_ATTACHMENTS) pendingFiles.push(f);
+    });
+    input.value = '';
+    renderAttachChips();
   });
-  document.getElementById('waFileClear').onclick = (e) => {
-    e.preventDefault();
-    document.getElementById('waFile').value = '';
-    setAttachPreview(null);
-  };
   document.getElementById('waSend').onclick = async () => {
     const body = document.getElementById('waBody').value.trim();
-    const fileEl = document.getElementById('waFile');
-    const file = fileEl.files && fileEl.files[0] ? fileEl.files[0] : null;
-    if ((!body && !file) || !peer) return;
-    let res;
-    if (file) {
-      const fd = new FormData();
-      fd.append('peer_phone', peer);
-      if (body) fd.append('body', body);
-      if (connectionId) fd.append('whatsapp_connection_id', String(connectionId));
-      fd.append('file', file);
-      res = await fetch(root.dataset.sendUrl,{method:'POST',headers:headers(),body:fd});
+    const files = pendingFiles.slice();
+    if ((!body && files.length === 0) || !peer) return;
+    document.getElementById('waBody').value = '';
+    clearAttach();
+    const sendOne = async (caption, file) => {
+      if (file) {
+        const fd = new FormData();
+        fd.append('peer_phone', peer);
+        if (caption) fd.append('body', caption);
+        if (connectionId) fd.append('whatsapp_connection_id', String(connectionId));
+        fd.append('file', file);
+        return fetch(root.dataset.sendUrl,{method:'POST',headers:headers(),body:fd});
+      }
+      return fetch(root.dataset.sendUrl,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},headers()),body:JSON.stringify({peer_phone:peer,body:caption,whatsapp_connection_id:connectionId})});
+    };
+    if (files.length > 0) {
+      for (let i = 0; i < files.length; i++) {
+        const res = await sendOne(i === 0 ? body : '', files[i]);
+        const data = await res.json().catch(()=>({}));
+        if (!data.ok) { alert(data.message||'Failed'); break; }
+      }
     } else {
-      res = await fetch(root.dataset.sendUrl,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},headers()),body:JSON.stringify({peer_phone:peer,body,whatsapp_connection_id:connectionId})});
+      const res = await sendOne(body, null);
+      const data = await res.json().catch(()=>({}));
+      if (!data.ok) { alert(data.message||'Failed'); return; }
     }
-    const data = await res.json().catch(()=>({}));
-    if (!data.ok) { alert(data.message||'Failed'); return; }
-    document.getElementById('waBody').value='';
-    fileEl.value='';
-    setAttachPreview(null);
     openThread(peer);
   };
 })();

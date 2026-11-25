@@ -20,7 +20,7 @@
     return mb_strtoupper($ini !== '' ? $ini : '?');
   };
 @endphp
-<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261125-wa-attach-icon">
+<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261125-wa-multi-attach">
 <style>
   /* Inbox page chrome: slim header, full-bleed body */
   .wa-inbox-page .content-header { padding-top: 8px; padding-bottom: 8px; }
@@ -133,14 +133,11 @@
       </div>
       <div class="wa-comp" id="waComposer" hidden>
         <select id="waFrom" class="no-select2" data-no-select2 aria-label="Send from" title="Send from"></select>
-        <label class="wa-attach" title="Attach file" aria-label="Attach file">
-          <input type="file" id="waFile" hidden accept="image/jpeg,image/png,image/webp,audio/*,video/mp4,video/3gpp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt">
+        <label class="wa-attach" title="Attach files" aria-label="Attach files">
+          <input type="file" id="waFile" hidden multiple accept="image/jpeg,image/png,image/webp,audio/*,video/mp4,video/3gpp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 6.5v8.75a4.75 4.75 0 1 1-9.5 0V6.25a3.25 3.25 0 0 1 6.5 0v8.5a1.75 1.75 0 1 1-3.5 0V7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </label>
-        <span class="wa-attach-chip" id="waFileChip" hidden title="">
-          <span class="wa-attach-chip-icon" id="waFileChipIcon" aria-hidden="true"></span>
-          <button type="button" class="wa-attach-chip-x" id="waFileClear" title="Remove attachment" aria-label="Remove attachment">&times;</button>
-        </span>
+        <span class="wa-attach-chips" id="waFileChips" hidden></span>
         <textarea id="waBody" rows="1" placeholder="Type a message…"></textarea>
         <button type="button" class="wa-send" id="waSend" title="Send" aria-label="Send">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5V14l9-2-9-2V3.5L22 12z"/></svg>
@@ -210,6 +207,9 @@
   /** @type {Map<string, {id:string,body:string,threadKey:string,connectionId:number,status:'pending'|'failed'}>} */
   const optimistic = new Map();
   let optimisticSeq = 0;
+  /** @type {File[]} */
+  let pendingFiles = [];
+  const MAX_ATTACHMENTS = 10;
 
   function headers() {
     return { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
@@ -593,7 +593,8 @@
   }
 
   function reconcileOptimistic(items) {
-    // Match each pending bubble to at most one *new* server outbound after send.
+    // Match each sent/pending bubble to at most one *new* server outbound after send.
+    // Skip queued (not yet POSTed) so later files cannot steal an earlier match.
     const available = [];
     (items || []).forEach(it => {
       if (it && it.direction === 'out' && it.id && !it.send_state) {
@@ -602,7 +603,7 @@
     });
     const entries = [];
     optimistic.forEach((entry) => {
-      if (entry.threadKey === threadKey) entries.push(entry);
+      if (entry.threadKey === threadKey && entry.status !== 'queued') entries.push(entry);
     });
     entries.sort((a, b) => a.seq - b.seq);
     entries.forEach((entry) => {
@@ -615,21 +616,31 @@
     });
   }
 
+  function optimisticItemPayload(entry) {
+    const status = entry.status || 'queued';
+    return {
+      type: 'message',
+      direction: 'out',
+      body: entry.body,
+      message_type: entry.mediaType || undefined,
+      status: status === 'failed' ? 'failed' : 'sending',
+      occurred_at: entry.occurredAt || new Date().toISOString(),
+      optimistic_id: entry.id,
+      send_state: status
+    };
+  }
+
   function restoreOptimisticBubbles() {
     const stack = document.getElementById('waStack');
     if (!stack || !threadKey) return;
+    const entries = [];
     optimistic.forEach((entry) => {
-      if (entry.threadKey !== threadKey) return;
+      if (entry.threadKey === threadKey) entries.push(entry);
+    });
+    entries.sort((a, b) => a.seq - b.seq);
+    entries.forEach((entry) => {
       if (stack.querySelector('[data-optimistic="' + entry.id + '"]')) return;
-      stack.appendChild(itemEl({
-        type: 'message',
-        direction: 'out',
-        body: entry.body,
-        status: entry.status === 'failed' ? 'failed' : 'sending',
-        occurred_at: new Date().toISOString(),
-        optimistic_id: entry.id,
-        send_state: entry.status
-      }));
+      stack.appendChild(itemEl(optimisticItemPayload(entry)));
     });
   }
 
@@ -794,6 +805,7 @@
     const d = document.createElement('div');
     const sendState = it.send_state || null;
     d.className = 'wa-bub' + (it.direction === 'out' ? ' out' : ' in')
+      + (sendState === 'queued' ? ' is-queued' : '')
       + (sendState === 'pending' ? ' is-pending' : '')
       + (sendState === 'failed' ? ' is-failed' : '');
     d.dataset.mid = it.id || '';
@@ -802,7 +814,9 @@
     const bits = [];
     const time = formatLocalTime(it.occurred_at);
     if (time) bits.push(time);
-    if (sendState === 'pending') {
+    if (sendState === 'queued') {
+      bits.push('<span class="wa-msg-queued" title="Queued">…</span>');
+    } else if (sendState === 'pending') {
       bits.push('<span class="wa-msg-spin" title="Sending"></span>');
     } else if (sendState === 'failed') {
       bits.push('failed');
@@ -860,16 +874,7 @@
     optimistic.set(id, entry);
     const el = document.querySelector('[data-optimistic="' + id + '"]');
     if (!el) return;
-    el.replaceWith(itemEl({
-      type: 'message',
-      direction: 'out',
-      body: entry.body,
-      status: status === 'failed' ? 'failed' : 'sending',
-      occurred_at: new Date().toISOString(),
-      optimistic_id: id,
-      send_state: status
-    }));
-    scrollChatToEnd();
+    el.replaceWith(itemEl(optimisticItemPayload(entry)));
   }
 
   function refreshOpenThreadSoon() {
@@ -927,12 +932,14 @@
     }
   }
 
-  function queueOutgoing(body, connectionId, file) {
+  function enqueueOptimistic(body, connectionId, file, initialStatus) {
     const id = 'tmp-' + (++optimisticSeq);
     const mediaType = file ? attachKindFromFile(file) : '';
     const label = file
       ? (body || (file.name || (mediaType ? (mediaType.charAt(0).toUpperCase() + mediaType.slice(1)) : 'Attachment')))
       : body;
+    const status = initialStatus || 'queued';
+    const occurredAt = new Date().toISOString();
     optimistic.set(id, {
       id,
       seq: optimisticSeq,
@@ -942,22 +949,19 @@
       mediaType: mediaType || null,
       threadKey: threadKey,
       connectionId: +connectionId,
-      status: 'pending',
+      status,
+      occurredAt,
       lastIdAtSend: lastId || 0
     });
     const stack = document.getElementById('waStack');
-    stack.appendChild(itemEl({
-      type: 'message',
-      direction: 'out',
-      body: label,
-      message_type: mediaType || undefined,
-      status: 'sending',
-      occurred_at: new Date().toISOString(),
-      optimistic_id: id,
-      send_state: 'pending'
-    }));
+    stack.appendChild(itemEl(optimisticItemPayload(optimistic.get(id))));
+    return id;
+  }
+
+  async function queueOutgoing(body, connectionId, file) {
+    const id = enqueueOptimistic(body, connectionId, file, 'pending');
     scrollChatToEnd();
-    postSend(body, connectionId, id, file || null);
+    await postSend(body, connectionId, id, file || null);
   }
 
   function resendOptimistic(id) {
@@ -990,38 +994,56 @@
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3v6h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
   }
 
-  function setAttachPreview(file) {
-    const chip = document.getElementById('waFileChip');
-    const icon = document.getElementById('waFileChipIcon');
-    if (!chip || !icon) return;
-    if (!file) {
-      chip.hidden = true;
-      chip.removeAttribute('data-kind');
-      chip.title = '';
-      icon.innerHTML = '';
-      return;
+  function renderAttachChips() {
+    const wrap = document.getElementById('waFileChips');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    wrap.hidden = pendingFiles.length === 0;
+    pendingFiles.forEach((file, idx) => {
+      const kind = attachKindFromFile(file);
+      const chip = document.createElement('span');
+      chip.className = 'wa-attach-chip';
+      chip.dataset.kind = kind;
+      chip.title = file.name || kind;
+      chip.innerHTML = '<span class="wa-attach-chip-icon" aria-hidden="true">' + attachKindIcon(kind) + '</span>'
+        + '<button type="button" class="wa-attach-chip-x" data-idx="' + idx + '" title="Remove attachment" aria-label="Remove attachment">&times;</button>';
+      wrap.appendChild(chip);
+    });
+    wrap.querySelectorAll('.wa-attach-chip-x').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const i = Number(btn.dataset.idx);
+        if (Number.isNaN(i) || i < 0) return;
+        pendingFiles.splice(i, 1);
+        renderAttachChips();
+      });
+    });
+  }
+
+  function addPendingFiles(fileList) {
+    const incoming = Array.from(fileList || []);
+    for (const file of incoming) {
+      if (pendingFiles.length >= MAX_ATTACHMENTS) break;
+      pendingFiles.push(file);
     }
-    const kind = attachKindFromFile(file);
-    chip.hidden = false;
-    chip.dataset.kind = kind;
-    chip.title = file.name || kind;
-    icon.innerHTML = attachKindIcon(kind);
+    renderAttachChips();
   }
 
   function clearAttach() {
     const fileEl = document.getElementById('waFile');
     if (fileEl) fileEl.value = '';
-    setAttachPreview(null);
+    pendingFiles = [];
+    renderAttachChips();
   }
 
-  function sendComposerMessage() {
+  async function sendComposerMessage() {
     const bodyEl = document.getElementById('waBody');
     const body = bodyEl.value.trim();
-    const fileEl = document.getElementById('waFile');
-    const file = fileEl && fileEl.files && fileEl.files[0] ? fileEl.files[0] : null;
+    const files = pendingFiles.slice();
     const connectionId = document.getElementById('waFrom').value;
     const sendBtn = document.getElementById('waSend');
-    if ((!body && !file) || !peer || !connectionId || sendBtn.disabled) return;
+    if ((!body && files.length === 0) || !peer || !connectionId || sendBtn.disabled) return;
     bodyEl.value = '';
     bodyEl.style.height = '';
     if (document.activeElement === bodyEl) {
@@ -1029,10 +1051,34 @@
     } else {
       bodyEl.classList.remove('is-expanded');
     }
-    const attach = file;
     clearAttach();
-    queueOutgoing(body, connectionId, attach);
-    bodyEl.focus();
+    sendBtn.disabled = true;
+
+    // Show every optimistic bubble immediately; process sends one-by-one.
+    const jobs = [];
+    if (files.length > 0) {
+      for (let i = 0; i < files.length; i++) {
+        const caption = i === 0 ? body : '';
+        const id = enqueueOptimistic(caption, connectionId, files[i], 'queued');
+        jobs.push({ id, body: caption, file: files[i] });
+      }
+    } else {
+      const id = enqueueOptimistic(body, connectionId, null, 'pending');
+      jobs.push({ id, body, file: null });
+    }
+    scrollChatToEnd();
+
+    try {
+      for (let i = 0; i < jobs.length; i++) {
+        const job = jobs[i];
+        if (!optimistic.has(job.id)) continue;
+        if (jobs.length > 1 || job.file) setOptimisticState(job.id, 'pending');
+        await postSend(job.body, connectionId, job.id, job.file);
+      }
+    } finally {
+      updateSendEnabled();
+      bodyEl.focus();
+    }
   }
 
   function setupComposer(data) {
@@ -1158,15 +1204,10 @@
   const waFile = document.getElementById('waFile');
   if (waFile) {
     waFile.addEventListener('change', () => {
-      setAttachPreview(waFile.files && waFile.files[0] ? waFile.files[0] : null);
-    });
-  }
-  const waFileClear = document.getElementById('waFileClear');
-  if (waFileClear) {
-    waFileClear.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      clearAttach();
+      if (waFile.files && waFile.files.length) {
+        addPendingFiles(waFile.files);
+      }
+      waFile.value = '';
     });
   }
 

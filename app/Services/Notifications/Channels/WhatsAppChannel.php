@@ -131,13 +131,14 @@ class WhatsAppChannel implements ChannelInterface
         }
 
         $injector = app(WhatsAppTemplateInjector::class);
-        $built = $injector->build($template, $context);
-        if (! ($built['ok'] ?? false)) {
+        // No "-" placeholder — missing injects skip the send (existing channel behavior).
+        $payload = $injector->previewPayload($template, $context);
+        if (! ($payload['ok'] ?? false)) {
             $delivery->forceFill([
                 'status' => NotificationDelivery::STATUS_SKIPPED,
                 'provider_response' => [
                     'reason' => 'inject_failed',
-                    'error' => $built['error'] ?? null,
+                    'error' => $payload['error'] ?? null,
                     'template' => $template->name,
                 ],
             ])->save();
@@ -145,17 +146,29 @@ class WhatsAppChannel implements ChannelInterface
             return;
         }
 
-        $preview = $injector->previewText($template, $context);
+        $preview = trim((string) ($payload['text'] ?? ''));
+        $templateName = (string) ($payload['template_name'] ?? $template->name);
+        $templateLanguage = (string) ($payload['language'] ?? 'en');
+        $components = $payload['components'] ?? [];
+        $companyId = $notification->company_id ? (int) $notification->company_id : 0;
+        $useFreeText = $preview !== ''
+            && $companyId > 0
+            && app(\App\Services\WhatsApp\WhatsAppInboxService::class)
+                ->hasOpenWindow($companyId, (string) $to, (int) $connection->id);
+        $mode = $useFreeText ? 'text' : 'template';
         $messages = app(WhatsAppMessageStore::class);
+        $client = app(WhatsAppCloudApiClient::class);
 
         try {
-            $result = app(WhatsAppCloudApiClient::class)->sendTemplate(
-                $connection,
-                $to,
-                (string) $built['template_name'],
-                (string) ($built['language'] ?? 'en'),
-                $built['components'] ?? []
-            );
+            $result = $useFreeText
+                ? $client->sendText($connection, $to, $preview)
+                : $client->sendTemplate(
+                    $connection,
+                    $to,
+                    $templateName,
+                    $templateLanguage,
+                    is_array($components) ? $components : []
+                );
 
             if (! ($result['ok'] ?? false)) {
                 throw new \RuntimeException((string) ($result['error'] ?? 'WhatsApp send failed.'));
@@ -166,6 +179,8 @@ class WhatsAppChannel implements ChannelInterface
                 'sent_at' => now(),
                 'provider_response' => [
                     'ok' => true,
+                    'mode' => $mode,
+                    'downgraded_from_template' => $useFreeText,
                     'to' => $to,
                     'message_id' => $result['message_id'] ?? null,
                     'response' => $result['response'] ?? null,
@@ -181,11 +196,11 @@ class WhatsAppChannel implements ChannelInterface
                 'phone_number_id' => $connection->phone_number_id,
                 'peer_phone' => $to,
                 'wa_message_id' => $result['message_id'] ?? null,
-                'message_type' => 'template',
-                'body' => $preview,
-                'template_name' => (string) $built['template_name'],
-                'template_language' => (string) ($built['language'] ?? 'en'),
-                'components' => $built['components'] ?? null,
+                'message_type' => $mode,
+                'body' => $preview !== '' ? $preview : null,
+                'template_name' => $mode === 'template' ? $templateName : null,
+                'template_language' => $mode === 'template' ? $templateLanguage : null,
+                'components' => $mode === 'template' ? (is_array($components) ? $components : null) : null,
                 'status' => WhatsAppMessage::STATUS_SENT,
                 'notification_delivery_id' => $delivery->id,
                 'source' => 'notification',
@@ -194,6 +209,7 @@ class WhatsAppChannel implements ChannelInterface
                 'payload' => [
                     'notification_id' => $notification->id,
                     'result' => $result['response'] ?? null,
+                    'downgraded_from_template' => $useFreeText,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -204,7 +220,12 @@ class WhatsAppChannel implements ChannelInterface
 
             $delivery->forceFill([
                 'status' => NotificationDelivery::STATUS_FAILED,
-                'provider_response' => ['error' => $e->getMessage(), 'to' => $to],
+                'provider_response' => [
+                    'error' => $e->getMessage(),
+                    'to' => $to,
+                    'mode' => $mode,
+                    'downgraded_from_template' => $useFreeText,
+                ],
             ])->save();
 
             $messages->recordOutbound([
@@ -212,11 +233,11 @@ class WhatsAppChannel implements ChannelInterface
                 'whatsapp_connection_id' => $connection->id,
                 'phone_number_id' => $connection->phone_number_id,
                 'peer_phone' => $to,
-                'message_type' => 'template',
-                'body' => $preview,
-                'template_name' => (string) $built['template_name'],
-                'template_language' => (string) ($built['language'] ?? 'en'),
-                'components' => $built['components'] ?? null,
+                'message_type' => $mode,
+                'body' => $preview !== '' ? $preview : null,
+                'template_name' => $mode === 'template' ? $templateName : null,
+                'template_language' => $mode === 'template' ? $templateLanguage : null,
+                'components' => $mode === 'template' ? (is_array($components) ? $components : null) : null,
                 'status' => WhatsAppMessage::STATUS_FAILED,
                 'notification_delivery_id' => $delivery->id,
                 'source' => 'notification',
@@ -225,6 +246,7 @@ class WhatsAppChannel implements ChannelInterface
                 'payload' => [
                     'notification_id' => $notification->id,
                     'error' => $e->getMessage(),
+                    'downgraded_from_template' => $useFreeText,
                 ],
             ]);
 

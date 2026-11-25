@@ -20,7 +20,7 @@
     return mb_strtoupper($ini !== '' ? $ini : '?');
   };
 @endphp
-<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261123-wa-av">
+<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261124-wa-av-link">
 <style>
   /* Inbox page chrome: slim header, full-bleed body */
   .wa-inbox-page .content-header { padding-top: 8px; padding-bottom: 8px; }
@@ -422,13 +422,11 @@
     participantId = pId || null;
     threadKey = tkey;
 
-    if (typeof ref !== 'string') {
-      const earlyLabel = ref.label || peerPhone;
-      const earlyPhoto = ref.photo || '';
-      if (earlyLabel) {
-        document.getElementById('waPeerLabel').textContent = earlyLabel;
-        setPeerAvatar(earlyLabel, earlyPhoto);
-      }
+    // Only seed header from a list row that already has a name — never from poll
+    // refs that only carry phone/ids (those would wipe name + photo).
+    if (typeof ref !== 'string' && ref.label) {
+      document.getElementById('waPeerLabel').textContent = ref.label;
+      setPeerAvatar(ref.label, ref.photo || '');
     }
 
     document.querySelectorAll('.wa-inbox-row').forEach(el => {

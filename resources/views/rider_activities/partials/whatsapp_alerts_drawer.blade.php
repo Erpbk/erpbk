@@ -37,7 +37,7 @@
     : \App\Support\WhatsApp\WhatsAppUiPreferences::defaults();
 @endphp
 
-<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261123-wa-av">
+<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261124-wa-av-link">
 
 <div id="raWaOv" class="wa-ui-ov" hidden></div>
 <aside id="raWaDrawer" class="wa-ui" hidden aria-label="WhatsApp Alerts"

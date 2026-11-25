@@ -308,13 +308,14 @@ body.sidebar-collapse #raWaDrawer {
 }
 #raWaDrawer .wa-row {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   padding: 4px 10px;
   min-height: var(--rh);
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.12s;
+  position: relative;
 }
 #raWaDrawer .wa-row:hover {
   background: #f5f6f6;
@@ -352,6 +353,14 @@ body.sidebar-collapse #raWaDrawer {
   overflow: hidden;
   position: relative;
   line-height: 1;
+  cursor: zoom-in;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  transform-origin: center center;
+}
+#raWaDrawer .wa-av:hover {
+  transform: scale(2.35);
+  z-index: 40;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
 }
 #raWaDrawer .wa-av .ra-av-ini {
   display: grid;
@@ -376,6 +385,24 @@ body.sidebar-collapse #raWaDrawer {
   display: block;
   border-radius: inherit;
   background: #cbd5e1;
+}
+#raWaDrawer .wa-profile-link {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  border-radius: 8px;
+  color: #667781;
+  text-decoration: none;
+  flex: none;
+}
+#raWaDrawer .wa-profile-link:hover {
+  background: #e9edef;
+  color: var(--wa-accent, #00a884);
+}
+#raWaDrawer .wa-profile-link svg {
+  display: block;
 }
 
 #raWaDrawer .wa-tx {
@@ -532,6 +559,9 @@ body.wa-dragging {
   padding: 10px 16px;
   background: var(--head);
   border-bottom: 1px solid #e9edef;
+  position: relative;
+  z-index: 2;
+  overflow: visible;
 }
 #raWaDrawer .wa-ch .wa-av {
   width: 40px;
@@ -974,6 +1004,7 @@ body.wa-dragging {
   cursor: pointer;
   transition: background 0.12s;
   color: inherit;
+  position: relative;
 }
 #waInbox.wa-ui .wa-inbox-row:hover { background: #f5f6f6; }
 #waInbox.wa-ui .wa-inbox-row.on { background: #f0f2f5; }
@@ -991,6 +1022,14 @@ body.wa-dragging {
   overflow: hidden;
   position: relative;
   line-height: 1;
+  cursor: zoom-in;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  transform-origin: center center;
+}
+#waInbox.wa-ui .wa-av:hover {
+  transform: scale(2.35);
+  z-index: 40;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
 }
 #waInbox.wa-ui .wa-av .ra-av-ini {
   display: grid;
@@ -1111,6 +1150,9 @@ body.wa-dragging {
   background: var(--head);
   border-bottom: 1px solid #e9edef;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  overflow: visible;
 }
 #waInbox.wa-ui .wa-ch .wa-av { width: 40px; height: 40px; font-size: 14px; }
 #waInbox.wa-ui .wa-ch .who { flex: 1; min-width: 0; }

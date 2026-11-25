@@ -513,6 +513,46 @@ class WhatsAppInboxService
     }
 
     /**
+     * Batch 24h inbound-window checks for many peers on one sender connection.
+     *
+     * @param  list<string>  $peerPhones
+     * @return array<string, bool> normalized peer_phone => open
+     */
+    public function openWindowsForPeers(int $companyId, int $connectionId, array $peerPhones): array
+    {
+        $normalized = [];
+        foreach ($peerPhones as $phone) {
+            $digits = PhoneNumber::toWhatsAppDigits(is_string($phone) ? $phone : null);
+            if (PhoneNumber::isValidWhatsAppDigits($digits)) {
+                $normalized[$digits] = false;
+            }
+        }
+
+        if ($normalized === [] || $connectionId <= 0 || $companyId <= 0) {
+            return $normalized;
+        }
+
+        $openPhones = WhatsAppMessage::query()
+            ->where('company_id', $companyId)
+            ->where('whatsapp_connection_id', $connectionId)
+            ->whereIn('peer_phone', array_keys($normalized))
+            ->where('direction', WhatsAppMessage::DIRECTION_IN)
+            ->where('occurred_at', '>=', now()->subHours(24))
+            ->distinct()
+            ->pluck('peer_phone')
+            ->map(fn ($phone) => (string) $phone)
+            ->all();
+
+        foreach ($openPhones as $phone) {
+            if (array_key_exists($phone, $normalized)) {
+                $normalized[$phone] = true;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     private function buildGapAwareTimeline(Collection $messages, int $viewerId): array

@@ -172,6 +172,7 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
     Route::get('whatsapp-inbox', [\App\Http\Controllers\Admin\AdminWhatsAppInboxController::class, 'index'])->name('whatsapp-inbox.index');
     Route::get('whatsapp-inbox/thread/{peerPhone}', [\App\Http\Controllers\Admin\AdminWhatsAppInboxController::class, 'thread'])->where('peerPhone', '.*')->name('whatsapp-inbox.thread');
     Route::post('whatsapp-inbox/send', [\App\Http\Controllers\Admin\AdminWhatsAppInboxController::class, 'send'])->name('whatsapp-inbox.send');
+    Route::post('whatsapp-inbox/messages/{id}/media/download', [\App\Http\Controllers\Admin\AdminWhatsAppInboxController::class, 'downloadMedia'])->whereNumber('id')->name('whatsapp-inbox.media.download');
     Route::post('whatsapp-inbox/conflict', [\App\Http\Controllers\Admin\AdminWhatsAppInboxController::class, 'resolveConflict'])->name('whatsapp-inbox.conflict');
 
     Route::get('whatsapp-templates', [AdminWhatsAppTemplatesController::class, 'index'])->name('whatsapp-templates.index');
@@ -808,6 +809,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('whatsapp/inbox/participants', [\App\Http\Controllers\WhatsAppInboxController::class, 'searchParticipants'])->name('whatsapp.inbox.participants');
     Route::get('whatsapp/inbox/thread/{peerPhone}', [\App\Http\Controllers\WhatsAppInboxController::class, 'thread'])->where('peerPhone', '[0-9]+')->name('whatsapp.inbox.thread');
     Route::post('whatsapp/inbox/send', [\App\Http\Controllers\WhatsAppInboxController::class, 'send'])->name('whatsapp.inbox.send');
+    Route::post('whatsapp/inbox/messages/{message}/media/download', [\App\Http\Controllers\WhatsAppInboxController::class, 'downloadMedia'])->name('whatsapp.inbox.media.download');
     Route::post('whatsapp/inbox/transfer', [\App\Http\Controllers\WhatsAppInboxController::class, 'transfer'])->name('whatsapp.inbox.transfer');
     Route::delete('whatsapp/inbox', [\App\Http\Controllers\WhatsAppInboxController::class, 'destroy'])->name('whatsapp.inbox.destroy');
     Route::post('whatsapp/inbox/conflict', [\App\Http\Controllers\WhatsAppInboxController::class, 'resolveConflict'])->name('whatsapp.inbox.conflict');

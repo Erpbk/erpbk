@@ -151,7 +151,7 @@ class WhatsAppInboxService
                 'photo' => WhatsAppRecipientTypes::photoUrl($participant),
                 'last_body' => $latest->is_system
                     ? (string) $latest->body
-                    : ($latest->body ?: ($latest->message_type ?: '')),
+                    : $this->previewBody($latest),
                 'last_at' => optional($latest->occurred_at)?->toIso8601String(),
                 'participant_type' => $pType,
                 'participant_id' => $pId,
@@ -613,23 +613,51 @@ class WhatsAppInboxService
     /**
      * @return array<string, mixed>
      */
+    private function previewBody(WhatsAppMessage $message): string
+    {
+        if ($message->body) {
+            return (string) $message->body;
+        }
+
+        $type = (string) ($message->message_type ?: '');
+        if (in_array($type, WhatsAppMediaService::TYPES, true)) {
+            if ($type === 'document' && $message->media_filename) {
+                return 'Document: '.$message->media_filename;
+            }
+
+            return ucfirst($type);
+        }
+
+        return $type !== '' ? $type : '';
+    }
+
     private function serializeBubble(WhatsAppMessage $message, bool $showOwner): array
     {
+        $type = (string) ($message->message_type ?: 'message');
         $body = $message->body;
         if ($body === null || $body === '') {
-            $type = (string) ($message->message_type ?: 'message');
-            $body = in_array($type, ['image', 'audio', 'video', 'document', 'sticker'], true)
-                ? ucfirst($type)
-                : ($message->template_name ?: $type);
+            if (in_array($type, WhatsAppMediaService::TYPES, true)) {
+                $body = $message->media_filename
+                    ?: ucfirst($type);
+            } elseif ($type === 'sticker') {
+                $body = 'Sticker';
+            } else {
+                $body = $message->template_name ?: $type;
+            }
         }
 
         $occurredAt = $message->occurred_at ?? $message->created_at;
+        $media = in_array($type, WhatsAppMediaService::TYPES, true)
+            ? app(WhatsAppMediaService::class)->serializeMedia($message)
+            : null;
 
         return [
             'type' => 'message',
             'id' => $message->id,
             'direction' => $message->direction,
+            'message_type' => $type,
             'body' => $body,
+            'media' => $media,
             'status' => $message->status,
             'is_system' => (bool) $message->is_system,
             // Absolute instant (ISO) — browser formats in the reader's local timezone.
@@ -859,7 +887,7 @@ class WhatsAppInboxService
             $rows[] = [
                 'peer_phone' => $peer,
                 'label' => $peer,
-                'last_body' => $latest->body ?: ($latest->message_type ?: ''),
+                'last_body' => $this->previewBody($latest),
                 'last_at' => optional($latest->occurred_at)?->toIso8601String(),
                 'has_conflict' => ! empty($latest->participant_conflict),
             ];

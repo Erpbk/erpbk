@@ -20,7 +20,7 @@
     return mb_strtoupper($ini !== '' ? $ini : '?');
   };
 @endphp
-<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261124-wa-av-link">
+<link rel="stylesheet" href="{{ asset('css/whatsapp-ui.css') }}?v=20261125-wa-media">
 <style>
   /* Inbox page chrome: slim header, full-bleed body */
   .wa-inbox-page .content-header { padding-top: 8px; padding-bottom: 8px; }
@@ -42,6 +42,7 @@
        data-thread-url="/app/{{ $companySlug }}/whatsapp/inbox/thread"
        data-search-url="{{ route('whatsapp.inbox.participants', absolute: false) }}"
        data-send-url="{{ route('whatsapp.inbox.send', absolute: false) }}"
+       data-media-download-url="{{ url('/app/'.$companySlug.'/whatsapp/inbox/messages') }}"
        data-transfer-url="{{ route('whatsapp.inbox.transfer', absolute: false) }}"
        data-delete-url="{{ route('whatsapp.inbox.destroy', absolute: false) }}"
        data-conflict-url="{{ route('whatsapp.inbox.conflict', absolute: false) }}"
@@ -132,6 +133,11 @@
       </div>
       <div class="wa-comp" id="waComposer" hidden>
         <select id="waFrom" class="no-select2" data-no-select2 aria-label="Send from" title="Send from"></select>
+        <label class="wa-attach" title="Attach file" aria-label="Attach file">
+          <input type="file" id="waFile" hidden accept="image/jpeg,image/png,image/webp,audio/*,video/mp4,video/3gpp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 6.5v8.75a4.75 4.75 0 1 1-9.5 0V6.25a3.25 3.25 0 0 1 6.5 0v8.5a1.75 1.75 0 1 1-3.5 0V7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </label>
+        <span class="wa-attach-name" id="waFileName" hidden></span>
         <textarea id="waBody" rows="1" placeholder="Type a message…"></textarea>
         <button type="button" class="wa-send" id="waSend" title="Send" aria-label="Send">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5V14l9-2-9-2V3.5L22 12z"/></svg>
@@ -636,6 +642,89 @@
     return dt.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
   }
 
+  function mediaBodyHtml(it) {
+    const media = it.media || null;
+    const mtype = it.message_type || '';
+    if (!media) {
+      return '<div class="txt">' + escapeHtml(it.body || '') + '</div>';
+    }
+    if (media.ready && media.url) {
+      if (mtype === 'image') {
+        return '<div class="wa-media wa-media-image"><a href="' + escapeHtml(media.url) + '" target="_blank" rel="noopener"><img src="' + escapeHtml(media.url) + '" alt=""></a>'
+          + (it.body ? ('<div class="txt">' + escapeHtml(it.body) + '</div>') : '') + '</div>';
+      }
+      if (mtype === 'audio') {
+        return '<div class="wa-media wa-media-audio"><audio controls preload="metadata" src="' + escapeHtml(media.url) + '"></audio>'
+          + (it.body ? ('<div class="txt">' + escapeHtml(it.body) + '</div>') : '') + '</div>';
+      }
+      if (mtype === 'video') {
+        return '<div class="wa-media wa-media-video"><video controls preload="metadata" src="' + escapeHtml(media.url) + '"></video>'
+          + (it.body ? ('<div class="txt">' + escapeHtml(it.body) + '</div>') : '') + '</div>';
+      }
+      if (mtype === 'document') {
+        const name = media.filename || it.body || 'Document';
+        return '<div class="wa-media wa-media-doc"><a class="wa-doc-link" href="' + escapeHtml(media.url) + '" target="_blank" rel="noopener">' + escapeHtml(name) + '</a>'
+          + (it.body && it.body !== name ? ('<div class="txt">' + escapeHtml(it.body) + '</div>') : '') + '</div>';
+      }
+    }
+    if (media.downloadable) {
+      const label = media.filename || it.body || (mtype ? (mtype.charAt(0).toUpperCase() + mtype.slice(1)) : 'Media');
+      return '<div class="wa-media wa-media-pending">'
+        + '<div class="txt">' + escapeHtml(label) + '</div>'
+        + '<button type="button" class="wa-media-dl" data-mid="' + escapeHtml(String(it.id || '')) + '">Download</button>'
+        + '</div>';
+    }
+    return '<div class="txt">' + escapeHtml(it.body || '') + '</div>';
+  }
+
+  function bindMediaDownload(rootEl) {
+    rootEl.querySelectorAll('.wa-media-dl').forEach(btn => {
+      if (btn.dataset.bound === '1') return;
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const mid = btn.dataset.mid;
+        if (!mid || !root.dataset.mediaDownloadUrl) return;
+        btn.disabled = true;
+        btn.textContent = 'Downloading…';
+        try {
+          const res = await fetch(root.dataset.mediaDownloadUrl.replace(/\/$/, '') + '/' + encodeURIComponent(mid) + '/media/download', {
+            method: 'POST',
+            headers: Object.assign({}, headers(), { 'Content-Type': 'application/json' })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok) {
+            alert((data && data.message) || 'Media no longer available from WhatsApp.');
+            btn.disabled = false;
+            btn.textContent = 'Download';
+            return;
+          }
+          const bub = btn.closest('.wa-bub');
+          if (bub && data.media) {
+            const rebuilt = itemEl({
+              type: 'message',
+              id: +mid,
+              direction: bub.classList.contains('out') ? 'out' : 'in',
+              message_type: bub.dataset.mtype || '',
+              body: (bub.querySelector('.txt') || {}).textContent || '',
+              media: Object.assign({ ready: true, downloadable: false }, data.media),
+              status: '',
+              occurred_at: new Date().toISOString()
+            });
+            bub.replaceWith(rebuilt);
+          } else {
+            refreshOpenThreadSoon();
+          }
+        } catch (err) {
+          alert('Download failed.');
+          btn.disabled = false;
+          btn.textContent = 'Download';
+        }
+      });
+    });
+  }
+
   function itemEl(it) {
     if (it.type === 'gap') {
       const d = document.createElement('div');
@@ -655,6 +744,7 @@
       + (sendState === 'pending' ? ' is-pending' : '')
       + (sendState === 'failed' ? ' is-failed' : '');
     d.dataset.mid = it.id || '';
+    if (it.message_type) d.dataset.mtype = it.message_type;
     if (it.optimistic_id) d.dataset.optimistic = it.optimistic_id;
     const bits = [];
     const time = formatLocalTime(it.occurred_at);
@@ -668,7 +758,7 @@
       bits.push(escapeHtml(it.status));
     }
     const meta = bits.join(' · ');
-    d.innerHTML = '<div class="txt">' + escapeHtml(it.body || '') + '</div>' +
+    d.innerHTML = mediaBodyHtml(it) +
       (meta ? ('<div class="meta"><span>' + meta + '</span></div>') : '');
     const resendBtn = d.querySelector('.wa-msg-resend');
     if (resendBtn && it.optimistic_id) {
@@ -678,6 +768,7 @@
         resendOptimistic(it.optimistic_id);
       });
     }
+    bindMediaDownload(d);
     return d;
   }
 
@@ -714,16 +805,33 @@
     setTimeout(() => openThread(ref, null, { restartPoll: false, scrollMode: 'end' }), 2200);
   }
 
-  async function postSend(body, connectionId, optimisticId) {
+  async function postSend(body, connectionId, optimisticId, file) {
     try {
-      const res = await fetch(root.dataset.sendUrl, {
-        method: 'POST', headers: Object.assign({'Content-Type':'application/json'}, headers()),
-        body: JSON.stringify(Object.assign({
-          peer_phone: peer,
-          whatsapp_connection_id: +connectionId,
-          body
-        }, participantPayload()))
-      });
+      let res;
+      if (file) {
+        const fd = new FormData();
+        fd.append('peer_phone', peer);
+        fd.append('whatsapp_connection_id', String(+connectionId));
+        if (body) fd.append('body', body);
+        fd.append('file', file);
+        const part = participantPayload();
+        if (part.participant_type) fd.append('participant_type', part.participant_type);
+        if (part.participant_id) fd.append('participant_id', String(part.participant_id));
+        res = await fetch(root.dataset.sendUrl, {
+          method: 'POST',
+          headers: headers(),
+          body: fd
+        });
+      } else {
+        res = await fetch(root.dataset.sendUrl, {
+          method: 'POST', headers: Object.assign({'Content-Type':'application/json'}, headers()),
+          body: JSON.stringify(Object.assign({
+            peer_phone: peer,
+            whatsapp_connection_id: +connectionId,
+            body
+          }, participantPayload()))
+        });
+      }
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
         setOptimisticState(optimisticId, 'failed');
@@ -738,12 +846,15 @@
     }
   }
 
-  function queueOutgoing(body, connectionId) {
+  function queueOutgoing(body, connectionId, file) {
     const id = 'tmp-' + (++optimisticSeq);
+    const label = file ? ((body ? body + ' · ' : '') + (file.name || 'Attachment')) : body;
     optimistic.set(id, {
       id,
       seq: optimisticSeq,
-      body,
+      body: label,
+      caption: body || '',
+      file: file || null,
       threadKey: threadKey,
       connectionId: +connectionId,
       status: 'pending',
@@ -753,29 +864,38 @@
     stack.appendChild(itemEl({
       type: 'message',
       direction: 'out',
-      body,
+      body: label,
       status: 'sending',
       occurred_at: new Date().toISOString(),
       optimistic_id: id,
       send_state: 'pending'
     }));
     scrollChatToEnd();
-    postSend(body, connectionId, id);
+    postSend(body, connectionId, id, file || null);
   }
 
   function resendOptimistic(id) {
     const entry = optimistic.get(id);
     if (!entry || !peer) return;
     setOptimisticState(id, 'pending');
-    postSend(entry.body, entry.connectionId, id);
+    postSend(entry.caption || entry.body, entry.connectionId, id, entry.file || null);
+  }
+
+  function clearAttach() {
+    const fileEl = document.getElementById('waFile');
+    const nameEl = document.getElementById('waFileName');
+    if (fileEl) fileEl.value = '';
+    if (nameEl) { nameEl.hidden = true; nameEl.textContent = ''; }
   }
 
   function sendComposerMessage() {
     const bodyEl = document.getElementById('waBody');
     const body = bodyEl.value.trim();
+    const fileEl = document.getElementById('waFile');
+    const file = fileEl && fileEl.files && fileEl.files[0] ? fileEl.files[0] : null;
     const connectionId = document.getElementById('waFrom').value;
     const sendBtn = document.getElementById('waSend');
-    if (!body || !peer || !connectionId || sendBtn.disabled) return;
+    if ((!body && !file) || !peer || !connectionId || sendBtn.disabled) return;
     bodyEl.value = '';
     bodyEl.style.height = '';
     if (document.activeElement === bodyEl) {
@@ -783,7 +903,9 @@
     } else {
       bodyEl.classList.remove('is-expanded');
     }
-    queueOutgoing(body, connectionId);
+    const attach = file;
+    clearAttach();
+    queueOutgoing(body, connectionId, attach);
     bodyEl.focus();
   }
 
@@ -906,6 +1028,21 @@
   });
 
   document.getElementById('waSend').addEventListener('click', () => sendComposerMessage());
+
+  const waFile = document.getElementById('waFile');
+  if (waFile) {
+    waFile.addEventListener('change', () => {
+      const nameEl = document.getElementById('waFileName');
+      if (!nameEl) return;
+      if (waFile.files && waFile.files[0]) {
+        nameEl.hidden = false;
+        nameEl.textContent = waFile.files[0].name;
+      } else {
+        nameEl.hidden = true;
+        nameEl.textContent = '';
+      }
+    });
+  }
 
   const waBody = document.getElementById('waBody');
   waBody.addEventListener('focus', () => waBody.classList.add('is-expanded'));

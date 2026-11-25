@@ -9,6 +9,7 @@ use App\Services\Notifications\CompanyNotificationChannels;
 use App\Models\WhatsAppMessage;
 use App\Services\WhatsApp\WhatsAppCloudApiClient;
 use App\Services\WhatsApp\WhatsAppConnectionService;
+use App\Services\WhatsApp\WhatsAppMediaService;
 use App\Services\WhatsApp\WhatsAppMessageStore;
 use App\Support\PhoneNumber;
 use Illuminate\Bus\Queueable;
@@ -43,6 +44,11 @@ class SendWhatsAppComposeJob implements ShouldQueue
         public bool $asAdmin = false,
         public ?string $participantType = null,
         public ?int $participantId = null,
+        public ?string $mediaPath = null,
+        public ?string $mediaMime = null,
+        public ?string $mediaFilename = null,
+        public ?string $mediaType = null,
+        public ?int $mediaSize = null,
     ) {
     }
 
@@ -107,7 +113,12 @@ class SendWhatsAppComposeJob implements ShouldQueue
         ]);
 
         $components = [];
+        $metaMediaId = null;
+        $messageType = 'text';
+        $bodyForStore = (string) $this->body;
+
         if ($this->mode === 'template') {
+            $messageType = 'template';
             if ($this->templateParams !== []) {
                 $components[] = [
                     'type' => 'body',
@@ -124,8 +135,52 @@ class SendWhatsAppComposeJob implements ShouldQueue
                 $this->templateLanguage ?: 'en',
                 $components
             );
+            $bodyForStore = ($this->templateName ?: 'template')
+                .($this->templateParams !== [] ? ' · '.implode(' · ', $this->templateParams) : '');
+        } elseif ($this->mode === 'media') {
+            $mediaType = in_array((string) $this->mediaType, WhatsAppMediaService::TYPES, true)
+                ? (string) $this->mediaType
+                : null;
+            if (! $mediaType || ! $this->mediaPath || ! $this->mediaMime) {
+                $result = ['ok' => false, 'error' => 'Media payload is incomplete.'];
+            } else {
+                $upload = $client->uploadMedia(
+                    $connection,
+                    (string) $this->mediaPath,
+                    (string) $this->mediaMime,
+                    $this->mediaFilename
+                );
+                if (! ($upload['ok'] ?? false) || empty($upload['media_id'])) {
+                    $result = [
+                        'ok' => false,
+                        'error' => (string) ($upload['error'] ?? 'Media upload failed.'),
+                        'response' => $upload['response'] ?? null,
+                    ];
+                } else {
+                    $metaMediaId = (string) $upload['media_id'];
+                    $caption = $this->body !== null && trim($this->body) !== '' ? trim($this->body) : null;
+                    $result = match ($mediaType) {
+                        'image' => $client->sendImage($connection, $to, $metaMediaId, $caption),
+                        'audio' => $client->sendAudio($connection, $to, $metaMediaId),
+                        'video' => $client->sendVideo($connection, $to, $metaMediaId, $caption),
+                        'document' => $client->sendDocument(
+                            $connection,
+                            $to,
+                            $metaMediaId,
+                            $this->mediaFilename,
+                            $caption
+                        ),
+                        default => ['ok' => false, 'error' => 'Unsupported media type.'],
+                    };
+                    $messageType = $mediaType;
+                    $bodyForStore = $caption
+                        ?: ($this->mediaFilename ?: ucfirst($mediaType));
+                }
+            }
         } else {
             $result = $client->sendText($connection, $to, (string) $this->body);
+            $messageType = 'text';
+            $bodyForStore = (string) $this->body;
         }
 
         $ok = (bool) ($result['ok'] ?? false);
@@ -137,6 +192,7 @@ class SendWhatsAppComposeJob implements ShouldQueue
                     'ok' => true,
                     'message_id' => $result['message_id'] ?? null,
                     'response' => $result['response'] ?? null,
+                    'media_id' => $metaMediaId,
                 ]),
             ]
             : [
@@ -148,16 +204,14 @@ class SendWhatsAppComposeJob implements ShouldQueue
             ]
         )->save();
 
-        $messages->recordOutbound([
+        $outbound = [
             'company_id' => $deliveryCompanyId > 0 ? $deliveryCompanyId : null,
             'whatsapp_connection_id' => $connection->id,
             'phone_number_id' => $connection->phone_number_id,
             'peer_phone' => $to,
             'wa_message_id' => $result['message_id'] ?? null,
-            'message_type' => $this->mode === 'template' ? 'template' : 'text',
-            'body' => $this->mode === 'template'
-                ? (($this->templateName ?: 'template').($this->templateParams !== [] ? ' · '.implode(' · ', $this->templateParams) : ''))
-                : (string) $this->body,
+            'message_type' => $messageType,
+            'body' => $bodyForStore,
             'template_name' => $this->mode === 'template' ? $this->templateName : null,
             'template_language' => $this->mode === 'template' ? ($this->templateLanguage ?: 'en') : null,
             'components' => $components !== [] ? $components : null,
@@ -171,7 +225,18 @@ class SendWhatsAppComposeJob implements ShouldQueue
                 'result' => $result['response'] ?? null,
                 'error' => $ok ? null : ($result['error'] ?? null),
             ],
-        ]);
+        ];
+
+        if ($this->mode === 'media') {
+            $outbound['media_id'] = $metaMediaId;
+            $outbound['media_mime'] = $this->mediaMime;
+            $outbound['media_filename'] = $this->mediaFilename;
+            $outbound['media_path'] = $this->mediaPath;
+            $outbound['media_size'] = $this->mediaSize;
+            $outbound['media_cached_at'] = $ok && $this->mediaPath ? now() : null;
+        }
+
+        $messages->recordOutbound($outbound);
 
         if (! $ok) {
             throw new \RuntimeException((string) ($result['error'] ?? 'WhatsApp compose send failed.'));

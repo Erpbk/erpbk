@@ -7,6 +7,7 @@ use App\Models\NotificationDelivery;
 use App\Models\WhatsAppConnection;
 use App\Models\WhatsAppUnknownInboxSetting;
 use App\Services\Notifications\CompanyNotificationChannels;
+use App\Services\WhatsApp\WhatsAppMediaService;
 use App\Services\WhatsApp\WhatsAppMessageStore;
 use App\Services\WhatsApp\WhatsAppParticipantResolver;
 use App\Support\PhoneNumber;
@@ -32,7 +33,8 @@ class MetaWhatsAppWebhookController extends Controller
     public function handle(
         Request $request,
         WhatsAppMessageStore $messages,
-        WhatsAppParticipantResolver $resolver
+        WhatsAppParticipantResolver $resolver,
+        WhatsAppMediaService $media
     ) {
         if (! $this->signatureValid($request)) {
             Log::warning('whatsapp.webhook_invalid_signature');
@@ -57,7 +59,7 @@ class MetaWhatsAppWebhookController extends Controller
                     continue;
                 }
                 $this->processStatuses($value, $messages);
-                $this->processInbound($value, $messages, $resolver);
+                $this->processInbound($value, $messages, $resolver, $media);
             }
         }
 
@@ -126,7 +128,8 @@ class MetaWhatsAppWebhookController extends Controller
     private function processInbound(
         array $value,
         WhatsAppMessageStore $messages,
-        WhatsAppParticipantResolver $resolver
+        WhatsAppParticipantResolver $resolver,
+        WhatsAppMediaService $media
     ): void {
         $inboundMessages = $value['messages'] ?? [];
         if (! is_array($inboundMessages) || $inboundMessages === []) {
@@ -154,6 +157,13 @@ class MetaWhatsAppWebhookController extends Controller
 
             $type = (string) ($message['type'] ?? 'unknown');
             $body = null;
+            $mediaMeta = [
+                'media_id' => null,
+                'media_mime' => null,
+                'media_filename' => null,
+                'media_sha256' => null,
+                'caption' => null,
+            ];
             if ($type === 'text') {
                 $body = (string) data_get($message, 'text.body', '');
             } elseif ($type === 'button') {
@@ -164,6 +174,10 @@ class MetaWhatsAppWebhookController extends Controller
                     ?? data_get($message, 'interactive.list_reply.title')
                     ?? ''
                 );
+            } elseif (in_array($type, WhatsAppMediaService::TYPES, true)) {
+                $mediaMeta = $media->extractInboundMeta($type, $message);
+                $caption = trim((string) ($mediaMeta['caption'] ?? ''));
+                $body = $caption !== '' ? $caption : null;
             }
 
             $timestamp = isset($message['timestamp']) ? (int) $message['timestamp'] : null;
@@ -211,7 +225,11 @@ class MetaWhatsAppWebhookController extends Controller
                     'peer_phone' => $from,
                     'wa_message_id' => (string) ($message['id'] ?? ''),
                     'message_type' => $type,
-                    'body' => $body !== '' ? $body : null,
+                    'body' => ($body !== null && $body !== '') ? $body : null,
+                    'media_id' => $mediaMeta['media_id'],
+                    'media_mime' => $mediaMeta['media_mime'],
+                    'media_filename' => $mediaMeta['media_filename'],
+                    'media_sha256' => $mediaMeta['media_sha256'],
                     'payload' => $message,
                     'occurred_at' => $timestamp ? now()->setTimestamp($timestamp) : now(),
                     'source' => 'webhook',

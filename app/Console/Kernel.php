@@ -19,6 +19,11 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->name('notifications-evaluate-scheduled');
 
+        $schedule->command('whatsapp:purge-expired-media')
+            ->hourly()
+            ->withoutOverlapping()
+            ->name('whatsapp-purge-expired-media');
+
         if (config('deploy.marker_enabled')) {
             $schedule->call(function () {
                 $marker = storage_path('framework/deploy.pending');

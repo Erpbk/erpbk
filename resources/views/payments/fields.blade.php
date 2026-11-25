@@ -35,7 +35,7 @@ $defaultCreatePaymentType = old('create_payment_type', 'salary_payment');
 $currencyMark = \App\Helpers\Currency::mark();
 $currencySymbol = \App\Helpers\Currency::symbol();
 @endphp
-@if($isRiderPayment)
+@if($isRiderPayment || $isEmployeePayment)
 @include('payments.partials.rider_payment_form')
 @else
 @php

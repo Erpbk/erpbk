@@ -41,9 +41,17 @@
     var invoiceTypeVal = $ctx.find('input[name="invoice_type"]').val() || '';
     var isRiderPayment = $ctx.find('[data-salary-invoice-payment="1"]').length > 0
       || $ctx.find('[data-rider-payment="1"]').length > 0
+      || $ctx.find('[data-employee-payment="1"]').length > 0
       || ['rider', 'employee'].indexOf(invoiceTypeVal) !== -1;
+    // Typed salary/advance payment UX (Payment Type dropdown) for rider + employee forms.
     var isRiderOnlyPayment = $ctx.find('[data-rider-payment="1"]').length > 0
-      || invoiceTypeVal === 'rider';
+      || $ctx.find('[data-employee-payment="1"]').length > 0
+      || invoiceTypeVal === 'rider'
+      || (invoiceTypeVal === 'employee' && $ctx.find('#create_payment_type').length > 0);
+    var payeeLabel = invoiceTypeVal === 'employee'
+      || $ctx.find('[data-employee-payment="1"]').length > 0
+      ? 'employee'
+      : 'rider';
     var $boot = $ctx.find('[data-payment-fields-init]').first();
     var preservePrimaryAmount = $boot.attr('data-preserve-payment-amount') === '1';
     var savedPrimaryAmount = parseFloat($boot.attr('data-saved-payment-amount'));
@@ -172,7 +180,9 @@
 
       if (isAdvanceLoanType()) {
         $billingGroup.css('display', '').removeClass('d-none').show();
-        $billingInput.prop('disabled', false).prop('required', true);
+        // Must re-enable: a disabled month input is omitted from FormData and fails server required().
+        $billingInput.prop('disabled', false).prop('readonly', false)
+          .removeAttr('disabled').removeAttr('readonly').prop('required', true);
         if (!normalizeMonthValue($billingInput.val())) {
           setBillingMonthValue($billingInput.attr('value') || new Date().toISOString().slice(0, 7));
         } else {
@@ -1131,41 +1141,58 @@
   };
 
   window.validatePaymentForm = function () {
-    var totalCredit = parseFloat($('#payment_amount').val()) || 0;
-    var totalInvoicePayment = parseFloat($('#total_invoice_payment').text()) || 0;
-    var invoiceType = $('input[name="invoice_type"]').val() || '';
-    var isRiderPayment = $('[data-salary-invoice-payment="1"]').length > 0
-      || $('[data-rider-payment="1"]').length > 0
+    var $form = $('#formajax');
+    if (!$form.length) {
+      $form = $(document);
+    }
+    var $billingMonth = $form.find('#billing_month');
+    if (!$billingMonth.length) {
+      $billingMonth = $form.find('[name="billing_month"]').first();
+    }
+    var $paymentType = $form.find('#create_payment_type');
+    var $paymentAmount = $form.find('#payment_amount');
+    var totalCredit = parseFloat($paymentAmount.val()) || 0;
+    var totalInvoicePayment = parseFloat($form.find('#total_invoice_payment').text()) || 0;
+    var invoiceType = $form.find('input[name="invoice_type"]').val() || '';
+    var isRiderPayment = $form.find('[data-salary-invoice-payment="1"]').length > 0
+      || $form.find('[data-rider-payment="1"]').length > 0
+      || $form.find('[data-employee-payment="1"]').length > 0
       || ['rider', 'employee'].indexOf(invoiceType) !== -1;
-    var isRiderOnly = $('[data-rider-payment="1"]').length > 0 || invoiceType === 'rider';
-    var createType = $('#create_payment_type').length ? ($('#create_payment_type').val() || '') : 'salary_payment';
+    var isRiderOnly = $form.find('[data-rider-payment="1"]').length > 0
+      || $form.find('[data-employee-payment="1"]').length > 0
+      || invoiceType === 'rider'
+      || (invoiceType === 'employee' && $paymentType.length > 0);
+    var payeeLabel = invoiceType === 'employee' || $form.find('[data-employee-payment="1"]').length > 0
+      ? 'employee'
+      : 'rider';
+    var createType = $paymentType.length ? ($paymentType.val() || '') : 'salary_payment';
     var isAdvanceCreate = createType === 'advance_payment' || createType === 'advance_loan';
     var isInvoiceCreate = createType === 'salary_payment' || createType === 'payment' || createType === 'c3';
-    var $checkedInvoices = $('.invoice-checkbox:checked');
+    var $checkedInvoices = $form.find('.invoice-checkbox:checked');
 
-    if (isRiderOnly && $('#create_payment_type').length && !createType) {
+    if (isRiderOnly && $paymentType.length && !createType) {
       alert('Please select a payment type');
-      $('#create_payment_type').addClass('is-invalid');
+      $paymentType.addClass('is-invalid');
       return false;
     }
 
     if (totalCredit <= 0) {
       alert('Please enter a valid payment amount greater than zero');
-      $('#payment_amount').addClass('is-invalid');
+      $paymentAmount.addClass('is-invalid');
       return false;
     }
 
     if (isRiderOnly && isAdvanceCreate) {
-      // Mirror UI rule: Advance Payment is unavailable when the selected rider has invoices.
-      var hasPayeeSelected = !!($('#payee_account_id, [name="payee_account_id"]').val());
-      if (hasPayeeSelected && $('#invoices-table tbody tr:visible').length > 0) {
-        alert('Advance Payment is not available when the selected rider has unpaid invoices. Please use C3 or Salary Payment instead.');
-        $('#create_payment_type').addClass('is-invalid');
+      // Mirror UI rule: Advance Payment is unavailable when the selected payee has invoices.
+      var hasPayeeSelected = !!($form.find('#payee_account_id, [name="payee_account_id"]').val());
+      if (hasPayeeSelected && $form.find('#invoices-table tbody tr:visible').length > 0) {
+        alert('Advance Payment is not available when the selected ' + payeeLabel + ' has unpaid invoices. Please use Salary Payment instead.');
+        $paymentType.addClass('is-invalid');
         return false;
       }
-      if (!$('#billing_month').val()) {
+      if (!$billingMonth.val()) {
         alert('Billing month is required for Advance Payment');
-        $('#billing_month').addClass('is-invalid');
+        $billingMonth.addClass('is-invalid');
         return false;
       }
       // Invoice selection is optional for Advance Payment.
@@ -1178,12 +1205,12 @@
     }
 
     // Compare against payment amount only — bank charges must not affect invoice allocation.
-    if ($('#invoices-table').length && totalInvoicePayment > totalCredit + 0.01) {
-      var bankCharges = parseFloat($('#bank_charges').val()) || 0;
+    if ($form.find('#invoices-table').length && totalInvoicePayment > totalCredit + 0.01) {
+      var bankCharges = parseFloat($form.find('#bank_charges').val()) || 0;
       var excess = totalInvoicePayment - totalCredit;
       // Auto-trim lines that still include bank charges instead of blocking submit.
       if (bankCharges > 0.009 && excess <= bankCharges + 0.01) {
-        var $line = $('.payment-amount:not(:disabled)').last();
+        var $line = $form.find('.payment-amount:not(:disabled)').last();
         if ($line.length) {
           var lineVal = parseFloat($line.val()) || 0;
           $line.val(Math.max(0, lineVal - excess).toFixed(2));
@@ -1198,10 +1225,10 @@
     }
 
     if (isRiderOnly && isInvoiceCreate) {
-      var hasPayeeForPayment = !!($('#payee_account_id, [name="payee_account_id"]').val());
-      if (hasPayeeForPayment && $('#invoices-table tbody tr:visible').length === 0) {
-        alert('C3 / Salary Payment is not available when the selected rider has no unpaid invoices. Please use Advance Payment instead.');
-        $('#create_payment_type').addClass('is-invalid');
+      var hasPayeeForPayment = !!($form.find('#payee_account_id, [name="payee_account_id"]').val());
+      if (hasPayeeForPayment && $form.find('#invoices-table tbody tr:visible').length === 0) {
+        alert('Salary Payment is not available when the selected ' + payeeLabel + ' has no unpaid invoices. Please use Advance Payment instead.');
+        $paymentType.addClass('is-invalid');
         return false;
       }
       if ($checkedInvoices.length !== 1) {
@@ -1219,13 +1246,13 @@
         invoiceAmount = parseFloat($row.data('balance')) || 0;
       }
       if (totalCredit > invoiceAmount + 0.01) {
-        alert('Payment amount cannot exceed the selected invoice amount (' + currencyCode($(document)) + ' ' + invoiceAmount.toFixed(2) + ')');
-        $('#payment_amount').addClass('is-invalid');
+        alert('Payment amount cannot exceed the selected invoice amount (' + currencyCode($form) + ' ' + invoiceAmount.toFixed(2) + ')');
+        $paymentAmount.addClass('is-invalid');
         return false;
       }
       var lineAmount = parseFloat($lineInput.val()) || 0;
       if (lineAmount > invoiceAmount + 0.01) {
-        alert('Payment amount cannot exceed the selected invoice amount (' + currencyCode($(document)) + ' ' + invoiceAmount.toFixed(2) + ')');
+        alert('Payment amount cannot exceed the selected invoice amount (' + currencyCode($form) + ' ' + invoiceAmount.toFixed(2) + ')');
         $lineInput.addClass('is-invalid');
         return false;
       }
@@ -1233,7 +1260,7 @@
         alert('Please enter a payment amount against the selected invoice');
         return false;
       }
-      $('.is-invalid').removeClass('is-invalid');
+      $form.find('.is-invalid').removeClass('is-invalid');
       return true;
     }
 
@@ -1242,7 +1269,7 @@
       return false;
     }
 
-    if (isRiderPayment && $('#invoices-table').length && totalInvoicePayment <= 0) {
+    if (isRiderPayment && $form.find('#invoices-table').length && totalInvoicePayment <= 0) {
       alert('Please enter a payment amount against at least one selected invoice');
       return false;
     }

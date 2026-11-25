@@ -108,8 +108,8 @@ $canSeeRiderPaymentsPage = \App\Support\RiderVoucherPermissions::canAny('PAY', [
                         <input type="date" name="date_of_payment" class="form-control" value="{{ request('date_of_payment') }}">
                     </div>
                     <div class="form-group col-md-12">
-                        <label for="billing_month">Billing Month</label>
-                        <input type="month" name="billing_month" class="form-control" value="{{ request('billing_month') }}">
+                        <label for="filter_billing_month">Billing Month</label>
+                        <input type="month" name="billing_month" id="filter_billing_month" class="form-control" value="{{ request('billing_month') }}">
                     </div>
                     <div class="form-group col-md-12">
                         <label for="amount_type">Payment Mode</label>

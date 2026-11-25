@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use App\Models\Accounts;
+use App\Models\Banks;
 use App\Models\Payment;
 use App\Models\Vouchers;
 use App\Models\VoucherType;
@@ -63,6 +64,8 @@ class EmployeeController extends Controller
             'storepenalty',
             'storeadvanceloan'
         );
+        $this->middleware('permission:employees_payments_view|employees_payments_create|employees_payment_view')
+            ->only('payment');
     }
 
     /**
@@ -1062,11 +1065,24 @@ class EmployeeController extends Controller
         }
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = Payment::query()->latest('date_of_payment');
-        $query->whereIn('payee_account_id', $accountIds);
+        $query = Payment::query()
+            ->with(['payeeAccount', 'voucher', 'bank.account'])
+            ->latest('date_of_payment')
+            ->whereIn('payee_account_id', $accountIds)
+            ->applyListFilters($request);
 
         $data = $this->applyPagination($query, $paginationParams);
-        return view('employees.payments', compact('data'));
+        $banks = Banks::active()->get();
+
+        if ($request->ajax()) {
+            $tableData = view('payments.table', compact('data'))->render();
+
+            return response()->json([
+                'tableData' => $tableData,
+            ]);
+        }
+
+        return view('employees.payments', compact('data', 'banks'));
     }
 
     public function sendEmail($company_slug, $id, Request $request)
@@ -1145,13 +1161,27 @@ class EmployeeController extends Controller
         $account = $employee->account;
         $accounts = Accounts::dropdown(null);
         $bank_accounts = Accounts::bankAccountsDropdown();
-        $employeeVoucherCodes = ['AL', 'PN', 'INC', 'PAY'];
+        $employeeVoucherCodes = ['PAY', 'AL', 'PN', 'INC'];
+        $fallbackLabels = [
+            'PAY' => 'Salary Payment',
+            'AL' => 'Advance Payment',
+            'PN' => 'Penalty Voucher',
+            'INC' => 'Incentive Voucher',
+        ];
         $activeTypes = VoucherType::activeCodeLabelMapForModule('employees');
         $voucherTypes = [];
         foreach ($employeeVoucherCodes as $code) {
-            if (isset($activeTypes[$code])) {
-                $voucherTypes[$code] = $activeTypes[$code];
+            if (! isset($activeTypes[$code])) {
+                continue;
             }
+            $can = \App\Support\EmployeeVoucherPermissions::can($code, 'create');
+            if (! $can && $code === 'PAY') {
+                $can = user_can('employees_payments_create') || user_can('employees_voucher_create');
+            }
+            if (! $can) {
+                continue;
+            }
+            $voucherTypes[$code] = $activeTypes[$code] ?: ($fallbackLabels[$code] ?? $code);
         }
         $voucher_type = strtoupper(trim((string) request('type', '')));
         if ($voucher_type !== '' && ! isset($voucherTypes[$voucher_type])) {

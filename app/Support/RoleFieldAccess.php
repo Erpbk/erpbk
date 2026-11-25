@@ -532,6 +532,11 @@ class RoleFieldAccess
     protected static function abilityRemap(): array
     {
         return [
+            // Legacy singular typo still used in older Blade checks / caches.
+            'employees_payment_view' => 'employees_payments_view',
+            'employees_payment_create' => 'employees_payments_create',
+            'employees_payment_edit' => 'employees_payments_edit',
+            'employees_payment_delete' => 'employees_payments_delete',
             'visaexpense_view' => [
                 'visa_expense_account_creation_view',
                 'visa_expense_entries_view',

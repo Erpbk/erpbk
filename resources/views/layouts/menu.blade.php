@@ -89,8 +89,15 @@ $homeLink = $isAdminLogin
 @endcan
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('employees'))
-@canany(['employees_employee_view', 'employees_attendance_view'])
-<li class="menu-item {{ Route::is('employees.*') ? 'open' : '' }} {{ (Route::is('attendance.*') && request('ref_type') === 'employee') || (Route::is('attendance.summary') && request('user_type', 'employee') === 'employee') ? 'open' : '' }} {{ Route::is('employeeInvoices.*') ? 'open' : '' }}">
+@canany([
+  'employees_employee_view',
+  'employees_attendance_view',
+  'employees_invoice_view',
+  'employees_payments_view',
+  'employees_payments_create',
+  'employees_payment_view',
+])
+<li class="menu-item {{ Route::is('employees.*') || Route::is('employee.payment') ? 'open' : '' }} {{ (Route::is('attendance.*') && request('ref_type') === 'employee') || (Route::is('attendance.summary') && request('user_type', 'employee') === 'employee') ? 'open' : '' }} {{ Route::is('employeeInvoices.*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
     @include('layouts.partials.module_menu_icon', ['key' => 'employees'])
     <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
@@ -128,14 +135,14 @@ $homeLink = $isAdminLogin
       </a>
     </li>
     @endcan
-    @can('employees_payment_view')
+    @canany(['employees_payments_view', 'employees_payments_create', 'employees_payment_view'])
     <li class="menu-item {{ Route::is('employee.payment') ? 'active' : '' }}">
       <a href="{{ route('employee.payment') }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'payments'])
         <div>{{ $menuLabels['payments_sent'] ?? 'Payment Out Sent' }}</div>
       </a>
     </li>
-    @endcan
+    @endcanany
   </ul>
 </li>
 @endcanany

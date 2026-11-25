@@ -1,6 +1,20 @@
 @php
 $currencyMark = \App\Helpers\Currency::mark();
 $currencySymbol = \App\Helpers\Currency::symbol();
+$isEmployeePaymentForm = ($invoiceType ?? null) === 'employee';
+$isRiderPaymentForm = ! $isEmployeePaymentForm;
+$payeePersonRelation = $isEmployeePaymentForm ? 'employee' : 'rider';
+$invoiceTypeValue = $isEmployeePaymentForm ? 'employee' : 'rider';
+$__moduleKey = $isEmployeePaymentForm ? 'employees' : 'riders';
+$__moduleLabel = trim((string) (\App\Models\Settings::getMenuLabel($__moduleKey) ?? ''));
+$__moduleSingular = \Illuminate\Support\Str::singular(
+    $__moduleLabel !== '' ? $__moduleLabel : ($isEmployeePaymentForm ? 'Employee' : 'Rider')
+);
+$modalTitle = 'Record ' . $__moduleSingular . ' Payment';
+$modalSubtitle = 'Allocate a payment to ' . strtolower($__moduleSingular) . ' invoices';
+$canUploadAttachment = $isEmployeePaymentForm
+    ? \App\Support\EmployeeVoucherPermissions::canUpload('PAY')
+    : \App\Support\RiderVoucherPermissions::canUpload('PAY');
 $hideBillingMonthForRiderPayment = ! isset($payment)
     && in_array($defaultCreatePaymentType, ['payment', 'salary_payment', 'c3', ''], true);
 $banks = $banks ?? \App\Models\Banks::active()->get();
@@ -22,7 +36,7 @@ $payeeName = $lockedPayee['name'] ?? null;
 $payeeCode = $lockedPayee['entity_code'] ?? null;
 if (! $payeeCode && ! empty($lockedPayee['label'])) {
 // label may be "CODE - Name" or "ACC - RIDERID - Name"
-if (preg_match('/\b(RD[\w\-]+|\d{4,}[\w\-]*)\b/', (string) ($lockedPayee['label'] ?? ''), $m)) {
+if (preg_match('/\b(RD[\w\-]+|EMP[\w\-]+|\d{4,}[\w\-]*)\b/', (string) ($lockedPayee['label'] ?? ''), $m)) {
 $payeeCode = $m[1];
 }
 }
@@ -31,14 +45,15 @@ $payeeCode = $m[1];
 
 <div class="rider-payment-form"
     data-salary-invoice-payment="1"
-    data-rider-payment="1"
-    data-modal-title="Record Rider Payment"
-    data-modal-subtitle="Allocate a payment to rider invoices"
+    @if($isRiderPaymentForm) data-rider-payment="1" @endif
+    @if($isEmployeePaymentForm) data-employee-payment="1" @endif
+    data-modal-title="{{ $modalTitle }}"
+    data-modal-subtitle="{{ $modalSubtitle }}"
     @if($openedInvoiceId) data-opened-invoice-id="{{ $openedInvoiceId }}" @endif>
 
     <div class="rpf-header" data-rpf-inline-header>
-        <h4 class="rpf-title">Record Rider Payment</h4>
-        <p class="rpf-subtitle">Allocate a payment to rider invoices</p>
+        <h4 class="rpf-title">{{ $modalTitle }}</h4>
+        <p class="rpf-subtitle">{{ $modalSubtitle }}</p>
     </div>
 
     <div class="row g-3">
@@ -65,11 +80,7 @@ $payeeCode = $m[1];
                 </div>
 
                 <div class="form-group col-md-6">
-                    @php
-                    $__riderModuleLabel = trim((string) (\App\Models\Settings::getMenuLabel('riders') ?? ''));
-                    $__riderModuleSingular = \Illuminate\Support\Str::singular($__riderModuleLabel !== '' ? $__riderModuleLabel : 'Rider');
-                    @endphp
-                    <label class="rpf-label">Paid To ({{ $__riderModuleSingular }}) <span class="text-danger">*</span></label>
+                    <label class="rpf-label">Paid To ({{ $__moduleSingular }}) <span class="text-danger">*</span></label>
                     @if(!empty($lockedPayee))
                     {!! Form::hidden('payee_account_id', $lockedPayee['account_id'], [
                     'data-customer-id' => $lockedPayee['entity_id'] ?? '',
@@ -182,7 +193,7 @@ $payeeCode = $m[1];
         </div>
 
         {{-- Right: attachments --}}
-        @if(\App\Support\RiderVoucherPermissions::canUpload('PAY'))
+        @if($canUploadAttachment)
         <div class="col-lg-4">
             <div class="rpf-attach-box">
                 @include('partials.universal_document_upload', [
@@ -221,7 +232,7 @@ $payeeCode = $m[1];
 
     {{-- Invoices --}}
     @if((isset($invoices) && $invoices->count() > 0) || (isset($existingInvoices) && $existingInvoices->count() > 0))
-    <input type="hidden" value="rider" name="invoice_type">
+    <input type="hidden" value="{{ $invoiceTypeValue }}" name="invoice_type">
     <div class="rpf-section mt-4">
         <div class="table-responsive rpf-invoice-scroll">
             <table class="table table-bordered rpf-invoice-table" id="invoices-table">
@@ -241,6 +252,7 @@ $payeeCode = $m[1];
                     @if(isset($existingInvoices) && $existingInvoices->count() > 0)
                     @foreach($existingInvoices as $invoice)
                     @php
+                    $invoicePerson = $invoice->{$payeePersonRelation} ?? null;
                     $existingBalance = ($invoice->balance ?? 0) + ($invoice->partial_paid_amount[optional($payment)->id] ?? 0);
                     $existingPaid = ($invoice->paid_amount ?? 0) - ($invoice->partial_paid_amount[optional($payment)->id] ?? 0);
                     $existingPaymentAmt = (float) ($invoice->partial_paid_amount[optional($payment)->id] ?? 0);
@@ -267,8 +279,8 @@ $payeeCode = $m[1];
                             data-old-payment="{{ $existingPaymentAmt }}"
                             data-invoice-date="{{ $invoiceDate }}"
                             data-billing-month="{{ $invoiceBillingMonth }}"
-                            data-customer-id="{{ optional($invoice->rider)->id }}"
-                            data-customer-name="{{ optional($invoice->rider)->name }}"
+                            data-customer-id="{{ optional($invoicePerson)->id }}"
+                            data-customer-name="{{ optional($invoicePerson)->name }}"
                             data-payment-breakdown="{{ $rowBreakdown ? json_encode($rowBreakdown, JSON_UNESCAPED_UNICODE) : '' }}">
                             <td class="text-center">
                                 <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox" checked>
@@ -290,6 +302,7 @@ $payeeCode = $m[1];
                         @endif
                         @foreach($invoices as $invoice)
                         @php
+                        $invoicePerson = $invoice->{$payeePersonRelation} ?? null;
                         $invoiceDate = optional($invoice->inv_date)->format('Y-m-d')
                         ?? (isset($invoice->inv_date) ? date('Y-m-d', strtotime($invoice->inv_date)) : '');
                         $invoiceBillingMonth = $invoice->billing_month
@@ -303,8 +316,8 @@ $payeeCode = $m[1];
                             data-reference="{{ $invoice->invoice_number }}"
                             data-invoice-date="{{ $invoiceDate }}"
                             data-billing-month="{{ $invoiceBillingMonth }}"
-                            data-customer-id="{{ optional($invoice->rider)->id }}"
-                            data-customer-name="{{ optional($invoice->rider)->name }}"
+                            data-customer-id="{{ optional($invoicePerson)->id }}"
+                            data-customer-name="{{ optional($invoicePerson)->name }}"
                             data-payment-breakdown="{{ $rowBreakdown ? json_encode($rowBreakdown, JSON_UNESCAPED_UNICODE) : '' }}">
                             <td class="text-center">
                                 <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox" {{ (string) $openedInvoiceId === (string) $invoice->id ? 'checked' : '' }}>
@@ -331,8 +344,8 @@ $payeeCode = $m[1];
         </div>
     </div>
     @else
-    <input type="hidden" value="rider" name="invoice_type">
-    <div class="alert alert-light border mt-4 mb-0">No unpaid invoices found for this rider.</div>
+    <input type="hidden" value="{{ $invoiceTypeValue }}" name="invoice_type">
+    <div class="alert alert-light border mt-4 mb-0">No unpaid invoices found for this {{ strtolower($__moduleSingular) }}.</div>
     @endif
 
     {{-- Deductions / Additions (Rider Invoice table style) + Payment Summary --}}

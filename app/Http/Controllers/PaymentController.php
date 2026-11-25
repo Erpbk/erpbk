@@ -180,17 +180,22 @@ class PaymentController extends Controller
             $invoices = $invoiceQuery->orderBy('billing_month', 'desc')->get();
 
             // Full employee list for payee dropdown (same UX as rider payment when choosing a payee).
-            $payeeOptions = $this->buildPayeeOptionsFromEntities(
-                Employee::with('account')
-                    ->whereNotNull('account_id')
-                    ->orderBy('name')
-                    ->get()
+            $payeeOptions = $this->attachLedgerBalancesToPayeeOptions(
+                $this->buildPayeeOptionsFromEntities(
+                    Employee::with('account')
+                        ->whereNotNull('account_id')
+                        ->orderBy('name')
+                        ->get()
+                )
             );
             $accountIds = $payeeOptions->pluck('account_id')->all();
 
             // Only lock when payment is opened for a specific employee.
             if ($employeeId) {
                 $lockedPayee = $this->makePayeeOption(Employee::with('account')->find($employeeId));
+                if ($lockedPayee) {
+                    $lockedPayee['ledger_balance'] = $this->ledgerBalanceForAccount((int) $lockedPayee['account_id']);
+                }
             } elseif ($selectedInvoice && $selectedInvoice->employee) {
                 $preferredPayeeAccountId = $selectedInvoice->employee->account_id;
             }
@@ -354,11 +359,13 @@ class PaymentController extends Controller
 
             // Payable invoices must stay listed even when sequential ledger net is <= 0
             // (deductions/carry). Normalize allocatable balance for payment allocation UI.
-            if ($invoiceType === 'rider') {
+            if (in_array($invoiceType, ['rider', 'employee'], true)) {
                 $this->normalizeRiderPaymentFormBalances($invoices);
                 if (! empty($existingInvoices)) {
                     $this->normalizeRiderPaymentFormBalances($existingInvoices);
                 }
+            }
+            if ($invoiceType === 'rider') {
                 $this->attachRiderPaymentFormBreakdowns($invoices, $existingInvoices);
             }
 
@@ -478,7 +485,7 @@ class PaymentController extends Controller
 
         $this->validate($request, $rules, $messages);
 
-        // For rider Payment type: derive billing month from the selected invoice.
+        // For rider/employee Salary Payment: require unpaid invoices and derive billing month.
         if ($isRiderPaymentCreate) {
             $payeeAccountId = (int) $request->input('payee_account_id');
             $riderId = $payeeAccountId > 0
@@ -490,6 +497,19 @@ class PaymentController extends Controller
                 ]);
             }
             $this->applyRiderPaymentInvoiceRules($request);
+        }
+
+        if ($isEmployeePaymentCreate) {
+            $payeeAccountId = (int) $request->input('payee_account_id');
+            $employeeId = $payeeAccountId > 0
+                ? (int) Accounts::where('id', $payeeAccountId)->value('ref_id')
+                : 0;
+            if ($employeeId > 0 && ! EmployeeInvoices::payable()->where('employee_id', $employeeId)->exists()) {
+                throw ValidationException::withMessages([
+                    'create_payment_type' => 'Salary Payment is not available when the selected employee has no unpaid invoices. Please use Advance Payment instead.',
+                ]);
+            }
+            $this->applyEmployeePaymentInvoiceRules($request);
         }
 
         // For rider/employee payments, inherit invoice date from the selected invoice when not provided.
@@ -1867,6 +1887,22 @@ class PaymentController extends Controller
      */
     private function applyRiderPaymentInvoiceRules(Request $request): void
     {
+        $this->applySalaryPaymentInvoiceRules($request, 'rider');
+    }
+
+    /**
+     * Employee Payment type: require one invoice, derive billing month, cap amount to invoice total.
+     */
+    private function applyEmployeePaymentInvoiceRules(Request $request): void
+    {
+        $this->applySalaryPaymentInvoiceRules($request, 'employee');
+    }
+
+    /**
+     * Salary Payment type for rider/employee: require one invoice, derive billing month, cap amount.
+     */
+    private function applySalaryPaymentInvoiceRules(Request $request, string $invoiceType): void
+    {
         $invoiceId = (int) collect($request->input('invoice_ids', []))->filter()->first();
         if ($invoiceId <= 0) {
             throw ValidationException::withMessages([
@@ -1874,7 +1910,9 @@ class PaymentController extends Controller
             ]);
         }
 
-        $invoice = RiderInvoices::with(['rider.account', 'items'])->find($invoiceId);
+        $invoice = $invoiceType === 'employee'
+            ? EmployeeInvoices::with(['employee.account', 'items'])->find($invoiceId)
+            : RiderInvoices::with(['rider.account', 'items'])->find($invoiceId);
         if (! $invoice) {
             throw ValidationException::withMessages([
                 'invoice_ids' => 'Selected invoice was not found',
@@ -1888,7 +1926,7 @@ class PaymentController extends Controller
         }
 
         $collection = collect([$invoice]);
-        $this->applySequentialSalaryInvoiceBalances($collection, null, 'rider');
+        $this->applySequentialSalaryInvoiceBalances($collection, null, $invoiceType);
         $this->normalizeRiderPaymentFormBalances($collection);
         $balanceDue = (float) ($invoice->balance ?? 0);
         // Cap to TOTAL AMOUNT (invoice total), not remaining balance due.
@@ -2186,9 +2224,10 @@ class PaymentController extends Controller
         if (! blank($billingMonthInput) && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $billingMonthInput)) {
             $billingMonthInput = Carbon::parse($billingMonthInput)->format('Y-m');
         }
-        if (! blank($billingMonthInput)) {
-            $request->merge(['billing_month' => $billingMonthInput]);
+        if (blank($billingMonthInput)) {
+            $billingMonthInput = date('Y-m');
         }
+        $request->merge(['billing_month' => $billingMonthInput]);
 
         $this->validate($request, [
             'create_payment_type' => 'required|in:advance_loan,advance_payment',
@@ -2209,6 +2248,7 @@ class PaymentController extends Controller
         ], [
             'invoice_ids.max' => 'Please select at most one invoice for the advance loan',
             'billing_month.required' => 'Billing month is required for Advance Loan',
+            'billing_month.date_format' => 'Billing month must be a valid month (YYYY-MM)',
         ]);
 
         $billingMonthInput = $request->input('billing_month');
@@ -2550,11 +2590,13 @@ class PaymentController extends Controller
                 ->orderBy('billing_month', 'desc')
                 ->get();
             $invoiceType = 'employee';
-            $payeeOptions = $this->buildPayeeOptionsFromEntities(
-                Employee::with('account')
-                    ->whereNotNull('account_id')
-                    ->orderBy('name')
-                    ->get()
+            $payeeOptions = $this->attachLedgerBalancesToPayeeOptions(
+                $this->buildPayeeOptionsFromEntities(
+                    Employee::with('account')
+                        ->whereNotNull('account_id')
+                        ->orderBy('name')
+                        ->get()
+                )
             );
             $accountIds = $payeeOptions->pluck('account_id')->all();
             $lockedPayee = null;
@@ -2649,7 +2691,7 @@ class PaymentController extends Controller
             $lockedPayee = $this->makePayeeOptionFromAccountId($payment->payee_account_id);
         }
 
-        if ($invoiceType === 'rider' && $lockedPayee && ! isset($lockedPayee['ledger_balance'])) {
+        if (in_array($invoiceType, ['rider', 'employee'], true) && $lockedPayee && ! isset($lockedPayee['ledger_balance'])) {
             $lockedPayee['ledger_balance'] = $this->ledgerBalanceForAccount((int) ($lockedPayee['account_id'] ?? 0));
         }
 
@@ -2657,11 +2699,13 @@ class PaymentController extends Controller
             $this->applySequentialSalaryInvoiceBalances($invoices, $existingInvoices, $invoiceType);
         }
 
-        if ($invoiceType === 'rider') {
+        if (in_array($invoiceType, ['rider', 'employee'], true)) {
             $this->normalizeRiderPaymentFormBalances($invoices);
             if (! empty($existingInvoices)) {
                 $this->normalizeRiderPaymentFormBalances($existingInvoices);
             }
+        }
+        if ($invoiceType === 'rider') {
             $this->attachRiderPaymentFormBreakdowns($invoices, $existingInvoices);
         }
 
@@ -2755,9 +2799,11 @@ class PaymentController extends Controller
         if (! blank($billingMonthInput) && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $billingMonthInput)) {
             $billingMonthInput = Carbon::parse($billingMonthInput)->format('Y-m');
         }
-        if (! blank($billingMonthInput)) {
-            $request->merge(['billing_month' => $billingMonthInput]);
+        // type=month / locale pickers sometimes post blank; default like the AL service.
+        if (blank($billingMonthInput)) {
+            $billingMonthInput = date('Y-m');
         }
+        $request->merge(['billing_month' => $billingMonthInput]);
 
         $this->validate($request, [
             'create_payment_type' => 'required|in:advance_loan,advance_payment',
@@ -2778,6 +2824,7 @@ class PaymentController extends Controller
         ], [
             'invoice_ids.max' => 'Please select at most one invoice for the advance loan',
             'billing_month.required' => 'Billing month is required for Advance Loan',
+            'billing_month.date_format' => 'Billing month must be a valid month (YYYY-MM)',
         ]);
 
         $billingMonthInput = $request->input('billing_month');

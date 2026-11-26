@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\General;
+use App\Models\BikeMaintenance;
 use App\Models\FuelCards;
 use App\Models\FuelData;
 use App\Models\Riders;
@@ -144,6 +145,7 @@ class ReportController extends Controller
     $rtaTotals = collect();
     $salikTotals = collect();
     $fuelTotals = collect();
+    $maByAccount = collect();
     $visaTotals = collect();
     $jvByAccount = collect();
     $previousBalances = collect();
@@ -192,6 +194,10 @@ class ReportController extends Controller
         ->pluck('total', 'rider_id');
 
       $fuelTotals = $this->fuelChargeTotalsByRider($riderIds, $fromMonth, $toMonth);
+
+      if (!empty($accountIds)) {
+        $maByAccount = $this->maintenanceChargeTotalsByAccount($accountIds, $fromMonth, $toMonth);
+      }
 
       $visaTotals = $this->visaInstallmentTotalsByRider(
         $riderIds,
@@ -243,6 +249,7 @@ class ReportController extends Controller
     $sumRta = 0;
     $sumSalik = 0;
     $sumFuel = 0;
+    $sumMa = 0;
     $sumJv = 0;
     $sumAdvance = 0;
     $sumPenalty = 0;
@@ -263,6 +270,9 @@ class ReportController extends Controller
       $rta = (float) ($rtaTotals[$riderId] ?? 0);
       $salik = (float) ($salikTotals[$riderId] ?? 0);
       $fuel = (float) ($fuelTotals[$riderId] ?? 0);
+      $ma = $rider->account_id
+        ? (float) ($maByAccount[$rider->account_id] ?? 0)
+        : 0.0;
       $visa = (float) ($visaTotals[$riderId] ?? 0);
       $jv = $rider->account_id
         ? (float) ($jvByAccount[$rider->account_id] ?? 0)
@@ -284,6 +294,7 @@ class ReportController extends Controller
         $rta,
         $salik,
         $fuel,
+        $ma,
         $advance,
         $penalty,
         $visa,
@@ -306,9 +317,23 @@ class ReportController extends Controller
         'to_month' => $toCarbon->format('Y-m'),
       ]);
 
+      $hvInitials = collect(explode(' ', (string) $rider->name))
+        ->map(fn ($p) => mb_substr($p, 0, 1))
+        ->take(2)
+        ->implode('');
+      $hvPhoto = '';
+      if (!empty($rider->image_name) && $rider->image_name !== 'default.png') {
+        $hvPhoto = (string) (storage_url('profile/' . $rider->image_name) ?? '');
+      }
+
       $data .= '<tr>';
       $data .= '<td class="excel-text" style="mso-number-format:\'\@\';">' . e($rider->rider_id) . '</td>';
-      $data .= '<td><a target="_blank" href="' . route('riders.show', $rider->id) . '">' . e($rider->name) . '</a></td>';
+      $data .= '<td><a target="_blank" href="' . route('riders.show', $rider->id) . '" class="emp-name-link"'
+        . ' data-hv-id="' . e($rider->rider_id) . '"'
+        . ' data-hv-name="' . e($rider->name) . '"'
+        . ' data-hv-photo="' . e($hvPhoto) . '"'
+        . ' data-hv-initials="' . e(strtoupper($hvInitials)) . '">'
+        . e($rider->name) . '</a></td>';
       $data .= '<td><span class="badge ' . $badgeClass . '">' . e($statusText) . '</span></td>';
       $data .= '<td>' . e($rider->emirate_hub) . '</td>';
       $data .= '<td>' . e($rider->designation) . '</td>';
@@ -322,6 +347,7 @@ class ReportController extends Controller
       $data .= '<td align="center">' . $fmt($rta) . '</td>';
       $data .= '<td align="center">' . $fmt($salik) . '</td>';
       $data .= '<td align="center">' . $fmt($fuel) . '</td>';
+      $data .= '<td align="center">' . $fmt($ma) . '</td>';
       $data .= '<td align="center">' . $fmt($visa) . '</td>';
       $data .= '<td align="center">' . $fmt($jv) . '</td>';
       $data .= '<td align="center">' . $fmt($advance) . '</td>';
@@ -339,6 +365,7 @@ class ReportController extends Controller
       $sumRta += $rta;
       $sumSalik += $salik;
       $sumFuel += $fuel;
+      $sumMa += $ma;
       $sumVisa += $visa;
       $sumJv += $jv;
       $sumAdvance += $advance;
@@ -362,6 +389,7 @@ class ReportController extends Controller
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumRta) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumSalik) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumFuel) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumMa) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumVisa) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumJv) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumAdvance) . '</td>';
@@ -383,7 +411,9 @@ class ReportController extends Controller
         $page,
         ['path' => url()->current(), 'query' => $request->query()]
       ),
-      'perPageOptions' => [20, 50, 100, -1]
+      'perPageOptions' => [20, 50, 100, -1],
+      'theme' => 'demo',
+      'itemLabel' => 'riders',
     ])->render();
 
     return [
@@ -473,6 +503,7 @@ class ReportController extends Controller
     )->sum();
 
     $jv = 0.0;
+    $ma = 0.0;
     $previous = 0.0;
     $paid = 0.0;
 
@@ -501,6 +532,8 @@ class ReportController extends Controller
         })
         ->selectRaw('COALESCE(SUM(credit - debit), 0) as total')
         ->value('total') ?? 0);
+
+      $ma = (float) $this->maintenanceChargeTotalsByAccount($accountIds, $fromMonth, $toMonth)->sum();
     }
 
     $components = $this->riderReportPayableComponents(
@@ -510,6 +543,7 @@ class ReportController extends Controller
       $rta,
       $salik,
       $fuel,
+      $ma,
       $advance,
       $penalty,
       $visa,
@@ -531,7 +565,7 @@ class ReportController extends Controller
   /**
    * Payable = invoice total + additions - deductions.
    * Additions: incentive + positive previous balance + positive JV (net credit).
-   * Deductions: VC, COD, RTA, Salik, Fuel, Advance, Penalty, Visa installment
+   * Deductions: VC, COD, RTA, Salik, Fuel, MA, Advance, Penalty, Visa installment
    *             + absolute negative JV (net debit) + absolute negative previous balance.
    * JV / previous balance use liability convention: SUM(credit - debit).
    * Positive = addition, negative = deduction.
@@ -545,6 +579,7 @@ class ReportController extends Controller
     float $rta,
     float $salik,
     float $fuel,
+    float $ma,
     float $advance,
     float $penalty,
     float $visa,
@@ -557,7 +592,7 @@ class ReportController extends Controller
     $previousAddition = $previousBalance > 0 ? $previousBalance : 0.0;
     $previousDeduction = $previousBalance < 0 ? abs($previousBalance) : 0.0;
 
-    $deductions = $vc + $cod + $rta + $salik + $fuel + $advance + $penalty + $visa + $jvDeduction + $previousDeduction;
+    $deductions = $vc + $cod + $rta + $salik + $fuel + $ma + $advance + $penalty + $visa + $jvDeduction + $previousDeduction;
     $additions = $incentive + $previousAddition + $jvAddition;
 
     return [
@@ -567,6 +602,29 @@ class ReportController extends Controller
       'jv_deduction' => $jvDeduction,
       'jv_addition' => $jvAddition,
     ];
+  }
+
+  /**
+   * Bike maintenance charged to the rider = ledger debits on the rider account
+   * posted from Bike Maintenance (user/overdue lines).
+   *
+   * @param  array<int, int|string>  $accountIds
+   * @return Collection<int|string, float>
+   */
+  private function maintenanceChargeTotalsByAccount(array $accountIds, string $fromMonth, string $toMonth): Collection
+  {
+    if ($accountIds === []) {
+      return collect();
+    }
+
+    return Transactions::whereIn('account_id', $accountIds)
+      ->where('reference_type', 'Bike Maintenance')
+      ->whereDate('billing_month', '>=', $fromMonth)
+      ->whereDate('billing_month', '<=', $toMonth)
+      ->select('account_id', DB::raw('SUM(debit) as total'))
+      ->groupBy('account_id')
+      ->pluck('total', 'account_id')
+      ->map(fn ($v) => (float) $v);
   }
 
   /**
@@ -891,7 +949,9 @@ class ReportController extends Controller
       ->get();
 
     $jvEntries = collect();
+    $maEntries = collect();
     $payments = collect();
+    $maTotal = 0.0;
     if ($riderModel->account_id) {
       $jvEntries = Transactions::where('account_id', $riderModel->account_id)
         ->whereDate('billing_month', '>=', $fromMonth)
@@ -910,6 +970,17 @@ class ReportController extends Controller
         ->orderBy('id')
         ->get();
 
+      $maEntries = Transactions::where('account_id', $riderModel->account_id)
+        ->where('reference_type', 'Bike Maintenance')
+        ->where('debit', '>', 0)
+        ->whereDate('billing_month', '>=', $fromMonth)
+        ->whereDate('billing_month', '<=', $toMonth)
+        ->orderBy('billing_month')
+        ->orderBy('trans_date')
+        ->orderBy('id')
+        ->get();
+      $maTotal = (float) $maEntries->sum('debit');
+
       $payments = \App\Models\Payment::where('payee_account_id', $riderModel->account_id)
         ->whereDate('billing_month', '>=', $fromMonth)
         ->whereDate('billing_month', '<=', $toMonth)
@@ -917,6 +988,11 @@ class ReportController extends Controller
         ->orderBy('id')
         ->get();
     }
+
+    $maintenancesById = BikeMaintenance::with('bike')
+      ->whereIn('id', $maEntries->pluck('reference_id')->filter()->unique()->all())
+      ->get()
+      ->keyBy('id');
 
     $previousBalance = 0.0;
     if ($riderModel->account_id) {
@@ -935,6 +1011,7 @@ class ReportController extends Controller
       (float) $rtaFines->sum('total_amount'),
       (float) $saliks->sum('total_amount'),
       (float) $fuelInvoices->sum('total_amount'),
+      $maTotal,
       (float) $vouchersByType['AL']->sum('amount'),
       (float) $vouchersByType['PN']->sum('amount'),
       (float) $visaInstallments->sum('amount'),
@@ -950,6 +1027,7 @@ class ReportController extends Controller
       'rta' => (float) $rtaFines->sum('total_amount'),
       'salik' => (float) $saliks->sum('total_amount'),
       'fuel' => (float) $fuelInvoices->sum('total_amount'),
+      'ma' => $maTotal,
       'visa' => (float) $visaInstallments->sum('amount'),
       'jv' => $jvNet,
       'jv_deduction' => $components['jv_deduction'],
@@ -979,6 +1057,8 @@ class ReportController extends Controller
       'rtaFines' => $rtaFines,
       'saliks' => $saliks,
       'fuelInvoices' => $fuelInvoices,
+      'maEntries' => $maEntries,
+      'maintenancesById' => $maintenancesById,
       'visaInstallments' => $visaInstallments,
       'jvEntries' => $jvEntries,
       'payments' => $payments,

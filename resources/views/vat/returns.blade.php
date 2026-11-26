@@ -19,11 +19,30 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
 <link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
-<link rel="stylesheet" href="{{ asset('css/vat-demo.css') }}?v=20261113d">
+<link rel="stylesheet" href="{{ asset('css/vat-demo.css') }}?v=20261126g">
 @include('invoices.partials.status_badge_styles')
 @endpush
 
 @section('content')
+@php
+  $printCompany = $printCompany ?? [
+    'name' => \App\Helpers\Common::getSetting('company_name') ?? '',
+    'address' => \App\Helpers\Common::getSetting('company_address') ?? '',
+    'trn' => \App\Helpers\Common::getSetting('vat_number') ?? '',
+    'phone' => \App\Helpers\Common::getSetting('company_phone') ?? '',
+    'email' => \App\Helpers\Common::getSetting('company_email') ?? '',
+    'vat_rate' => \App\Helpers\Common::getSetting('vat_percent')
+      ?? \App\Helpers\Common::getSetting('vat')
+      ?? '5',
+    'logo' => '',
+  ];
+  if (($printCompany['logo'] ?? '') === '') {
+    $logoPath = (string) (\App\Helpers\Common::getSetting('company_logo') ?? '');
+    if ($logoPath !== '' && \Illuminate\Support\Facades\Storage::disk('public')->exists($logoPath)) {
+      $printCompany['logo'] = storage_url($logoPath);
+    }
+  }
+@endphp
 <div class="riders-list-demo vat-demo" id="vatReturnsDemo">
   <div class="rl-wrap">
     @include('flash::message')
@@ -267,6 +286,8 @@
   </div>
 </div>
 
+@include('vat.partials.statement_modal')
+
 <div id="filterOverlay" class="filter-overlay"></div>
 <div id="filterSidebar" class="filter-sidebar riders-filter-sidebar">
   <div class="filter-header">
@@ -326,6 +347,10 @@
 
 @push('third_party_scripts')
 @include('vat.partials.filter_widgets_script')
+<script>
+  window.VatStatementCompany = @json($printCompany);
+</script>
+<script src="{{ asset('js/vat-statement.js') }}?v=20261126b"></script>
 <script>
 (function () {
   const actBtn = document.getElementById('actBtn');
@@ -395,6 +420,9 @@
       .then(function (html) {
         body.innerHTML = html;
         row.dataset.loaded = '1';
+        if (window.VatStatement && typeof window.VatStatement.bind === 'function') {
+          window.VatStatement.bind(body);
+        }
       })
       .catch(function () {
         body.innerHTML = '<div class="text-center text-danger py-3">Could not load entries. Try again.</div>';

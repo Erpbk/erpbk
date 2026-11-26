@@ -204,6 +204,7 @@ class VatController extends Controller
                 'debit_raw' => 0,
                 'credit_raw' => 0,
                 'balance' => $this->formatBalance($openingBalance),
+                'balance_raw' => $openingBalance,
                 'is_total' => false,
                 'is_balance_forward' => true,
             ];
@@ -244,6 +245,7 @@ class VatController extends Controller
                     'debit_raw' => $debit,
                     'credit_raw' => $credit,
                     'balance' => $this->formatBalance($runningBalance),
+                    'balance_raw' => $runningBalance,
                     'is_total' => false,
                     'is_balance_forward' => false,
                 ];
@@ -268,6 +270,7 @@ class VatController extends Controller
                 'debit_raw' => $totalDebit,
                 'credit_raw' => $totalCredit,
                 'balance' => $this->formatBalance($runningBalance),
+                'balance_raw' => $runningBalance,
                 'is_total' => true,
                 'is_balance_forward' => false,
             ];
@@ -299,6 +302,17 @@ class VatController extends Controller
             $request->input('vat_quarter_slot'),
         ])->filter(fn ($v) => $v !== null && $v !== '')->count();
 
+        $salesAccountCode = $this->accountCodeFor($salesAccountId);
+        $purchaseAccountCode = $this->accountCodeFor($purchaseAccountId);
+        $printCompany = $this->vatPrintCompany();
+        $ledgerStatement = $this->buildLedgerStatementPayload(
+            $rows,
+            $stats,
+            $salesAccountCode,
+            $purchaseAccountCode,
+            $printCompany
+        );
+
         return view('vat.index', compact(
             'rows',
             'quarters',
@@ -308,7 +322,11 @@ class VatController extends Controller
             'filterModules',
             'activeFilterCount',
             'purchaseAccountId',
-            'salesAccountId'
+            'salesAccountId',
+            'salesAccountCode',
+            'purchaseAccountCode',
+            'printCompany',
+            'ledgerStatement'
         ));
     }
 
@@ -456,16 +474,28 @@ class VatController extends Controller
         $enrichment = $this->buildLedgerEnrichmentMaps($transactions);
 
         $entryRows = [];
+        $printRows = [];
         $debit = 0.0;
         $credit = 0.0;
+        $runningBalance = 0.0;
+        $output = 0.0;
+        $input = 0.0;
         foreach ($entries as $entry) {
             if (! $entry->transaction) {
                 continue;
             }
             $t = $entry->transaction;
-            $debit += (float) $t->debit;
-            $credit += (float) $t->credit;
+            $rowDebit = (float) $t->debit;
+            $rowCredit = (float) $t->credit;
+            $debit += $rowDebit;
+            $credit += $rowCredit;
+            $runningBalance += $rowDebit - $rowCredit;
             $isOutput = $salesAccountId && (int) $t->account_id === $salesAccountId;
+            if ($isOutput) {
+                $output += $rowCredit - $rowDebit;
+            } else {
+                $input += $rowDebit - $rowCredit;
+            }
             $voucherHtml = $this->getVoucherText($t, $enrichment);
             if ($voucherHtml === '') {
                 $fallback = $t->voucher
@@ -474,20 +504,49 @@ class VatController extends Controller
                     : ($t->voucher_number ?? '—');
                 $voucherHtml = e($fallback !== '' ? $fallback : '—');
             }
+            $voucherPlain = trim(html_entity_decode(strip_tags($voucherHtml), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
             $module = (string) ($t->reference_type ?? '—');
+            $narrationHtml = $this->getNarration($t, $enrichment);
+            $accountLabel = $isOutput
+                ? ('Output · Sales '.($t->account->account_code ?? ''))
+                : ('Input · Purchase '.($t->account->account_code ?? ''));
+            $billingMonth = $t->billing_month ? date('M Y', strtotime($t->billing_month)) : '—';
+            $billingMonthKey = $t->billing_month ? date('Y-m', strtotime($t->billing_month)) : '';
             $entryRows[] = [
                 'date' => Common::DateFormat($t->trans_date),
-                'account' => $isOutput
-                    ? ('Output · Sales '.($t->account->account_code ?? ''))
-                    : ('Input · Purchase '.($t->account->account_code ?? '')),
-                'month' => $t->billing_month ? date('M Y', strtotime($t->billing_month)) : '—',
+                'account' => $accountLabel,
+                'month' => $billingMonth,
                 'voucher' => $voucherHtml,
                 'module' => $module !== '' ? $module : '—',
-                'narration' => $t->narration ?: '—',
-                'debit' => (float) $t->debit,
-                'credit' => (float) $t->credit,
+                'narration' => $narrationHtml !== '' ? $narrationHtml : '—',
+                'debit' => $rowDebit,
+                'credit' => $rowCredit,
+            ];
+            $printRows[] = [
+                'date' => Common::DateFormat($t->trans_date),
+                'date_iso' => $t->trans_date ? date('Y-m-d', strtotime($t->trans_date)) : '',
+                'month' => $billingMonth,
+                'billing_month_key' => $billingMonthKey,
+                'account' => $accountLabel,
+                'narration' => $narrationHtml !== '' ? $narrationHtml : '',
+                'voucher' => $voucherPlain !== '' ? $voucherPlain : '—',
+                'debit' => $rowDebit,
+                'credit' => $rowCredit,
+                'balance' => $runningBalance,
+                'balance_label' => $this->statementBalanceLabel($runningBalance),
             ];
         }
+
+        $printCompany = $this->vatPrintCompany();
+        $returnStatement = $this->buildReturnStatementPayload(
+            $vat_return,
+            $printRows,
+            $debit,
+            $credit,
+            $output,
+            $input,
+            $printCompany
+        );
 
         return view('vat.partials.return_entries_table', [
             'entryRows' => $entryRows,
@@ -495,6 +554,9 @@ class VatController extends Controller
             'credit' => $credit,
             'purchaseAccountId' => $purchaseAccountId,
             'salesAccountId' => $salesAccountId,
+            'vatReturn' => $vat_return,
+            'returnStatement' => $returnStatement,
+            'printCompany' => $printCompany,
         ]);
     }
 
@@ -1547,22 +1609,279 @@ class VatController extends Controller
                 $fines = ($enrichment['rta_fines'] ?? collect())->get($fineId);
                 if ($fines) {
                     $trip = !empty($fines->trip_date) ? Carbon::parse($fines->trip_date)->format('d M Y') : '';
-                    return $row->narration . ', <b>Ticket Number: </b>' . e($fines->ticket_no ?? '') . ', <b>Bike No: </b>' . e($fines->plate_no ?? '') . ($trip !== '' ? ', ' . $trip : '');
+                    return $this->formatNarrationHtml(
+                        $row->narration . ', <b>Ticket Number: </b>' . e($fines->ticket_no ?? '') . ', <b>Bike No: </b>' . e($fines->plate_no ?? '') . ($trip !== '' ? ', ' . $trip : '')
+                    );
                 }
             }
-            return (string) $row->narration;
+            return $this->formatNarrationHtml((string) $row->narration);
         }
         if ($row->reference_type === 'LV') {
             $visaex = ($enrichment['visa_expenses'] ?? collect())->get((int) $row->reference_id);
             if ($visaex) {
                 $personName = ($enrichment['visa_names'] ?? [])[(int) $row->reference_id] ?? null;
                 if ($personName) {
-                    return 'Paid to <b>' . e($personName) . ' </b>' . e($visaex->visa_status ?? '') . ' Charges ' . e($visaex->date ?? '');
+                    return $this->formatNarrationHtml(
+                        'Paid to <b>' . e($personName) . ' </b>' . e($visaex->visa_status ?? '') . ' Charges ' . e($visaex->date ?? '')
+                    );
                 }
-                return $row->narration . ' (Rider not found)';
+                return $this->formatNarrationHtml($row->narration . ' (Rider not found)');
             }
-            return $row->narration . ' (Visa expense not found)';
+            return $this->formatNarrationHtml($row->narration . ' (Visa expense not found)');
         }
-        return (string) $row->narration;
+
+        return $this->formatNarrationHtml((string) $row->narration);
+    }
+
+    /**
+     * Allow only <b> tags in narration HTML (decode entity-encoded tags from storage).
+     */
+    private function formatNarrationHtml(?string $narration): string
+    {
+        $raw = (string) $narration;
+        if ($raw === '') {
+            return '';
+        }
+
+        $decoded = html_entity_decode($raw, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $escaped = htmlspecialchars($decoded, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
+
+        return (string) preg_replace('/&lt;(\/?b)&gt;/i', '<$1>', $escaped);
+    }
+
+    private function accountCodeFor(int $accountId): string
+    {
+        if ($accountId <= 0) {
+            return '';
+        }
+
+        return (string) (Accounts::query()->where('id', $accountId)->value('account_code') ?? '');
+    }
+
+    /**
+     * @return array{name:string,address:string,trn:string,phone:string,email:string,vat_rate:string,logo:string}
+     */
+    private function vatPrintCompany(): array
+    {
+        $logo = (string) (Common::getSetting('company_logo') ?? '');
+        $logoUrl = '';
+        if ($logo !== '' && function_exists('storage_url')) {
+            try {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($logo)) {
+                    $logoUrl = storage_url($logo);
+                }
+            } catch (\Throwable $e) {
+                $logoUrl = '';
+            }
+        }
+
+        $vatRate = (string) (Common::getSetting('vat_percent')
+            ?? Common::getSetting('vat')
+            ?? '5');
+
+        return [
+            'name' => (string) (Common::getSetting('company_name') ?? ''),
+            'address' => (string) (Common::getSetting('company_address') ?? ''),
+            'trn' => (string) (Common::getSetting('vat_number') ?? ''),
+            'phone' => (string) (Common::getSetting('company_phone') ?? ''),
+            'email' => (string) (Common::getSetting('company_email') ?? ''),
+            'vat_rate' => $vatRate !== '' ? $vatRate : '5',
+            'logo' => $logoUrl,
+        ];
+    }
+
+    private function statementBalanceLabel(float $balance): string
+    {
+        $abs = number_format(abs($balance), 2);
+        if ($balance > 0) {
+            return $abs.'Dr';
+        }
+        if ($balance < 0) {
+            return $abs.'Cr';
+        }
+
+        return $abs;
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $rows
+     * @param  array<string,mixed>  $stats
+     * @param  array{name:string,address:string,trn:string,phone:string,email:string,vat_rate:string,logo:string}  $company
+     * @return array<string,mixed>
+     */
+    private function buildLedgerStatementPayload(
+        array $rows,
+        array $stats,
+        string $salesAccountCode,
+        string $purchaseAccountCode,
+        array $company
+    ): array {
+        $opening = 0.0;
+        $closing = 0.0;
+        $printRows = [];
+        $firstDate = '';
+        $lastDate = '';
+
+        foreach ($rows as $r) {
+            if (! empty($r['is_balance_forward'])) {
+                $opening = (float) ($r['balance_raw'] ?? 0);
+                continue;
+            }
+            if (! empty($r['is_total'])) {
+                $closing = (float) ($r['balance_raw'] ?? 0);
+                continue;
+            }
+
+            $dateIso = (string) ($r['date_iso'] ?? '');
+            if ($dateIso !== '') {
+                if ($firstDate === '') {
+                    $firstDate = $dateIso;
+                }
+                $lastDate = $dateIso;
+            }
+
+            $accountLabel = ! empty($r['is_output'])
+                ? ('Output · Sales '.($r['account_code'] ?? $salesAccountCode))
+                : ('Input · Purchase '.($r['account_code'] ?? $purchaseAccountCode));
+
+            $balance = (float) ($r['balance_raw'] ?? 0);
+
+            $printRows[] = [
+                'date' => (string) ($r['date'] ?? ''),
+                'date_iso' => $dateIso,
+                'month' => (string) ($r['billing_month'] ?? ''),
+                'billing_month_key' => (string) ($r['billing_month_key'] ?? ''),
+                'account' => $accountLabel,
+                'narration' => (string) ($r['narration'] ?? ''),
+                'voucher' => trim(html_entity_decode(strip_tags((string) ($r['voucher'] ?? '')), ENT_QUOTES | ENT_HTML5, 'UTF-8')),
+                'debit' => (float) ($r['debit_raw'] ?? 0),
+                'credit' => (float) ($r['credit_raw'] ?? 0),
+                'balance' => $balance,
+                'balance_label' => $this->statementBalanceLabel($balance),
+            ];
+        }
+
+        $output = (float) ($stats['output'] ?? 0);
+        $input = (float) ($stats['input'] ?? 0);
+        $net = (float) ($stats['net'] ?? ($output - $input));
+        $shown = (int) ($stats['shown_count'] ?? count($printRows));
+        $outputCount = (int) ($stats['output_count'] ?? 0);
+        $inputCount = (int) ($stats['input_count'] ?? 0);
+        $totalDebit = (float) ($stats['total_debit'] ?? 0);
+        $totalCredit = (float) ($stats['total_credit'] ?? 0);
+
+        $accountsLabel = trim(
+            'Output · Sales '.($salesAccountCode !== '' ? $salesAccountCode : '—')
+            .' / Input · Purchase '.($purchaseAccountCode !== '' ? $purchaseAccountCode : '—')
+        );
+
+        $periodLabel = 'All history';
+        if ($firstDate !== '' && $lastDate !== '') {
+            $periodLabel = Carbon::parse($firstDate)->format('d-M-Y').' to '.Carbon::parse($lastDate)->format('d-M-Y');
+        }
+
+        return [
+            'kind' => 'ledger',
+            'company' => $company,
+            'opening_balance' => $opening,
+            'closing_balance' => $closing,
+            'rows' => $printRows,
+            'totals' => [
+                'debit' => $totalDebit,
+                'credit' => $totalCredit,
+                'balance' => $closing,
+            ],
+            'summary_left' => [
+                ['label' => 'Opening Balance', 'value' => number_format($opening, 2)],
+                ['label' => 'Output VAT (Sales)', 'value' => number_format($output, 2)],
+                ['label' => 'Input VAT (Purchase)', 'value' => number_format($input, 2)],
+                ['label' => 'Total Entries', 'value' => (string) $shown],
+                ['label' => 'Net VAT Payable', 'value' => number_format($net, 2), 'net' => true],
+            ],
+            'summary_right' => [
+                ['label' => 'Date Issued:', 'value' => now()->format('d-M-Y')],
+                ['label' => 'Statement Period:', 'value' => $periodLabel],
+                ['label' => 'Account Type:', 'value' => 'VAT LEDGER'],
+                ['label' => 'Accounts:', 'value' => $accountsLabel],
+                ['label' => 'Output Entries:', 'value' => (string) $outputCount],
+                ['label' => 'Input Entries:', 'value' => (string) $inputCount],
+                ['label' => 'VAT Rate:', 'value' => rtrim(rtrim((string) ($company['vat_rate'] ?? '5'), '0'), '.').'%'],
+                ['label' => 'Currency:', 'value' => 'AED'],
+            ],
+        ];
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $printRows
+     * @param  array{name:string,address:string,trn:string,phone:string,email:string,vat_rate:string,logo:string}  $company
+     * @return array<string,mixed>
+     */
+    private function buildReturnStatementPayload(
+        VatReturn $vatReturn,
+        array $printRows,
+        float $debit,
+        float $credit,
+        float $output,
+        float $input,
+        array $company
+    ): array {
+        $returnNo = $vatReturn->invoice_number;
+        $period = trim(($vatReturn->quarter_label ?? ('Q'.$vatReturn->quarter_slot)).' '.$vatReturn->year);
+        $statusKey = $vatReturn->statusBadgeKey();
+        $statusLabel = match ($statusKey) {
+            'paid' => 'PAID',
+            'partial' => 'PARTIALLY PAID',
+            default => 'UNPAID',
+        };
+
+        $vpLabels = [];
+        foreach ($vatReturn->livePaymentIds() as $paymentId) {
+            $payment = Payment::query()->with('voucher')->find($paymentId);
+            if (! $payment) {
+                continue;
+            }
+            $v = $payment->voucher;
+            if ($v) {
+                $vpLabels[] = $v->formatted_id
+                    ?: (($v->voucher_type ?: 'VP').'-'.str_pad((string) $v->id, 4, '0', STR_PAD_LEFT));
+            } else {
+                $vpLabels[] = 'PAY-'.str_pad((string) $payment->id, 4, '0', STR_PAD_LEFT);
+            }
+        }
+
+        $net = $output - $input;
+        $closing = $debit - $credit;
+
+        return [
+            'kind' => 'return',
+            'company' => $company,
+            'opening_balance' => 0,
+            'closing_balance' => $closing,
+            'rows' => $printRows,
+            'totals' => [
+                'debit' => $debit,
+                'credit' => $credit,
+                'balance' => $closing,
+            ],
+            'summary_left' => [
+                ['label' => 'Total Entries', 'value' => (string) count($printRows)],
+                ['label' => 'Output VAT', 'value' => number_format($output, 2)],
+                ['label' => 'Input VAT', 'value' => number_format($input, 2)],
+                ['label' => 'Payment Vouchers', 'value' => $vpLabels !== [] ? implode(', ', $vpLabels) : '—'],
+                ['label' => 'Net VAT Payable', 'value' => number_format($net, 2), 'net' => true],
+            ],
+            'summary_right' => [
+                ['label' => 'Date Issued:', 'value' => now()->format('d-M-Y')],
+                ['label' => 'Tax Period:', 'value' => $period !== '' ? $period : '—'],
+                ['label' => 'Account Type:', 'value' => 'VAT RETURN'],
+                ['label' => 'Return Number:', 'value' => $returnNo],
+                ['label' => 'Filed On:', 'value' => $vatReturn->filed_at ? $vatReturn->filed_at->format('d M Y') : '—'],
+                ['label' => 'Status:', 'value' => $statusLabel],
+                ['label' => 'VAT Rate:', 'value' => rtrim(rtrim((string) ($company['vat_rate'] ?? '5'), '0'), '.').'%'],
+                ['label' => 'Currency:', 'value' => 'AED'],
+            ],
+            'card_title' => $returnNo,
+            'card_subtitle' => 'VAT Return '.$period,
+        ];
     }
 }

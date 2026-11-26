@@ -69,11 +69,11 @@
                      data-credit="{{ $r['credit_raw'] ?? 0 }}">
             @endif
           </td>
-          <td class="vat-date">
+          <td class="vat-date vat-nw">
             <b>{{ $dayLabel }}</b>
             @if($yearLabel)<span>{{ $yearLabel }}</span>@endif
           </td>
-          <td style="white-space:nowrap">
+          <td class="vat-nw">
             @if(!empty($r['is_output']))
               <span class="vat-pill out">Output · Sales <span class="code">{{ $r['account_code'] ?? '' }}</span></span>
             @else
@@ -83,14 +83,14 @@
           <td class="{{ ($r['reference_number'] ?? '-') === '-' ? 'vat-z' : '' }}" style="font-size:12px">
             {{ $r['reference_number'] ?? '-' }}
           </td>
-          <td>
+          <td class="vat-nw">
             @if(!empty($r['billing_month']))
               <span class="vat-pill mo">{{ $r['billing_month'] }}</span>
             @endif
           </td>
-          <td>{!! $r['voucher'] ?? '' !!}</td>
+          <td class="vat-nw">{!! $r['voucher'] ?? '' !!}</td>
           <td class="vat-attach">{!! $r['attachment'] ?? '' !!}</td>
-          <td>
+          <td class="vat-nw">
             @if(!empty($r['module']))
               <span class="vat-src {{ $moduleClass($r['module']) }}">{{ $r['module'] }}</span>
             @endif

@@ -16,10 +16,18 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
 <link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
-<link rel="stylesheet" href="{{ asset('css/vat-demo.css') }}?v=20261113d">
+<link rel="stylesheet" href="{{ asset('css/vat-demo.css') }}?v=20261126g">
 @endpush
 
 @section('content')
+@php
+  $salesAccountCode = $salesAccountCode ?? '';
+  $purchaseAccountCode = $purchaseAccountCode ?? '';
+  $printCompany = $printCompany ?? [
+    'name' => '', 'address' => '', 'trn' => '', 'phone' => '', 'email' => '', 'vat_rate' => '5', 'logo' => '',
+  ];
+  $ledgerStatement = $ledgerStatement ?? null;
+@endphp
 <div class="riders-list-demo vat-demo" id="vatLedgerDemo"
      data-index-url="{{ route('vat.index') }}"
      data-csrf="{{ csrf_token() }}">
@@ -74,7 +82,7 @@
         <div class="rl-dd">
           <button type="button" class="rl-btn" id="actBtn" aria-haspopup="true" aria-expanded="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
-            VAT Actions
+            Actions
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" id="chev"><path d="m6 9 6 6 6-6"/></svg>
           </button>
           <div class="rl-menu" id="actMenu" hidden role="menu">
@@ -82,10 +90,6 @@
             <a role="menuitem" href="javascript:void(0);" id="vatReturnFileMenuBtn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 12v6"/></svg>
               <span><strong>File Return</strong><em>File selected ledger entries for a quarter</em></span>
-            </a>
-            <a role="menuitem" class="show-modal" href="javascript:void(0);" data-size="xl" data-title="New VAT Payment" data-action="{{ route('payments.create', ['invoice_type' => 'vat_return', 'vat_payment' => 1]) }}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
-              <span><strong>New VAT Payment</strong><em>Allocate payment to unpaid returns</em></span>
             </a>
             @endcanany
             <a role="menuitem" href="{{ route('vat.returns.index') }}">
@@ -125,11 +129,37 @@
       </div>
     </div>
 
-    <div class="rl-tbox" id="tbox">
-      @include('vat.table', ['rows' => $rows])
+    <div class="al-card">
+      <div class="al-head">
+        <div class="al-left">
+          <div class="al-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg>
+          </div>
+          <div>
+            <div class="al-title">Account Ledger</div>
+            <div class="al-sub"><b>VAT Ledger</b> · Output VAT {{ $salesAccountCode !== '' ? $salesAccountCode : '—' }} &amp; Input VAT {{ $purchaseAccountCode !== '' ? $purchaseAccountCode : '—' }}</div>
+          </div>
+        </div>
+        <div class="al-btns">
+          <button type="button" class="al-btn" data-vat-stmt data-vat-stmt-target="vatLedgerStatementJson" title="Print statement">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print
+          </button>
+          <button type="button" class="al-btn" data-vat-stmt data-vat-stmt-target="vatLedgerStatementJson" data-vat-stmt-print="1" title="Download PDF">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3"/></svg>
+            PDF
+          </button>
+        </div>
+      </div>
+      <div class="rl-tbox" id="tbox">
+        @include('vat.table', ['rows' => $rows])
+      </div>
     </div>
   </div>
 </div>
+
+@include('vat.partials.statement_modal')
+<script type="application/json" id="vatLedgerStatementJson">@json($ledgerStatement)</script>
 
 {{-- Floating selection bar --}}
 <div class="vat-float" id="vatSelectionBar" aria-live="polite">
@@ -265,6 +295,11 @@
 
 @push('third_party_scripts')
 @include('vat.partials.filter_widgets_script')
+<script>
+  window.VatStatementCompany = @json($printCompany);
+  window.VatLedgerStatement = @json($ledgerStatement);
+</script>
+<script src="{{ asset('js/vat-statement.js') }}?v=20261126b"></script>
 <script>
 (function () {
   const fmt = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

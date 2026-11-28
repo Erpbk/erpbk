@@ -13,6 +13,7 @@ use App\Models\Bikes;
 use App\Models\LedgerEntry;
 use App\Models\Riders;
 use App\Models\Settings;
+use App\Models\Supplier;
 use App\Models\Transactions;
 use App\Models\VoucherType;
 use App\Models\Vouchers;
@@ -818,13 +819,14 @@ class BikeRegistrationController extends AppBaseController
 
         $rider = $accounts->rider ?? ($accounts->rider_id ? Riders::find($accounts->rider_id) : null);
 
-        $bankCashAccounts = $this->bikeRegistrationPaymentAccountOptions();
+        $bankCashAccounts = $this->bankCashPaymentAccountOptions();
+        $supplierAccounts = $this->supplierPaymentAccountOptions();
         if ($bankCashAccounts->isEmpty()) {
             $bankCashAccounts = Accounts::bankAndCashDropdown()
                 ->filter(static fn ($label, $accId) => $accId !== '' && $accId !== null);
         }
 
-        return view('bike_registration.pay_form', compact('data', 'accounts', 'rider', 'bankCashAccounts'));
+        return view('bike_registration.pay_form', compact('data', 'accounts', 'rider', 'bankCashAccounts', 'supplierAccounts'));
     }
 
     public function payfine(Request $request)
@@ -879,11 +881,8 @@ class BikeRegistrationController extends AppBaseController
             $expense->expiry_date = $validated['expiry_date'];
 
             $payAccount = Accounts::findOrFail($validated['account']);
-            $payment_type_flag = match ($request->input('payment_type', $payAccount->account_type)) {
-                'Liability' => 1,
-                'Asset' => 0,
-                default => ($payAccount->account_type === 'Liability' ? 1 : 0),
-            };
+            // Supplier accounts are liabilities. Direction follows the account, not the form default.
+            $payment_type_flag = $payAccount->account_type === 'Liability' ? 1 : 0;
 
             $docFile = null;
             if ($request->hasFile('attach_file')) {
@@ -1178,16 +1177,22 @@ class BikeRegistrationController extends AppBaseController
         $debitAccountName = Accounts::where('id', GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'))->value('name') ?? 'Vehicle registration expense';
         $currentCreditName = Accounts::where('id', $creditTx->account_id)->value('name') ?? ('#' . $creditTx->account_id);
 
-        $paymentAccounts = $this->bikeRegistrationPaymentAccountOptions();
+        $bankPaymentAccounts = $this->bankCashPaymentAccountOptions();
+        $supplierPaymentAccounts = $this->supplierPaymentAccountOptions();
+        $paymentAccounts = $bankPaymentAccounts->union($supplierPaymentAccounts);
         $currentId = (int) $creditTx->account_id;
         if ($paymentAccounts->isEmpty()) {
-            $paymentAccounts = Accounts::bankAndCashDropdown()
+            $bankPaymentAccounts = Accounts::bankAndCashDropdown()
                 ->filter(static fn($label, $id) => $id !== '' && $id !== null);
+            $paymentAccounts = $bankPaymentAccounts->union($supplierPaymentAccounts);
         }
         if (!$paymentAccounts->has($currentId)) {
             $nm = Accounts::where('id', $currentId)->value('name');
             if ($nm) {
                 $paymentAccounts->put($currentId, $nm . ' (current)');
+                if (!$bankPaymentAccounts->has($currentId) && !$supplierPaymentAccounts->has($currentId)) {
+                    $bankPaymentAccounts->put($currentId, $nm . ' (current)');
+                }
             }
         }
 
@@ -1200,6 +1205,8 @@ class BikeRegistrationController extends AppBaseController
             'debitAccountName' => $debitAccountName,
             'currentCreditName' => $currentCreditName,
             'paymentAccounts' => $paymentAccounts,
+            'bankPaymentAccounts' => $bankPaymentAccounts,
+            'supplierPaymentAccounts' => $supplierPaymentAccounts,
             'editDeleteFlags' => VoucherType::getEditDeleteFlagsByModule('vouchers'),
         ]);
     }
@@ -1289,7 +1296,7 @@ class BikeRegistrationController extends AppBaseController
         return redirect()->back();
     }
 
-    private function bikeRegistrationPaymentAccountOptions()
+    private function bankCashPaymentAccountOptions()
     {
         $bank = Accounts::where('name', 'cash & bank')->first();
         if (!$bank) {
@@ -1301,6 +1308,33 @@ class BikeRegistrationController extends AppBaseController
             ->where('parent_id', $bank->id)
             ->leafOnly()
             ->orderBy('id')
+            ->pluck('name', 'id');
+    }
+
+    private function supplierPaymentAccountOptions()
+    {
+        $accountIds = Supplier::query()
+            ->where('status', 1)
+            ->whereNotNull('account_id')
+            ->pluck('account_id');
+
+        $query = Accounts::query()->where('status', 1);
+
+        if ($accountIds->isNotEmpty()) {
+            $query->whereIn('id', $accountIds);
+        } else {
+            $parentId = GlobalAccounts::idOrNull('SUPPLIER_ACCOUNT');
+            $query->where(function ($q) use ($parentId) {
+                $q->where('ref_name', 'Supplier');
+                if ($parentId) {
+                    $q->orWhere('parent_id', $parentId);
+                }
+            });
+        }
+
+        return $query
+            ->leafOnly()
+            ->orderBy('name')
             ->pluck('name', 'id');
     }
 

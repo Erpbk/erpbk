@@ -40,12 +40,25 @@
             <div class="form-group col-md-4">
                 <label for="credit_account_id">Bank/Payment Account <span class="text-danger">*</span></label>
                 <select name="account" id="credit_account_id" class="form-control select2" required>
-                    <option value="">Select Bank/Cash Account</option>
-                    @foreach($bankCashAccounts as $id => $name)
-                        @if($id !== '' && $id !== null)
-                            <option value="{{ $id }}" @selected((string) old('account') === (string) $id)>{{ $name }}</option>
-                        @endif
-                    @endforeach
+                    <option value="">Select Bank/Cash Account or Supplier</option>
+                    @if($bankCashAccounts->isNotEmpty())
+                        <optgroup label="Bank / Cash">
+                            @foreach($bankCashAccounts as $id => $name)
+                                @if($id !== '' && $id !== null)
+                                    <option value="{{ $id }}" data-account-type="Asset" @selected((string) old('account') === (string) $id)>{{ $name }}</option>
+                                @endif
+                            @endforeach
+                        </optgroup>
+                    @endif
+                    @if(($supplierAccounts ?? collect())->isNotEmpty())
+                        <optgroup label="Suppliers">
+                            @foreach($supplierAccounts as $id => $name)
+                                @if($id !== '' && $id !== null)
+                                    <option value="{{ $id }}" data-account-type="Liability" @selected((string) old('account') === (string) $id)>{{ $name }}</option>
+                                @endif
+                            @endforeach
+                        </optgroup>
+                    @endif
                 </select>
             </div>
 
@@ -229,10 +242,17 @@
             }
             $bank.select2({
                 width: '100%',
-                placeholder: 'Select Bank/Cash Account',
+                placeholder: 'Select Bank/Cash Account or Supplier',
                 allowClear: true,
                 dropdownParent: $modal.length ? $modal : $(document.body)
             });
+
+            function syncPaymentType() {
+                var type = $bank.find('option:selected').data('accountType') || 'Asset';
+                $form.find('#br_pay_payment_type').val(type);
+            }
+            $bank.off('change.brPayAccount').on('change.brPayAccount', syncPaymentType);
+            syncPaymentType();
 
             var $narration = $form.find('#br_pay_narration');
             function autoResize() {

@@ -8,9 +8,20 @@
         <div class="mb-3">
             <label class="form-label" for="br_credit_account_id">New credit (payment) account</label>
             <select name="credit_account_id" id="br_credit_account_id" class="form-select form-select-sm" required>
-                @foreach($paymentAccounts as $accId => $accName)
-                <option value="{{ $accId }}" @if((int)$accId === (int)$creditTransaction->account_id) selected @endif>{{ $accName }}</option>
-                @endforeach
+                @if(($bankPaymentAccounts ?? collect())->isNotEmpty())
+                    <optgroup label="Bank / Cash">
+                        @foreach($bankPaymentAccounts as $accId => $accName)
+                        <option value="{{ $accId }}" @if((int)$accId === (int)$creditTransaction->account_id) selected @endif>{{ $accName }}</option>
+                        @endforeach
+                    </optgroup>
+                @endif
+                @if(($supplierPaymentAccounts ?? collect())->isNotEmpty())
+                    <optgroup label="Suppliers">
+                        @foreach($supplierPaymentAccounts as $accId => $accName)
+                        <option value="{{ $accId }}" @if((int)$accId === (int)$creditTransaction->account_id) selected @endif>{{ $accName }}</option>
+                        @endforeach
+                    </optgroup>
+                @endif
             </select>
         </div>
         <div class="d-flex justify-content-end gap-2">

@@ -692,6 +692,48 @@
             </table>
             @endif
 
+            {{-- Maintenance (MA) charged to rider --}}
+            @if($maEntries->isNotEmpty())
+            <div class="section-title">Maintenance (MA) <span class="count">{{ $maEntries->count() }}</span></div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th>MA #</th>
+                        <th>Date</th>
+                        <th>Month</th>
+                        <th>Bike</th>
+                        <th>Notes</th>
+                        <th style="text-align:right;">Amount ({{ $currency }})</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($maEntries as $i => $row)
+                    @php
+                        $maint = $maintenancesById->get($row->reference_id);
+                        $bike = $maint?->bike;
+                        $bikeLabel = $bike
+                            ? trim(($bike->emirates ?? '') . '-' . ($bike->plate ?? ''), '-')
+                            : '—';
+                    @endphp
+                    <tr>
+                        <td>{{ $i + 1 }}</td>
+                        <td>MA-{{ $row->reference_id }}</td>
+                        <td>{{ $fmtDate($row->trans_date ?? $maint?->maintenance_date) }}</td>
+                        <td>{{ $fmtMonth($row->billing_month) }}</td>
+                        <td>{{ $bikeLabel ?: '—' }}</td>
+                        <td>{{ $maint?->description ?: ($row->narration ?: '—') }}</td>
+                        <td class="num">{{ $fmt($row->debit) }}</td>
+                    </tr>
+                    @endforeach
+                    <tr class="row-total">
+                        <td colspan="6" style="text-align:right;">Total</td>
+                        <td class="num">{{ $fmt($totals['ma']) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            @endif
+
             {{-- Visa installments --}}
             @if($visaInstallments->isNotEmpty())
             <div class="section-title">Visa Installments <span class="count">{{ $visaInstallments->count() }}</span></div>
@@ -828,6 +870,12 @@
                     <tr>
                         <td>Less: Fuel</td>
                         <td class="num">-{{ $fmt($totals['fuel']) }}</td>
+                    </tr>
+                    @endif
+                    @if(($totals['ma'] ?? 0) != 0)
+                    <tr>
+                        <td>Less: Maintenance (MA)</td>
+                        <td class="num">-{{ $fmt($totals['ma']) }}</td>
                     </tr>
                     @endif
                     @if(($totals['visa'] ?? 0) != 0)

@@ -1,0 +1,564 @@
+/* Rider Report — HTML demo parity (scoped to .rr-demo) */
+.rr-demo {
+  --indigo: #3b3fd8;
+  --indigo-d: #2f32b8;
+  --ring: #bfdbfe;
+  --line: #dbe5f1;
+  --soft: #eef2f7;
+  --head: #f4f7fb;
+  --bg: #f7f7f9;
+  --text: #1e293b;
+  --muted: #64748b;
+  --green: #16a34a;
+  --red: #dc2626;
+  --navy: #1e3a8a;
+  color: var(--text);
+  font: 13px/1.45 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.rr-demo .rr-topbar {
+  margin-bottom: 10px;
+}
+
+.rr-demo .rr-topbar-inner {
+  height: 56px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+}
+
+.rr-demo .rr-topbar-inner strong {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.rr-demo .rr-stats {
+  margin-bottom: 6px;
+}
+
+.rr-demo .rr-cards {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 0 2px 4px;
+}
+
+.rr-demo .rr-card {
+  --c: #0d6efd;
+  --t: #eef3fd;
+  flex: 1 0 150px;
+  min-width: 0;
+  border: 1px solid #e7eaf0;
+  border-left: 4px solid var(--c);
+  border-radius: 10px;
+  padding: 13px 8px 13px 12px;
+  background: linear-gradient(135deg, var(--t), #f7f7f9);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.07);
+}
+
+.rr-demo .rr-card .label {
+  font-size: 10.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--c);
+  margin-bottom: 5px;
+  white-space: nowrap;
+}
+
+.rr-demo .rr-card .value {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.rr-demo .rr-card .sub {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 14px;
+}
+
+.rr-demo .rr-card .pos,
+.rr-demo .pos { color: var(--green) !important; }
+.rr-demo .rr-card .neg,
+.rr-demo .neg { color: var(--red) !important; }
+.rr-demo .rr-card .sub .neg { margin-left: 8px; }
+
+.rr-demo .rr-card.c-riders { --c: #0d6efd; --t: #eef3fd; }
+.rr-demo .rr-card.c-riders .sub { color: #0d6efd; }
+.rr-demo .rr-card.c-amount { --c: #6f42c1; --t: #f4f0fa; }
+.rr-demo .rr-card.c-ded { --c: #dc3545; --t: #fbf0f1; }
+.rr-demo .rr-card.c-pay { --c: #c13fb5; --t: #f8f0f7; }
+.rr-demo .rr-card.c-paid { --c: #198754; --t: #edf6f1; }
+.rr-demo .rr-card.c-bal { --c: #dc3545; --t: #f9eff1; }
+
+.rr-demo .rr-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 3px 10px;
+}
+
+.rr-demo .rr-btn {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 14px;
+  background: var(--indigo);
+  color: #fff !important;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1.5px solid var(--ring);
+  border-radius: 10px;
+  box-shadow: 0 0 0 3px rgba(191, 219, 254, 0.45);
+  cursor: pointer;
+  text-decoration: none !important;
+}
+
+.rr-demo .rr-btn:hover {
+  background: var(--indigo-d);
+  color: #fff !important;
+}
+
+.rr-demo .rr-btn.icon {
+  width: 38px;
+  padding: 0;
+  margin-left: auto;
+}
+
+.rr-demo .rr-btn.ok { background: var(--green); border-color: #86efac; }
+.rr-demo .rr-btn.bad { background: var(--red); border-color: #fca5a5; }
+
+.rr-demo #quickSearch {
+  height: 38px;
+  width: 205px;
+  border: 1.5px solid var(--ring);
+  border-radius: 10px;
+  box-shadow: 0 0 0 3px rgba(191, 219, 254, 0.45);
+  padding: 0 12px;
+  outline: none;
+  background: #fff;
+  font-size: 12.5px;
+}
+
+.rr-demo #quickSearch:focus {
+  border-color: var(--indigo);
+}
+
+.rr-demo .rr-drop {
+  position: relative;
+}
+
+.rr-demo .rr-menu {
+  display: none;
+  position: absolute;
+  top: 44px;
+  left: 0;
+  width: 280px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+  z-index: 50;
+}
+
+.rr-demo .rr-menu.show { display: block; }
+
+.rr-demo .rr-menu a,
+.rr-demo .rr-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid var(--soft);
+  padding: 11px 16px;
+  cursor: pointer;
+  color: var(--navy);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.rr-demo .rr-menu a:hover,
+.rr-demo .rr-menu button:hover {
+  background: #f5f8ff;
+  color: var(--navy);
+}
+
+.rr-demo .rr-menu small {
+  display: block;
+  color: var(--muted);
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+.rr-demo .rr-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 280px);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  scrollbar-color: #9ca3af #f1f3f5;
+}
+
+.rr-demo #dataTableBuilder {
+  font-size: 12.5px;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-bottom: 0;
+  width: 100%;
+}
+
+.rr-demo #dataTableBuilder thead th {
+  background: var(--head);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--soft);
+  padding: 12px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
+  cursor: default;
+  user-select: none;
+}
+
+.rr-demo #dataTableBuilder thead th:last-child { border-right: none; }
+.rr-demo #dataTableBuilder thead th:hover { background: #e8eefc; }
+
+.rr-demo #dataTableBuilder tbody tr:nth-child(even) td { background: #f7fbff; }
+.rr-demo #dataTableBuilder tbody tr:hover td { background: #eef4ff; }
+
+.rr-demo #dataTableBuilder tbody td {
+  padding: 15px 12px;
+  vertical-align: middle;
+  border-right: 1px solid var(--soft);
+  border-bottom: 1px solid var(--soft);
+  color: #334155;
+  white-space: nowrap;
+  text-align: center;
+  background: #fff;
+}
+
+.rr-demo #dataTableBuilder tbody td:last-child { border-right: none; }
+
+.rr-demo #dataTableBuilder tbody td a {
+  color: #1d1dd8;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.rr-demo #dataTableBuilder tbody td a:hover {
+  color: var(--indigo-d);
+  text-decoration: underline;
+}
+
+.rr-demo #dataTableBuilder tbody tr.total-row td,
+.rr-demo #dataTableBuilder tbody tr.total-row th {
+  background: var(--head) !important;
+  font-weight: 700 !important;
+  color: var(--text) !important;
+}
+
+.rr-demo #paginationLinks { margin-top: 14px; }
+
+/* Filter sidebar — demo look */
+.rr-demo #filterSidebar.filter-sidebar,
+.rr-demo.filter-page-root ~ #filterSidebar,
+body:has(.rr-demo) #filterSidebar {
+  width: 380px;
+  max-width: 100vw;
+  background: #f7f8fc;
+  border-radius: 16px 0 0 16px;
+  box-shadow: -8px 0 30px rgba(15, 23, 42, 0.18);
+  border-left: none;
+}
+
+body:has(.rr-demo) #filterSidebar .filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--indigo, #3b3fd8);
+  color: #fff;
+  padding: 18px 20px;
+  border-bottom: none;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+body:has(.rr-demo) #filterSidebar .filter-header h5 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+body:has(.rr-demo) #filterSidebar .filter-header .rr-f-sub {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  color: #dbe3ff;
+}
+
+body:has(.rr-demo) #filterSidebar .filter-header .btn-close,
+body:has(.rr-demo) #filterSidebar #closeSidebar {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  font-size: 18px;
+  opacity: 1;
+  box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+body:has(.rr-demo) #filterSidebar .filter-body {
+  margin: 16px;
+  padding: 16px 14px;
+  height: auto;
+  background: #fff;
+  border: 1px solid #e3e9f4;
+  border-radius: 14px;
+}
+
+body:has(.rr-demo) #filterSidebar .filter-body label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+body:has(.rr-demo) #filterSidebar .filter-body .form-control,
+body:has(.rr-demo) #filterSidebar .filter-body .form-select,
+body:has(.rr-demo) #filterSidebar .filter-body .select2-container--default .select2-selection--single {
+  height: 40px !important;
+  background: #f9fbff !important;
+  border: 1px solid #d6e0f0 !important;
+  border-radius: 10px !important;
+  margin-bottom: 4px;
+}
+
+body:has(.rr-demo) #filterSidebar .filter-body .form-group {
+  margin-bottom: 13px;
+}
+
+body:has(.rr-demo) #filterSidebar .rr-apply {
+  width: 100%;
+  height: 44px;
+  background: #3b3fd8;
+  color: #fff;
+  border: 0;
+  border-radius: 11px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(59, 63, 216, 0.28);
+  margin-top: 4px;
+}
+
+body:has(.rr-demo) #filterSidebar .rr-apply:hover {
+  background: #2f32b8;
+  color: #fff;
+}
+
+body:has(.rr-demo) #filterOverlay.show {
+  background: rgba(15, 23, 42, 0.42);
+}
+
+/* Column control — demo modal look */
+body:has(.rr-demo) #columnControlSidebar.column-control-sidebar {
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 520px;
+  max-width: calc(100vw - 32px);
+  height: auto !important;
+  max-height: 92vh;
+  border-radius: 18px;
+  border: 1px solid #bfdbfe;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+  transform: translate(-50%, -46%) scale(0.98);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s, transform 0.18s, visibility 0.18s;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+body:has(.rr-demo) #columnControlSidebar.column-control-sidebar.open {
+  right: auto !important;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+body:has(.rr-demo) #columnControlSidebar .column-control-header {
+  background: #fff;
+  border-bottom: 1px solid #dbe5f1;
+  padding: 16px 20px;
+}
+
+body:has(.rr-demo) #columnControlSidebar .column-control-header h5 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 500;
+  color: #1e3a8a;
+}
+
+body:has(.rr-demo) #columnControlSidebar .column-control-header h5 i {
+  display: none;
+}
+
+body:has(.rr-demo) #columnControlSidebar .column-control-header .btn-close {
+  width: 32px;
+  height: 32px;
+  background: #fff;
+  border: 1px solid #bfdbfe;
+  border-radius: 9px;
+  opacity: 1;
+  box-shadow: none;
+}
+
+body:has(.rr-demo) #columnControlSidebar .column-control-body {
+  padding: 14px 20px 16px;
+  height: auto;
+  max-height: calc(92vh - 70px);
+  overflow: auto;
+}
+
+body:has(.rr-demo) #columnControlSidebar .column-control-body h6 {
+  margin: 0 0 9px;
+  font-size: 12px;
+  color: #1e3a8a;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 600;
+}
+
+body:has(.rr-demo) #columnControlSidebar .column-control-body h6 i {
+  display: none;
+}
+
+body:has(.rr-demo) #columnControlSidebar .column-control-body h6 small {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: #475569;
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+
+body:has(.rr-demo) #columnControlSidebar #columnList {
+  max-height: 290px;
+  overflow: auto;
+  padding-right: 8px;
+  margin-bottom: 14px;
+}
+
+body:has(.rr-demo) #columnControlSidebar .column-item > .d-flex {
+  height: 40px;
+  margin-bottom: 7px !important;
+  padding: 0 12px !important;
+  background: #f7fbff !important;
+  border: 1px solid #dbe5f1 !important;
+  border-radius: 10px !important;
+  align-items: center;
+}
+
+body:has(.rr-demo) #columnControlSidebar .column-item .form-check-input {
+  width: 17px;
+  height: 17px;
+  accent-color: #3b3fd8;
+  cursor: pointer;
+}
+
+body:has(.rr-demo) #columnControlSidebar .column-item small {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: #64748b;
+}
+
+body:has(.rr-demo) #columnControlSidebar .d-grid.gap-2 {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px !important;
+}
+
+body:has(.rr-demo) #columnControlSidebar .d-grid.gap-2 .btn {
+  height: 38px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: #fff;
+  color: #1e3a8a;
+  border: 1px solid #bfdbfe;
+}
+
+body:has(.rr-demo) #columnControlSidebar .d-grid.gap-2 .btn:hover {
+  background: #eef4ff;
+  color: #1e3a8a;
+}
+
+body:has(.rr-demo) #columnControlSidebar .export-btn.btn-success {
+  background: #16a34a !important;
+  border: 0 !important;
+  color: #fff !important;
+}
+
+body:has(.rr-demo) #columnControlSidebar .export-btn.btn-info {
+  background: #0891b2 !important;
+  border: 0 !important;
+  color: #fff !important;
+}
+
+body:has(.rr-demo) #columnControlSidebar .export-btn.btn-danger {
+  background: #dc2626 !important;
+  border: 0 !important;
+  color: #fff !important;
+}
+
+body:has(.rr-demo) #columnControlSidebar .column-stats {
+  background: transparent !important;
+  padding: 0 !important;
+  margin-top: 8px !important;
+  font-size: 12px;
+  color: #475569;
+}
+
+body:has(.rr-demo) #columnControlOverlay.show {
+  background: rgba(15, 23, 42, 0.42);
+}
+
+@media (max-width: 900px) {
+  .rr-demo .rr-btn.icon { margin-left: 0; }
+  .rr-demo #quickSearch { width: 100%; order: 9; }
+}

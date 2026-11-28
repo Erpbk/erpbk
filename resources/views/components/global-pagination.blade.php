@@ -1,7 +1,14 @@
-@props(['paginator', 'perPageOptions' => [20, 50, 100, 'all'], 'defaultPerPage' => 50])
+@props([
+    'paginator',
+    'perPageOptions' => [20, 50, 100, 'all'],
+    'defaultPerPage' => 50,
+    'theme' => null,
+    'itemLabel' => 'entries',
+])
 
 @php
 $currentPerPage = request()->input('per_page', $defaultPerPage);
+$isDemoTheme = $theme === 'demo';
 
 // Handle 'all' and -1 options
 if ($currentPerPage === 'all' || $currentPerPage === -1 || $currentPerPage === '-1') {
@@ -13,20 +20,28 @@ $currentPerPage = $currentPerPage > 0 ? $currentPerPage : $defaultPerPage;
 $isShowingAll = $currentPerPage >= $paginator->total();
 $displayPerPage = $isShowingAll ? 'all' : $currentPerPage;
 }
+
+$fromItem = $paginator->firstItem() ?? 0;
+$toItem = $paginator->lastItem() ?? 0;
+$showingLabel = $isDemoTheme
+    ? 'Showing ' . $fromItem . '–' . $toItem . ' of ' . $paginator->total() . ' ' . $itemLabel
+    : 'Showing ' . $paginator->count() . ' of ' . $paginator->total() . ' ' . $itemLabel;
 @endphp
 
 @if ($paginator->hasPages() || $paginator->total() > 0)
-<div class="global-pagination-container">
+<div class="global-pagination-container{{ $isDemoTheme ? ' gp-demo' : '' }}">
     <!-- Pagination Controls in One Row -->
     <div class="pagination-single-row d-flex justify-content-between align-items-center mb-3">
         <!-- Left side: Records info -->
         <div class="records-info d-flex align-items-center gap-2">
             <span class="text-muted">
-                Showing {{ $paginator->count() }} of {{ $paginator->total() }} entries
+                {{ $showingLabel }}
             </span>
             <div class="per-page-dropdown">
+                @unless($isDemoTheme)
                 <label for="perPageSelect" class="form-label me-2 mb-0">Show:</label>
-                <select id="perPageSelect" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                @endunless
+                <select id="perPageSelect" class="form-select form-select-sm" style="width: auto; display: inline-block;" aria-label="Rows per page">
                     @foreach($perPageOptions as $option)
                     @if($option === 'all' || $option === -1 || $option === '-1')
                     <option value="{{ $option }}" {{ ($displayPerPage === 'all' || $currentPerPage == -1 || $currentPerPage == '-1') ? 'selected' : '' }}>
@@ -187,6 +202,7 @@ $displayPerPage = $isShowingAll ? 'all' : $currentPerPage;
     .records-info {
         white-space: nowrap;
         flex-shrink: 0;
+        font-size: 14px;
     }
 
     .pagination-links .page-link {
@@ -217,12 +233,97 @@ $displayPerPage = $isShowingAll ? 'all' : $currentPerPage;
         cursor: not-allowed;
     }
 
-    .records-info {
+    .page-info {
         font-size: 14px;
     }
 
-    .page-info {
-        font-size: 14px;
+    /* Demo theme — white bordered pager + indigo active page */
+    .global-pagination-container.gp-demo {
+        margin-top: 14px;
+        padding: 0;
+        border-top: none;
+    }
+
+    .gp-demo .pagination-single-row {
+        background: #fff;
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+        padding: 9px 12px;
+        margin-bottom: 0;
+        gap: 10px;
+        flex-wrap: wrap;
+        box-shadow: none;
+    }
+
+    .gp-demo .records-info {
+        gap: 8px;
+    }
+
+    .gp-demo .records-info .text-muted {
+        color: #64748b;
+        font-size: 12.5px;
+    }
+
+    .gp-demo .per-page-dropdown .form-select {
+        height: 34px;
+        min-width: 64px;
+        padding: 0 28px 0 10px;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #1e293b;
+        background-color: #fff;
+        box-shadow: none;
+    }
+
+    .gp-demo .pagination-links .pagination {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .gp-demo .pagination-links .page-item {
+        margin: 0;
+    }
+
+    .gp-demo .pagination-links .page-link {
+        min-width: 34px;
+        height: 34px;
+        padding: 0 10px;
+        margin: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        color: #1d1dd8;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        font-size: 12.5px;
+        font-weight: 600;
+        line-height: 1;
+        box-shadow: none;
+    }
+
+    .gp-demo .pagination-links .page-link:hover {
+        background: #eef4ff;
+        color: #1d1dd8;
+        border-color: #bfdbfe;
+    }
+
+    .gp-demo .pagination-links .page-item.active .page-link {
+        background: #3b3fd8;
+        border-color: #3b3fd8;
+        color: #fff;
+        box-shadow: 0 0 0 2px rgba(191, 219, 254, 0.7);
+    }
+
+    .gp-demo .pagination-links .page-item.disabled .page-link {
+        color: #94a3b8;
+        border-color: #e6eef8;
+        background: #fff;
+        cursor: default;
     }
 
     @media (max-width: 768px) {

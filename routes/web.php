@@ -968,6 +968,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('/cheques/status/{id}', [ChequesController::class, 'updateStatus'])->name('cheques.update-status');
     Route::get('cheques/change_status/{id}', [ChequesController::class, 'statusForm'])->name('cheques.status-form');
     Route::post('cheques/set-cheque-top-option/{id}', [ChequesController::class, 'setChequeTopOption'])->name('cheques.setChequeTopOption');
+    Route::post('cheques/filter-ajax', [ChequesController::class, 'filterAjax'])->name('cheques.filterAjax');
     Route::resource('cheques', ChequesController::class);
 
     Route::get('vouchers/{id}/clone', [VouchersController::class, 'cloneVoucher'])->name('vouchers.clone');

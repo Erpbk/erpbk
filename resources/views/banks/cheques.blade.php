@@ -1,5 +1,7 @@
 @extends('banks.view')
 @push('third_party_stylesheets')
+<link rel="stylesheet" href="{{ asset('css/module-list.css') }}?v=20261128-ml">
+<link rel="stylesheet" href="{{ asset('css/cheques-list.css') }}?v=20261128f">
 <style>
     .table-responsive {
         max-height: calc(100vh - 100px);
@@ -11,6 +13,7 @@
         @include('flash::message')
         <div class="clearfix"></div>
         @can('cash_&_banks_cheques_view')
+        <div class="module-list cheques-list">
         <div class="card">
             <div class="card-header d-flex justify-content-between">
                 <div class="card-search">
@@ -20,14 +23,15 @@
                     <button class="btn btn-primary btn-sm show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Cheque" data-action="{{ route('cheques.create') }}?id={{ request()->segment(3) }}">Add New</button>
                 @endcan
             </div>
-            <div class="card-body table-responsive py-0" id="table-data">
-                @include('cheques.table')
+            <div class="card-body table-responsive py-0 rl-tbox" id="table-data">
+                @include('cheques.table', ['listTable' => true])
             </div>
+        </div>
         </div>
         @endcan
         @cannot('cash_&_banks_cheques_view')
             <div class="text-center mt-5">
-                <h3>You do not have permission to view Cheques.</h3> 
+                <h3>You do not have permission to view Cheques.</h3>
             </div>
         @endcannot
     </div>
@@ -43,6 +47,13 @@
         $(document).on('click', '.delete-cheque', function(e) {
             e.preventDefault();
             confirmDelete($(this).data('url'));
+        });
+        $('#quickSearch').on('keyup change', function () {
+            var term = String(this.value || '').toLowerCase();
+            $('#dataTableBuilder tbody tr').each(function () {
+                var text = $(this).text().toLowerCase();
+                $(this).toggle(!term || text.indexOf(term) !== -1);
+            });
         });
     })
 </script>

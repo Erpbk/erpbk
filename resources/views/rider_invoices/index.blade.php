@@ -20,36 +20,36 @@
 @include('invoices.partials.status_badge_styles')
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
-<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
+<link rel="stylesheet" href="{{ asset('css/module-list.css') }}?v=20261030-tbox">
 <style>
   /* Page-only: one-row stats + combined status list. Shared .total-card lives in custom.css. */
-  .riders-list-demo .totals-cards {
+  .module-list .totals-cards {
     margin: 0 0 12px 0;
     display: flex;
     flex-wrap: nowrap;
     gap: 8px;
   }
-  .riders-list-demo .totals-cards .total-card {
+  .module-list .totals-cards .total-card {
     flex: 1 1 0;
     min-width: 0;
     width: auto;
     box-sizing: border-box;
   }
   /* Amber accent for Status card (inline so live is not stuck on cached custom.css) */
-  .riders-list-demo .totals-cards .total-card.ri-status-card {
+  .module-list .totals-cards .total-card.ri-status-card {
     border-left-color: #d97706;
     background: linear-gradient(180deg, rgba(217, 119, 6, 0.08), rgba(217, 119, 6, 0.02));
   }
-  .riders-list-demo .totals-cards .total-card.ri-status-card .label {
+  .module-list .totals-cards .total-card.ri-status-card .label {
     color: #d97706;
   }
-  .riders-list-demo .ri-status-card .ri-status-rows {
+  .module-list .ri-status-card .ri-status-rows {
     display: flex;
     flex-direction: column;
     gap: 4px;
     margin-top: 2px;
   }
-  .riders-list-demo .ri-status-card .ri-status-row {
+  .module-list .ri-status-card .ri-status-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -58,22 +58,22 @@
     font-weight: 600;
     line-height: 1.25;
   }
-  .riders-list-demo .ri-status-card .ri-status-row b {
+  .module-list .ri-status-card .ri-status-row b {
     font-variant-numeric: tabular-nums;
     font-weight: 700;
   }
-  .riders-list-demo .ri-status-card .ri-status-row.paid { color: #059669; }
-  .riders-list-demo .ri-status-card .ri-status-row.partial { color: #d97706; }
-  .riders-list-demo .ri-status-card .ri-status-row.unpaid { color: #dc2626; }
+  .module-list .ri-status-card .ri-status-row.paid { color: #059669; }
+  .module-list .ri-status-card .ri-status-row.partial { color: #d97706; }
+  .module-list .ri-status-card .ri-status-row.unpaid { color: #dc2626; }
   @media (max-width: 992px) {
-    .riders-list-demo .totals-cards { flex-wrap: wrap; }
-    .riders-list-demo .totals-cards .total-card {
+    .module-list .totals-cards { flex-wrap: wrap; }
+    .module-list .totals-cards .total-card {
       flex: 1 1 calc(33.333% - 6px);
       min-width: calc(33.333% - 6px);
     }
   }
   @media (max-width: 576px) {
-    .riders-list-demo .totals-cards .total-card {
+    .module-list .totals-cards .total-card {
       flex: 1 1 calc(50% - 4px);
       min-width: calc(50% - 4px);
     }
@@ -89,7 +89,7 @@
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 @can('riders_invoices_view')
-<div class="riders-list-demo" id="riderInvoicesListDemo"
+<div class="module-list" id="riderInvoicesListDemo"
      data-index-url="{{ route('riderInvoices.index') }}"
      data-export-url="{{ route('riderInvoices.export') }}"
      data-search-riders="{{ route('riderInvoices.searchRiders') }}"

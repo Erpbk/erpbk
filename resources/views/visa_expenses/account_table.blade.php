@@ -44,7 +44,7 @@
       color: #b91c1c;
       font-variant-numeric: tabular-nums;
    }
-   .riders-list-demo .rl-tbox tr.rl-fav-row > td {
+   .module-list .rl-tbox tr.rl-fav-row > td {
       background: #fffbeb;
    }
 </style>

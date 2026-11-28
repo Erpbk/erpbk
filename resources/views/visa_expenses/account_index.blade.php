@@ -33,9 +33,9 @@
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
-<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
+<link rel="stylesheet" href="{{ asset('css/module-list.css') }}?v=20261030-tbox">
 <style>
-  .riders-list-demo .rl-box.on {
+  .module-list .rl-box.on {
     outline: 2px solid currentColor;
     outline-offset: 1px;
   }
@@ -137,7 +137,7 @@
     ? preg_replace('#/0$#', '', route('employees.toggleFavorite', ['id' => 0]))
     : company_app_url('employees/toggle-favorite');
 @endphp
-<div class="riders-list-demo" id="visaAccountsListDemo"
+<div class="module-list" id="visaAccountsListDemo"
      data-filter-ajax="{{ route('VisaExpense.filterAjax') }}"
      data-search-persons="{{ route('VisaExpense.searchPersons') }}"
      data-csrf="{{ csrf_token() }}"

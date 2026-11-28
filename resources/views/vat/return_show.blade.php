@@ -1,6 +1,6 @@
 {{-- Loaded in #rightSideModal (AJAX) or as a standalone page --}}
-<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
-<link rel="stylesheet" href="{{ asset('css/vat-demo.css') }}?v=20261113d">
+<link rel="stylesheet" href="{{ asset('css/module-list.css') }}?v=20261030-tbox">
+<link rel="stylesheet" href="{{ asset('css/vat-list.css') }}?v=20261113d">
 @include('invoices.partials.status_badge_styles')
 @php
   $money = fn ($n) => strip_tags(\App\Helpers\Currency::format((float) $n));
@@ -11,7 +11,7 @@
   $isUnpaid = (int) $vat_return->status === \App\Models\VatReturn::STATUS_UNPAID && ! $hasPayments;
   $linkedPayments = $linkedPayments ?? collect();
 @endphp
-<div class="riders-list-demo vat-demo vat-return-modal p-3">
+<div class="module-list vat-list vat-return-modal p-3">
   <div class="vat-head" style="margin-bottom:12px">
     <i class="ti ti-receipt-tax" style="font-size:18px;color:#3b3fd8"></i>
     <h5 style="margin:0">{{ $returnNo }} · {{ $period }}</h5>

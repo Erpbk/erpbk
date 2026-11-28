@@ -1,63 +1,63 @@
-/* VAT Ledger / Return File – riders-list-demo companion styles */
+/* VAT Ledger / Return File — module-list companion styles */
 
 /* Override riders-list blue header ink → black on VAT pages */
-.riders-list-demo.vat-demo {
+.module-list.vat-list {
   --rl-head-ink: #111827;
 }
-.riders-list-demo.vat-demo .rl-tbox thead th,
-.vat-demo .rl-tbox thead th,
-.vat-demo .rl-tbox table thead th,
-.vat-demo .vat-ent th,
-.vat-demo .vat-ent-scroll thead th,
-.vat-demo .al-card thead th {
+.module-list.vat-list .rl-tbox thead th,
+.vat-list .rl-tbox thead th,
+.vat-list .rl-tbox table thead th,
+.vat-list .vat-ent th,
+.vat-list .vat-ent-scroll thead th,
+.vat-list .al-card thead th {
   color: #111827 !important;
 }
 
-.vat-demo .totals-cards {
+.vat-list .totals-cards {
   margin: 0 0 12px 0;
   display: flex;
   flex-wrap: nowrap;
   gap: 10px;
 }
-.vat-demo .totals-cards .total-card {
+.vat-list .totals-cards .total-card {
   flex: 1 1 0;
   min-width: 0;
   width: auto;
   box-sizing: border-box;
   cursor: default;
 }
-.vat-demo .totals-cards .total-card.vat-pane-tile {
+.vat-list .totals-cards .total-card.vat-pane-tile {
   cursor: pointer;
 }
-.vat-demo .totals-cards .total-card.vat-pane-tile.is-on {
+.vat-list .totals-cards .total-card.vat-pane-tile.is-on {
   outline: 2px solid currentColor;
   outline-offset: 1px;
   box-shadow: 0 2px 10px rgba(59, 63, 216, 0.18);
 }
 
-.vat-demo .vat-head {
+.vat-list .vat-head {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
   flex-wrap: wrap;
 }
-.vat-demo .vat-head h5 {
+.vat-list .vat-head h5 {
   margin: 0;
   font-size: 17px;
   font-weight: 700;
   color: #1e293b;
 }
-.vat-demo .vat-head .hint {
+.vat-list .vat-head .hint {
   font-size: 11.5px;
   color: #6b7280;
 }
 
-.vat-demo .rl-tbox {
+.vat-list .rl-tbox {
   max-height: calc(100vh - 290px);
   overflow: auto;
 }
-.vat-demo .rl-tbox table thead th {
+.vat-list .rl-tbox table thead th {
   position: sticky;
   top: 0;
   z-index: 3;
@@ -70,19 +70,19 @@
   text-align: center;
   box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.08);
 }
-.vat-demo .rl-tbox table tfoot td {
+.vat-list .rl-tbox table tfoot td {
   position: sticky;
   bottom: 0;
   background: #f8f9fa;
   font-weight: 700;
   border-top: 2px solid #c7d2fe;
 }
-.vat-demo .rl-tbox tbody tr:nth-child(even) td { background: #f8fbff; }
-.vat-demo .rl-tbox tbody tr:hover td { background: #eef2ff; }
-.vat-demo .rl-tbox tbody tr.vat-chk td { background: #e0e7ff !important; }
-.vat-demo .rl-tbox tbody tr.vat-bf td { color: #6b7280; font-weight: 600; }
+.vat-list .rl-tbox tbody tr:nth-child(even) td { background: #f8fbff; }
+.vat-list .rl-tbox tbody tr:hover td { background: #eef2ff; }
+.vat-list .rl-tbox tbody tr.vat-chk td { background: #e0e7ff !important; }
+.vat-list .rl-tbox tbody tr.vat-bf td { color: #6b7280; font-weight: 600; }
 
-.vat-demo .vat-pill {
+.vat-list .vat-pill {
   display: inline-block;
   border-radius: 4px;
   padding: 2px 8px;
@@ -90,12 +90,12 @@
   font-weight: 600;
   white-space: nowrap;
 }
-.vat-demo .vat-pill.out { background: #dcfce7; color: #15803d; }
-.vat-demo .vat-pill.in { background: #ffedd5; color: #c2410c; }
-.vat-demo .vat-pill.mo { background: #ede9fe; color: #6d28d9; }
-.vat-demo .vat-pill .code { opacity: 0.65; font-weight: 500; }
+.vat-list .vat-pill.out { background: #dcfce7; color: #15803d; }
+.vat-list .vat-pill.in { background: #ffedd5; color: #c2410c; }
+.vat-list .vat-pill.mo { background: #ede9fe; color: #6d28d9; }
+.vat-list .vat-pill .code { opacity: 0.65; font-weight: 500; }
 
-.vat-demo .vat-src {
+.vat-list .vat-src {
   display: inline-block;
   font-size: 9.5px;
   font-weight: 700;
@@ -106,42 +106,42 @@
   background: #f1f5f9;
   color: #475569;
 }
-.vat-demo .vat-src.salik { background: #e0e7ff; color: #3730a3; }
-.vat-demo .vat-src.rta { background: #fee2e2; color: #b91c1c; }
-.vat-demo .vat-src.fuel { background: #fef3c7; color: #92400e; }
-.vat-demo .vat-src.customer { background: #dcfce7; color: #15803d; }
-.vat-demo .vat-src.rental { background: #e0f2fe; color: #0369a1; }
-.vat-demo .vat-src.leasing { background: #ede9fe; color: #6d28d9; }
-.vat-demo .vat-src.sim { background: #cffafe; color: #0e7490; }
-.vat-demo .vat-src.supplier { background: #f1f5f9; color: #475569; }
-.vat-demo .vat-src.expense,
-.vat-demo .vat-src.visa { background: #ffe4e6; color: #be123c; }
+.vat-list .vat-src.salik { background: #e0e7ff; color: #3730a3; }
+.vat-list .vat-src.rta { background: #fee2e2; color: #b91c1c; }
+.vat-list .vat-src.fuel { background: #fef3c7; color: #92400e; }
+.vat-list .vat-src.customer { background: #dcfce7; color: #15803d; }
+.vat-list .vat-src.rental { background: #e0f2fe; color: #0369a1; }
+.vat-list .vat-src.leasing { background: #ede9fe; color: #6d28d9; }
+.vat-list .vat-src.sim { background: #cffafe; color: #0e7490; }
+.vat-list .vat-src.supplier { background: #f1f5f9; color: #475569; }
+.vat-list .vat-src.expense,
+.vat-list .vat-src.visa { background: #ffe4e6; color: #be123c; }
 
-.vat-demo .vat-nar {
+.vat-list .vat-nar {
   text-align: left;
   min-width: 220px;
   white-space: normal;
   word-break: break-word;
 }
-.vat-demo .vat-nar .tx {
+.vat-list .vat-nar .tx {
   display: block;
   overflow: visible;
   white-space: normal;
   word-break: break-word;
   line-height: 1.4;
 }
-.vat-demo .vat-dr { color: #c2410c; font-weight: 600; }
-.vat-demo .vat-cr { color: #15803d; font-weight: 600; }
-.vat-demo .vat-z { color: #cbd5e1; }
-.vat-demo .vat-bal { font-weight: 700; color: #111827; }
-.vat-demo .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.vat-demo .vat-date b,
-.vat-demo .vat-date span { color: #111827; }
-.vat-demo .vat-date,
-.vat-demo .vat-nw,
-.vat-demo td.vat-nw,
-.vat-demo .vat-ent-scroll td.vat-nw,
-.vat-demo .vat-ent td.vat-nw {
+.vat-list .vat-dr { color: #c2410c; font-weight: 600; }
+.vat-list .vat-cr { color: #15803d; font-weight: 600; }
+.vat-list .vat-z { color: #cbd5e1; }
+.vat-list .vat-bal { font-weight: 700; color: #111827; }
+.vat-list .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vat-list .vat-date b,
+.vat-list .vat-date span { color: #111827; }
+.vat-list .vat-date,
+.vat-list .vat-nw,
+.vat-list td.vat-nw,
+.vat-list .vat-ent-scroll td.vat-nw,
+.vat-list .vat-ent td.vat-nw {
   white-space: nowrap !important;
 }
 
@@ -173,20 +173,20 @@
   font-variant-numeric: tabular-nums;
 }
 
-.vat-demo .vat-pane { display: none; }
-.vat-demo .vat-pane.is-active { display: block; }
+.vat-list .vat-pane { display: none; }
+.vat-list .vat-pane.is-active { display: block; }
 
-.vat-demo .vat-ent > td {
+.vat-list .vat-ent > td {
   background: #fbfcff !important;
   padding: 0 16px 12px 16px;
   white-space: normal;
 }
-.vat-demo .vat-ent table {
+.vat-list .vat-ent table {
   border: 1px solid #e0ecff;
   width: 100%;
   margin-top: 8px;
 }
-.vat-demo .vat-ent th {
+.vat-list .vat-ent th {
   background: #eef2ff;
   color: #111827;
   position: static !important;
@@ -194,64 +194,64 @@
   text-transform: uppercase;
   font-size: 10.5px;
 }
-.vat-demo .vat-ent td {
+.vat-list .vat-ent td {
   text-align: left;
   white-space: normal;
   background: #fff !important;
   color: #111827;
 }
-.vat-demo .vat-ent-scroll {
+.vat-list .vat-ent-scroll {
   max-height: 340px;
   overflow: auto;
   border: 1px solid #e0ecff;
   border-radius: 8px;
   margin-top: 8px;
 }
-.vat-demo .vat-ent-scroll > table {
+.vat-list .vat-ent-scroll > table {
   margin-top: 0;
   border: 0;
 }
-.vat-demo .vat-ent-scroll thead th {
+.vat-list .vat-ent-scroll thead th {
   position: sticky;
   top: 0;
   z-index: 2;
   color: #111827;
 }
-.vat-demo .vat-ent-scroll td {
+.vat-list .vat-ent-scroll td {
   color: #111827;
 }
-.vat-demo .al-card .vat-ent-scroll td,
-.vat-demo .al-card .vat-ent-scroll th {
+.vat-list .al-card .vat-ent-scroll td,
+.vat-list .al-card .vat-ent-scroll th {
   color: #111827;
 }
-.vat-demo .vat-vp-links {
+.vat-list .vat-vp-links {
   display: flex;
   flex-direction: column;
   gap: 2px;
   align-items: flex-start;
 }
-.vat-demo .vat-returns-tbox > table > tbody > tr.vat-ret-row > td {
+.vat-list .vat-returns-tbox > table > tbody > tr.vat-ret-row > td {
   height: 64px;
   vertical-align: middle;
 }
-.vat-demo .vat-rempty {
+.vat-list .vat-rempty {
   text-align: center;
   padding: 50px 10px;
   color: #94a3b8;
 }
-.vat-demo .vat-rid {
+.vat-list .vat-rid {
   color: #0000ff;
   font-weight: 700;
   cursor: pointer;
   text-decoration: none;
 }
-.vat-demo .vat-rid:hover { text-decoration: underline; }
-.vat-demo .vat-ent-voucher a {
+.vat-list .vat-rid:hover { text-decoration: underline; }
+.vat-list .vat-ent-voucher a {
   color: #0000ff;
   font-weight: 600;
   text-decoration: none;
 }
-.vat-demo .vat-ent-voucher a:hover { text-decoration: underline; }
+.vat-list .vat-ent-voucher a:hover { text-decoration: underline; }
 
 /* Year calendar picker (filter sidebars) */
 .vat-year-wrap {
@@ -331,34 +331,34 @@
 .vat-year-clear:hover { color: #dc2626; }
 
 /* Select2 above filter sidebar (avoid clipped/under-panel menus) */
-.vat-demo .filter-sidebar .select2-container,
+.vat-list .filter-sidebar .select2-container,
 body.filter-open .select2-container--open {
   z-index: 200040 !important;
 }
 body.filter-open .select2-container--open .select2-dropdown {
   z-index: 200041 !important;
 }
-.vat-demo .filter-sidebar .select2-container .select2-selection--single {
+.vat-list .filter-sidebar .select2-container .select2-selection--single {
   min-height: 38px;
   display: flex;
   align-items: center;
 }
-.vat-demo .vat-rb {
+.vat-list .vat-rb {
   display: inline-block;
   border-radius: 4px;
   padding: 2px 8px;
   font-size: 10.5px;
   font-weight: 700;
 }
-.vat-demo .vat-rb.unpaid { background: #fff7ed; color: #c2410c; }
-.vat-demo .vat-rb.paid { background: none; color: #0000ff; font-size: 13px; padding: 0; }
-.vat-demo .vat-actions {
+.vat-list .vat-rb.unpaid { background: #fff7ed; color: #c2410c; }
+.vat-list .vat-rb.paid { background: none; color: #0000ff; font-size: 13px; padding: 0; }
+.vat-list .vat-actions {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
-.vat-demo .vat-sb {
+.vat-list .vat-sb {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -376,29 +376,29 @@ body.filter-open .select2-container--open .select2-dropdown {
   text-decoration: none;
   line-height: 1;
 }
-.vat-demo .vat-sb:hover { background: #2f33b8; border-color: #2f33b8; color: #fff; }
-.vat-demo .vat-sb.pay {
+.vat-list .vat-sb:hover { background: #2f33b8; border-color: #2f33b8; color: #fff; }
+.vat-list .vat-sb.pay {
   background: #fff;
   color: #3b3fd8;
   border-color: #c7d2fe;
 }
-.vat-demo .vat-sb.pay:hover { background: #eef2ff; color: #3b3fd8; }
-.vat-demo .vat-sb.ol {
+.vat-list .vat-sb.pay:hover { background: #eef2ff; color: #3b3fd8; }
+.vat-list .vat-sb.ol {
   background: #fff;
   color: #3b3fd8;
   border-color: #c7d2fe;
 }
-.vat-demo .vat-sb.ol:hover { background: #eef2ff; color: #3b3fd8; }
-.vat-demo .vat-sb.rd {
+.vat-list .vat-sb.ol:hover { background: #eef2ff; color: #3b3fd8; }
+.vat-list .vat-sb.rd {
   background: #fff;
   color: #dc2626;
   border-color: #fecaca;
   min-width: 30px;
   padding: 0 8px;
 }
-.vat-demo .vat-sb.rd:hover { background: #fef2f2; }
+.vat-list .vat-sb.rd:hover { background: #fef2f2; }
 
-.vat-demo .rl-btn .cnt {
+.vat-list .rl-btn .cnt {
   background: #fff;
   color: #3b3fd8;
   border-radius: 999px;
@@ -407,7 +407,7 @@ body.filter-open .select2-container--open .select2-dropdown {
   margin-left: 4px;
 }
 
-/* Filter sidebar actions sit outside .riders-list-demo, so use Bootstrap buttons. */
+/* Filter sidebar actions sit outside .module-list, so use Bootstrap buttons. */
 .vat-filter-actions {
   display: flex;
   flex-wrap: wrap;
@@ -425,7 +425,7 @@ body.filter-open .select2-container--open .select2-dropdown {
 }
 
 /* Account Ledger card (print entry point) */
-.vat-demo .al-card {
+.vat-list .al-card {
   border: 1px solid #dbe4f3;
   border-radius: 16px;
   overflow: hidden;
@@ -433,13 +433,13 @@ body.filter-open .select2-container--open .select2-dropdown {
   box-shadow: 0 4px 18px rgba(30, 41, 99, 0.06);
   text-align: left;
 }
-.vat-demo .al-card:before {
+.vat-list .al-card:before {
   content: "";
   display: block;
   height: 5px;
   background: #3f3dd6;
 }
-.vat-demo .al-head {
+.vat-list .al-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -449,13 +449,13 @@ body.filter-open .select2-container--open .select2-dropdown {
   border-bottom: 1px solid #e5eaf5;
   flex-wrap: wrap;
 }
-.vat-demo .al-left {
+.vat-list .al-left {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
 }
-.vat-demo .al-icon {
+.vat-list .al-icon {
   width: 44px;
   height: 44px;
   border-radius: 12px;
@@ -467,20 +467,20 @@ body.filter-open .select2-container--open .select2-dropdown {
   flex-shrink: 0;
   box-shadow: 0 6px 14px rgba(63, 61, 214, 0.35);
 }
-.vat-demo .al-title {
+.vat-list .al-title {
   font-size: 18px;
   font-weight: 700;
   line-height: 1.2;
   color: #111827;
 }
-.vat-demo .al-sub {
+.vat-list .al-sub {
   font-size: 13px;
   color: #6b7280;
   margin-top: 2px;
 }
-.vat-demo .al-sub b { color: #3f3dd6; font-weight: 600; }
-.vat-demo .al-btns { display: flex; gap: 8px; flex-wrap: wrap; }
-.vat-demo .al-btn {
+.vat-list .al-sub b { color: #3f3dd6; font-weight: 600; }
+.vat-list .al-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.vat-list .al-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -494,16 +494,16 @@ body.filter-open .select2-container--open .select2-dropdown {
   cursor: pointer;
   line-height: 1;
 }
-.vat-demo .al-btn:hover { background: #f1f2ff; color: #3f3dd6; }
-.vat-demo .al-card .rl-tbox,
-.vat-demo .al-card .vat-ent-scroll {
+.vat-list .al-btn:hover { background: #f1f2ff; color: #3f3dd6; }
+.vat-list .al-card .rl-tbox,
+.vat-list .al-card .vat-ent-scroll {
   max-height: calc(100vh - 360px);
   border: 0;
   border-radius: 0;
   margin: 0;
 }
-.vat-demo .vat-ent .al-card { margin-top: 4px; }
-.vat-demo .vat-ent .al-card .vat-ent-scroll { max-height: 340px; }
+.vat-list .vat-ent .al-card { margin-top: 4px; }
+.vat-list .vat-ent .al-card .vat-ent-scroll { max-height: 340px; }
 
 /* Statement (print/PDF) modal — matches design demo */
 #vatStmtOv {
@@ -711,14 +711,14 @@ body.filter-open .select2-container--open .select2-dropdown {
 }
 
 @media (max-width: 992px) {
-  .vat-demo .totals-cards { flex-wrap: wrap; }
-  .vat-demo .totals-cards .total-card {
+  .vat-list .totals-cards { flex-wrap: wrap; }
+  .vat-list .totals-cards .total-card {
     flex: 1 1 calc(50% - 6px);
     min-width: calc(50% - 6px);
   }
 }
 @media (max-width: 576px) {
-  .vat-demo .totals-cards .total-card {
+  .vat-list .totals-cards .total-card {
     flex: 1 1 100%;
     min-width: 100%;
   }

@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Resolve Bank / Cash / Account kind and Paid From accounts for voucher list UI.
- * Mirrors the vouchers-demo HTML rules: cash/petty names → cash, BK* → bank, else Account.
+ * Mirrors the vouchers-list HTML rules: cash/petty names → cash, BK* → bank, else Account.
  */
 final class VoucherAccountKind
 {

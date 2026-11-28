@@ -1,0 +1,379 @@
+/* Cheques list — module-specific overrides (uses shared module-list.css) */
+.module-list.cheques-list {
+  --rl-head-ink: #000;
+}
+.module-list.cheques-list .chq-track {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.module-list.cheques-list .chq-card {
+  background: linear-gradient(90deg, var(--chq-tint), #fff 85%);
+  border: 1px solid #e5e7eb;
+  border-left: 3px solid var(--chq-accent);
+  border-radius: 10px;
+  padding: 9px 10px;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.module-list.cheques-list .chq-card:hover,
+.module-list.cheques-list .chq-card.is-on {
+  border-color: var(--chq-accent);
+  box-shadow: 0 0 0 3px var(--chq-tint);
+  color: inherit;
+  text-decoration: none;
+}
+
+.module-list.cheques-list .chq-card .l {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  color: var(--chq-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.module-list.cheques-list .chq-card .v {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  margin: 3px 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.module-list.cheques-list .chq-card .s {
+  font-size: 10.5px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.module-list.cheques-list .chq-card.blue { --chq-accent: #3b3fd8; --chq-tint: #eef2ff; }
+.module-list.cheques-list .chq-card.pur { --chq-accent: #8b5cf6; --chq-tint: #f3effe; }
+.module-list.cheques-list .chq-card.red { --chq-accent: #dc2626; --chq-tint: #fdecec; }
+.module-list.cheques-list .chq-card.red .v { color: #dc2626; }
+.module-list.cheques-list .chq-card.grn { --chq-accent: #16a34a; --chq-tint: #ecfdf3; }
+.module-list.cheques-list .chq-card.grn .v { color: #16a34a; }
+.module-list.cheques-list .chq-card.org { --chq-accent: #ea580c; --chq-tint: #fff7ed; }
+.module-list.cheques-list .chq-card.org .v { color: #c2410c; }
+.module-list.cheques-list .chq-card.amb { --chq-accent: #ca8a04; --chq-tint: #fefce8; }
+.module-list.cheques-list .chq-card.amb .v { color: #a16207; }
+.module-list.cheques-list .chq-card.red2 { --chq-accent: #b91c1c; --chq-tint: #fef2f2; }
+.module-list.cheques-list .chq-card.red2 .v { color: #b91c1c; }
+.module-list.cheques-list .chq-card.rtn { --chq-accent: #9333ea; --chq-tint: #faf5ff; }
+.module-list.cheques-list .chq-card.rtn .v { color: #7e22ce; }
+
+.module-list.cheques-list .rl-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.module-list.cheques-list a.rl-btn.chq-tab,
+.module-list.cheques-list a.rl-btn.chq-tab:link,
+.module-list.cheques-list a.rl-btn.chq-tab:visited,
+.module-list.cheques-list .rl-btn.chq-tab {
+  background: #fff !important;
+  color: #3b3fd8 !important;
+  box-shadow: 0 0 0 3px rgba(191, 219, 254, 0.45);
+}
+
+.module-list.cheques-list a.rl-btn.chq-tab:hover,
+.module-list.cheques-list a.rl-btn.chq-tab:focus,
+.module-list.cheques-list a.rl-btn.chq-tab:active,
+.module-list.cheques-list .rl-btn.chq-tab:hover {
+  background: #eef2ff !important;
+  color: #3b3fd8 !important;
+}
+
+.module-list.cheques-list a.rl-btn.chq-tab.on,
+.module-list.cheques-list a.rl-btn.chq-tab.on:link,
+.module-list.cheques-list a.rl-btn.chq-tab.on:visited,
+.module-list.cheques-list a.rl-btn.chq-tab.on:hover,
+.module-list.cheques-list .rl-btn.chq-tab.on {
+  background: #3b3fd8 !important;
+  color: #fff !important;
+}
+
+.module-list.cheques-list a.rl-btn.chq-tab.od,
+.module-list.cheques-list a.rl-btn.chq-tab.od:link,
+.module-list.cheques-list a.rl-btn.chq-tab.od:visited,
+.module-list.cheques-list .rl-btn.chq-tab.od {
+  color: #b91c1c !important;
+  border-color: #fecaca;
+}
+
+.module-list.cheques-list a.rl-btn.chq-tab.od:hover {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+}
+
+.module-list.cheques-list a.rl-btn.chq-tab.od.on,
+.module-list.cheques-list a.rl-btn.chq-tab.od.on:hover,
+.module-list.cheques-list .rl-btn.chq-tab.od.on {
+  background: #b91c1c !important;
+  color: #fff !important;
+  border-color: #b91c1c;
+}
+
+.module-list.cheques-list a.rl-btn.chq-tab.rt,
+.module-list.cheques-list a.rl-btn.chq-tab.rt:link,
+.module-list.cheques-list a.rl-btn.chq-tab.rt:visited,
+.module-list.cheques-list .rl-btn.chq-tab.rt {
+  color: #7e22ce !important;
+  border-color: #e9d5ff;
+}
+
+.module-list.cheques-list a.rl-btn.chq-tab.rt:hover {
+  background: #faf5ff !important;
+  color: #7e22ce !important;
+}
+
+.module-list.cheques-list a.rl-btn.chq-tab.rt.on,
+.module-list.cheques-list a.rl-btn.chq-tab.rt.on:hover,
+.module-list.cheques-list .rl-btn.chq-tab.rt.on {
+  background: #7e22ce !important;
+  color: #fff !important;
+  border-color: #7e22ce;
+}
+
+.module-list.cheques-list .rl-menu .mi-sep {
+  height: 6px;
+  border-bottom: 1px solid #e0ecff;
+  margin: 4px 0;
+  pointer-events: none;
+}
+
+.module-list.cheques-list .rl-menu i {
+  width: 20px;
+  text-align: center;
+  color: #64748b;
+  font-size: 16px;
+  margin-top: 3px;
+  flex: none;
+}
+
+.module-list.cheques-list .chq-results {
+  position: relative;
+  min-height: 120px;
+}
+
+.module-list.cheques-list .chq-table-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 12px;
+  pointer-events: all;
+}
+
+.module-list.cheques-list .chq-table-loading[hidden] {
+  display: none !important;
+}
+
+.module-list.cheques-list .chq-results.is-loading .rl-tbox {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.module-list.cheques-list .rl-tbox {
+  max-height: calc(100vh - 290px);
+  overflow: auto;
+}
+
+.module-list.cheques-list .rl-tbox thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8f9fa;
+  color: #000;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.module-list.cheques-list .rl-tbox tbody tr:nth-child(even) td { background: #f8fbff; }
+.module-list.cheques-list .rl-tbox tbody tr:hover td { background: #eef4ff; }
+
+.module-list.cheques-list .chq-bdg {
+  display: block;
+  width: max-content;
+  margin: 3px auto;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.module-list.cheques-list .chq-bdg.pay { background: #fee2e2; color: #b91c1c; }
+.module-list.cheques-list .chq-bdg.rec { background: #dcfce7; color: #15803d; }
+.module-list.cheques-list .chq-bdg.sec { background: #fff7ed; color: #c2410c; }
+
+.module-list.cheques-list .chq-st {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #eef2ff;
+  color: #3b3fd8;
+}
+
+.module-list.cheques-list .chq-st.Cleared,
+.module-list.cheques-list .chq-st.status-cleared { background: #dcfce7; color: #15803d; }
+.module-list.cheques-list .chq-st.Returned,
+.module-list.cheques-list .chq-st.status-returned { background: #f3e8ff; color: #7e22ce; }
+.module-list.cheques-list .chq-st.status-partially-cleared { background: #e0e7ff; color: #3730a3; }
+.module-list.cheques-list .chq-st.status-stop-payment { background: #ffedd5; color: #c2410c; }
+.module-list.cheques-list .chq-st.status-lost { background: #e2e8f0; color: #475569; }
+
+.module-list.cheques-list .chq-due {
+  display: inline-block;
+  margin-top: 3px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.module-list.cheques-list .chq-due.up { background: #eef2ff; color: #3b3fd8; }
+.module-list.cheques-list .chq-due.td { background: #fff7ed; color: #c2410c; }
+.module-list.cheques-list .chq-due.od { background: #fee2e2; color: #b91c1c; }
+
+.module-list.cheques-list .chq-vbtn {
+  border: 1.5px solid #bfdbfe;
+  background: #fff;
+  color: #3b3fd8;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 10px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.module-list.cheques-list .chq-vbtn:hover {
+  background: #eef2ff;
+  color: #2f33b8;
+}
+
+.module-list.cheques-list .rl-tbox td.who {
+  white-space: normal;
+  min-width: 190px;
+}
+
+.module-list.cheques-list .rl-tbox td.desc {
+  white-space: normal;
+  min-width: 230px;
+  font-size: 12px;
+  color: #64748b;
+  text-align: left;
+}
+
+.module-list.cheques-list .rl-tbox td.am {
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.module-list.cheques-list .rl-tbox td a {
+  color: #2b2fd0;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.module-list.cheques-list .rl-tbox td a:hover {
+  text-decoration: underline;
+}
+
+@keyframes chq-shade {
+  0%, 100% { text-shadow: 0 0 6px rgba(239, 68, 68, 0.95), 0 0 12px rgba(239, 68, 68, 0.6); }
+  50% { text-shadow: none; }
+}
+
+.module-list.cheques-list .rl-tbox tr.chq-blink td,
+.module-list.cheques-list .rl-tbox tr.chq-blink td > *:not(.dropdown):not(.btn) {
+  animation: chq-shade 1s ease-in-out infinite;
+}
+
+.module-list.cheques-list .rl-tbox tr.chq-blink td:last-child,
+.module-list.cheques-list .rl-tbox tr.chq-blink td:last-child * {
+  animation: none !important;
+}
+
+@media (max-width: 700px) {
+  .module-list.cheques-list .chq-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media print {
+  .layout-menu,
+  .layout-navbar,
+  .content-footer,
+  .layout-overlay,
+  .module-list.cheques-list .rl-toolbar,
+  .module-list.cheques-list .chq-track,
+  .module-list.cheques-list .rl-pager,
+  .module-list.cheques-list #rlPagerWrap,
+  .module-list.cheques-list .chq-table-loading,
+  .module-list.cheques-list .dropdown,
+  .module-list.cheques-list th:not([data-k]),
+  .module-list.cheques-list td:last-child,
+  .module-list.cheques-list .column-hidden,
+  .rl-toast,
+  #columnControlOverlay {
+    display: none !important;
+  }
+  .layout-page,
+  .content-wrapper,
+  .container-xxl,
+  .container-p-y {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+  .module-list.cheques-list .rl-tbox,
+  .module-list.cheques-list .chq-results {
+    max-height: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .module-list.cheques-list table {
+    width: 100% !important;
+  }
+  .module-list.cheques-list .rl-tbox thead th,
+  .module-list.cheques-list .rl-tbox td {
+    white-space: normal !important;
+  }
+}
+
+

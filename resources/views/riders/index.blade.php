@@ -27,7 +27,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
-<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
+<link rel="stylesheet" href="{{ asset('css/module-list.css') }}?v=20261030-tbox">
 @endpush
 
 @section('content')
@@ -35,7 +35,7 @@
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 @can('riders_rider_view')
-<div class="riders-list-demo" id="ridersListDemo"
+<div class="module-list" id="ridersListDemo"
      data-filter-ajax="{{ route('riders.filterAjax') }}"
      data-toggle-favorite="{{ preg_replace('#/0$#', '', route('riders.toggleFavorite', ['id' => 0])) }}"
      data-import-preview="{{ route('riders.import.preview') }}"

@@ -1,23 +1,51 @@
+@php
+  $tableCols = $tableColumns ?? [];
+  if ($tableCols === []) {
+      $tableCols = [
+          ['data' => 'reference', 'title' => 'Reference'],
+          ['data' => 'cheque_number', 'title' => 'Cheque No.'],
+          ['data' => 'cheque_date', 'title' => 'Cheque Date'],
+          ['data' => 'type', 'title' => 'Type'],
+          ['data' => 'party', 'title' => 'Sender/Receiver'],
+          ['data' => 'amount', 'title' => 'Amount'],
+          ['data' => 'cleared_amount', 'title' => 'Cleared Amount'],
+          ['data' => 'voucher_id', 'title' => 'Voucher'],
+          ['data' => 'attachment', 'title' => 'Attachment'],
+          ['data' => 'description', 'title' => 'Description'],
+          ['data' => 'status', 'title' => 'Status'],
+      ];
+  }
+  $dataColumns = array_values(array_filter($tableCols, function ($c) {
+      $k = $c['data'] ?? ($c['key'] ?? null);
+      if (in_array($k, ['search', 'control', 'action'], true)) {
+          return false;
+      }
+      if ($k === 'party') {
+          return field_visible('cheques', 'payee_name') || field_visible('cheques', 'payer_name');
+      }
 
-<table class="table  dataTable" id="dataTableBuilder">
-    @php $vf = static fn (string $f): bool => field_visible('cheques', $f); @endphp
+      return field_visible('cheques', $k);
+  }));
+  $listTable = $listTable ?? false;
+  $nextDueId = isset($nextDueId) ? (int) $nextDueId : null;
+  $today = now()->startOfDay();
+  $colCount = max(1, count($dataColumns) + 1);
+@endphp
+<table class="table{{ $listTable ? '' : ' dataTable' }}" id="dataTableBuilder">
     <thead class="text-center">
-        <tr role="row">
-            @if($vf('reference'))<th title="Reference" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Reference: activate to sort column ascending">Reference</th>@endif
-            @if($vf('cheque_number'))<th title="Cheque No." class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Cheque No.: activate to sort column ascending">Cheque No.</th>@endif
-            @if($vf('cheque_date'))<th title="Cheque date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Cheque date: activate to sort column ascending">Cheque date</th>@endif
-            @if($vf('type'))<th title="Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Type</th>@endif
-            <th title="Sender/Receiver" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Sender/Receiver: activate to sort column ascending">Sender/Reciever</th>
-            @if($vf('amount'))<th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>@endif
-            @if($vf('cleared_amount'))<th title="Cleared Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Cleared Amount: activate to sort column ascending">Cleared Amount</th>@endif
-            @if($vf('voucher_id'))<th title="Voucher No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher: activate to sort column ascending">Voucher</th>@endif
-            @if($vf('attachment'))<th title="Attachmnet" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Attachment: activate to sort column ascending">Attachment</th>@endif
-            @if($vf('description'))<th title="Description" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Description: activate to sort column ascending">Description</th>@endif
-            @if($vf('status'))<th title="Voucher Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>@endif
-            <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
+        <tr role="row" id="rlHead">
+            @foreach($dataColumns as $col)
+            @php
+              $title = $col['title'] ?? ($col['name'] ?? ($col['data'] ?? ''));
+              $key = $col['data'] ?? ($col['key'] ?? '');
+              $sortable = ! in_array($key, ['attachment', 'party'], true);
+            @endphp
+            <th title="{{ $title }}" class="{{ $sortable ? 'sorting' : 'nosort' }}" data-k="{{ $key }}" tabindex="0">{{ $title }}@if($sortable)<span class="ar">⇅</span>@endif</th>
+            @endforeach
+            <th title="Actions" width="120px" class="nosort" tabindex="0">Actions</th>
         </tr>
     </thead>
-    <tbody>
+    <tbody id="rlBody">
         @php
           $__companySlug = \App\Support\CompanyRouteContext::slug();
           $voucherShowParams = static function ($voucherId) use ($__companySlug): array {
@@ -28,32 +56,70 @@
             return $params;
           };
         @endphp
-        @foreach($data as $cheque)
-        @php $chequePendingDeletion = record_is_pending_deletion($cheque); @endphp
-        <tr data-id="{{ $cheque->id }}" @class(['table-warning' => $chequePendingDeletion])>
-            @if($vf('reference'))<td>{{ $cheque->reference ?? '-' }}</td>@endif
-            @if($vf('cheque_number'))<td>
+        @forelse($data as $cheque)
+        @php
+          $chequePendingDeletion = record_is_pending_deletion($cheque);
+          $statusSlug = strtolower(str_replace(' ', '-', (string) $cheque->status));
+          $dueTag = null;
+          $isOverdue = false;
+          if ($cheque->status === 'Issued' && ! $cheque->is_security && $cheque->cheque_date) {
+            $days = (int) $today->diffInDays($cheque->cheque_date->copy()->startOfDay(), false);
+            if ($days < 0) {
+              $dueTag = ['od', 'Overdue'];
+              $isOverdue = true;
+            } elseif ($days === 0) {
+              $dueTag = ['td', 'Today'];
+            } elseif ($days === 1) {
+              $dueTag = ['td', 'Tomorrow'];
+            } elseif ($days <= 30) {
+              $dueTag = ['up', 'In '.$days.' days'];
+            }
+          }
+        @endphp
+        <tr data-id="{{ $cheque->id }}" @class([
+            'table-warning' => $chequePendingDeletion,
+            'chq-blink' => $isOverdue,
+            'text-center' => true,
+        ])>
+            @foreach($dataColumns as $col)
+            @php $key = $col['data'] ?? ($col['key'] ?? null); @endphp
+            @switch($key)
+            @case('reference')
+            <td>{{ $cheque->reference ?: '-' }}</td>
+            @break
+            @case('cheque_number')
+            <td>
                 <a href="javascript:void(0);" class="show-modal text-primary" data-size="xl"
                 data-action="{{ route('cheques.show', $cheque->id) }}"
                 data-title="Cheque Details">
                     {{ $cheque->cheque_number }}
                 </a>
                 @include('delete_requests._pending_badge', ['model' => $cheque])
-            </td>@endif
-            @if($vf('cheque_date'))<td>{{ $cheque->cheque_date?->format('d M Y') ?? '-' }}</td>@endif
-            @if($vf('type'))<td>
-                @if($cheque->type == 'payable')
-                    <span class="badge border border-danger text-black">Payable</span>
-                @else
-                    <span class="badge border border-success text-black">Receivable</span>
-                @endif
-                @if($cheque->is_security)
-                    <small class=" badge border border-danger text-warning mt-2" style="white-space: nowrap">Security Cheque</small>
-                @endif
-            </td>@endif
+            </td>
+            @break
+            @case('cheque_date')
             <td>
+                {{ $cheque->cheque_date?->format('d M Y') ?? '-' }}
+                @if($dueTag)
+                    <br><span class="chq-due {{ $dueTag[0] }}">{{ $dueTag[1] }}</span>
+                @endif
+            </td>
+            @break
+            @case('type')
+            <td>
+                @if($cheque->is_security)
+                    <span class="chq-bdg sec">Security Cheque</span>
+                @endif
                 @if($cheque->type == 'payable')
-
+                    <span class="chq-bdg pay">Payable</span>
+                @else
+                    <span class="chq-bdg rec">Receivable</span>
+                @endif
+            </td>
+            @break
+            @case('party')
+            <td class="who">
+                @if($cheque->type == 'payable')
                     <a href="{{ route('accounts.ledger', ['company_slug' => \App\Support\CompanyRouteContext::slug()]) }}?account={{ $cheque->payee_account }}" target="_blank">
                         {{ $cheque->payee_name ?? '-' }}
                     </a>
@@ -69,16 +135,22 @@
                     @endif
                 @endif
             </td>
-            @if($vf('amount'))<td>{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</td>@endif
-            @if($vf('cleared_amount'))<td>{{ \App\Helpers\Currency::format($cheque->cleared_amount ?? 0, 2) }}</td>@endif
-            @if($vf('voucher_id'))<td>
+            @break
+            @case('amount')
+            <td class="am">{!! \App\Helpers\Currency::format($cheque->amount, 2) !!}</td>
+            @break
+            @case('cleared_amount')
+            <td class="am">{!! \App\Helpers\Currency::format($cheque->cleared_amount ?? 0, 2) !!}</td>
+            @break
+            @case('voucher_id')
+            <td>
                 @php
                     $clearVouchers = $cheque->relationLoaded('clear_vouchers')
                         ? $cheque->getRelation('clear_vouchers')
                         : $cheque->linkedClearVouchers();
                 @endphp
                 @if($clearVouchers->isNotEmpty())
-                    <div class="d-flex flex-column gap-1">
+                    <div class="d-flex flex-column gap-1 align-items-center">
                         @foreach($clearVouchers as $clearVoucher)
                             <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $voucherShowParams($clearVoucher->id)) }}" class="text-primary show-voucher-panel" data-title="Voucher Against Cheque#{{ $cheque->cheque_number }}" data-collapse-sidebar="1">
                                 {{ ($clearVoucher->voucher_type ?? 'V') . '-' . $clearVoucher->id }}
@@ -88,30 +160,31 @@
                 @else
                     -
                 @endif
-            </td>@endif
-            @if($vf('attachment'))<td>
+            </td>
+            @break
+            @case('attachment')
+            <td>
                 @if($cheque->attachment)
-                    <a href="{{ storage_url('vouchers/' . $cheque->attachment) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                    <a href="{{ storage_url('vouchers/' . $cheque->attachment) }}" class="chq-vbtn" target="_blank" rel="noopener">
                         <i class="fa fa-file"></i> View
                     </a>
                 @else
                     -
                 @endif
-            </td>@endif
-            @if($vf('description'))<td class="text-start">{{ $cheque->description }}</td>@endif
-            @php
-                $badge=[
-                    'Issued' => 'primary',
-                    'Partially Cleared' => 'info',
-                    'Cleared' => 'success',
-                    'Returned' => 'danger',
-                    'Stop Payment' => 'warning',
-                    'Lost' => 'secondary',
-                ];
-            @endphp
-            @if($vf('status'))<td>
-                <span class="badge bg-{{ $badge[$cheque->status] ?? 'secondary' }}">{{ $cheque->status }}</span>
-            </td>@endif
+            </td>
+            @break
+            @case('description')
+            <td class="desc text-start">{{ $cheque->description }}</td>
+            @break
+            @case('status')
+            <td>
+                <span class="chq-st {{ $cheque->status }} status-{{ $statusSlug }}">{{ $cheque->status }}</span>
+            </td>
+            @break
+            @default
+            <td>-</td>
+            @endswitch
+            @endforeach
             <td style="position: relative;">
                 @if($chequePendingDeletion)
                     <span class="text-muted small pending-deletion-lock"><i class="ti ti-lock me-1"></i>Locked</span>
@@ -158,7 +231,7 @@
                     @endcan
                     @can('cash_&_banks_cheques_delete')
                         @if(!in_array($cheque->status, ['Cleared', 'Partially Cleared'], true))
-                        <a href="javascript:void(0);" class='dropdown-item waves-effect delete-cheque' 
+                        <a href="javascript:void(0);" class='dropdown-item waves-effect delete-cheque'
                             data-url="{{ route('cheques.destroy', $cheque->id) }}">
                             <i class="fa fa-trash my-1"></i> Delete
                         </a>
@@ -169,12 +242,17 @@
                 @endif
             </td>
         </tr>
-        @endforeach
+        @empty
+        <tr>
+            <td colspan="{{ $colCount }}" style="padding:30px;color:#94a3b8">No cheques found</td>
+        </tr>
+        @endforelse
     </tbody>
 </table>
+@if(!$listTable)
 @if($data->isEmpty())
     <div class="text-center mt-5">
-        <h3>No Cheques found</h3> 
+        <h3>No Cheques found</h3>
     </div>
 @endif
 @if(method_exists($data, 'links'))
@@ -220,3 +298,4 @@
 </script>
 @endpush
 @include('delete_requests._pending_table_script', ['items' => $data])
+@endif

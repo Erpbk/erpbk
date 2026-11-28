@@ -1086,7 +1086,7 @@
 
     // Attachment viewer lives in vouchers.partials.doc_viewer (also used on payment docs).
 
-    // Row ⋯ menu (#vcRowMenu lives outside .vc-demo with modals; CSS targets #vcRowMenu)
+    // Row ⋯ menu (#vcRowMenu lives outside .vc-list with modals; CSS targets #vcRowMenu)
     $(document).on('click', '.vc-dots', function (e) {
       e.preventDefault();
       e.stopPropagation();

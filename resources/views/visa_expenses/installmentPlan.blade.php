@@ -1,4 +1,4 @@
-﻿@extends('riders.view')
+@extends('riders.view')
 @section('title','Visa installment plan')
 @section('page_content')
 
@@ -84,7 +84,7 @@
     </div>
 </section>
 
-<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261031-visa-tables">
+<link rel="stylesheet" href="{{ asset('css/module-list.css') }}?v=20261031-visa-tables">
 <div class="content px-3">
     @include('flash::message')
     <div class="clearfix"></div>

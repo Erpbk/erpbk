@@ -1,4 +1,4 @@
-﻿@push('third_party_stylesheets')
+@push('third_party_stylesheets')
 @endpush
 @php
 $installmentPayRoute = $installmentPayRoute ?? 'Installments.payInstallment';
@@ -14,7 +14,7 @@ $installmentTableScope = $installmentTableScope
     ?? \Illuminate\Support\Str::kebab(class_basename($installmentPlanModel));
 $linkedReceiptsById = $linkedReceiptsById ?? collect();
 @endphp
-<div class="riders-list-demo" id="{{ $installmentTableScope }}-inline-edit-scope"
+<div class="module-list" id="{{ $installmentTableScope }}-inline-edit-scope"
      data-bulk-delete-url="{{ route($installmentBulkDeleteRoute) }}">
     @if($canDeleteInstallment)
     <div class="d-flex justify-content-end mb-2 px-1">

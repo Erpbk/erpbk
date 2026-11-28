@@ -11,9 +11,12 @@ use App\Models\Payment;
 use App\Models\Receipt;
 use App\Models\Transactions;
 use App\Models\Vouchers;
+use App\Models\ChequeCustomField;
+use App\Models\ChequeFieldCategoryAssignment;
 use App\Models\ChequeTopCategory;
 use App\Models\ChequeTopOption;
 use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
+use App\Support\RoleFieldAccess;
 use App\Services\Cheques\ChequeTopDateFilterService;
 use App\Services\Permissions\TopBarOptionPermissionSync;
 use App\Services\Permissions\TopBarPermissionSync;
@@ -44,28 +47,291 @@ class ChequesController extends Controller
             abort(403, 'Unauthorized action.');
         }
         \App\Support\ChequeClearEditGuard::markChequesModuleContext();
-        $query = Cheques::query()->latest('issue_date');
+
+        [$data, $totals, $filter, $nextDueId] = $this->buildChequesListPayload($request);
+        $tableColumns = $this->buildChequesIndexTableColumns();
+
+        return view('cheques.index', array_merge(
+            compact('data', 'totals', 'filter', 'nextDueId', 'tableColumns'),
+            $this->moduleTopBarListingData($request, 'cheques')
+        ));
+    }
+
+    /**
+     * AJAX refresh for cheques table + pager (tabs, cards, search, pagination).
+     */
+    public function filterAjax(Request $request)
+    {
+        if (! \App\Support\RoleFieldAccess::canAccessModule('cheques')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+        \App\Support\ChequeClearEditGuard::markChequesModuleContext();
+
+        [$data, $totals, $filter, $nextDueId] = $this->buildChequesListPayload($request);
+        $tableColumns = $this->buildChequesIndexTableColumns();
+
+        $html = view('cheques.table', [
+            'data' => $data,
+            'nextDueId' => $nextDueId,
+            'listTable' => true,
+            'tableColumns' => $tableColumns,
+        ])->render();
+
+        $pagination = method_exists($data, 'total')
+            ? view('components.list-pagination', [
+                'paginator' => $data,
+                'entityLabel' => 'cheques',
+            ])->render()
+            : '';
+
+        return response()->json([
+            'success' => true,
+            'html' => $html,
+            'pagination' => $pagination,
+            'filter' => $filter,
+            'total' => method_exists($data, 'total') ? $data->total() : $data->count(),
+            'per_page' => method_exists($data, 'perPage') ? $data->perPage() : $data->count(),
+        ]);
+    }
+
+    /**
+     * Shared index / filterAjax list payload.
+     *
+     * @return array{0: mixed, 1: array, 2: string, 3: int|null}
+     */
+    protected function buildChequesListPayload(Request $request): array
+    {
+        $query = Cheques::query();
 
         if (Schema::hasTable('cheque_top_categories')) {
             $this->chequeTopDateFilter->applyTopBarFilters($query, $request);
         }
 
-        $totals = [
-            'count' => (clone $query)->count(),
-            'security_count' => (clone $query)->where('is_security', true)->count(),
-            'payable_amount' => (float) (clone $query)->where('type', 'payable')->sum('amount'),
-            'receivable_amount' => (float) (clone $query)->where('type', 'receiveable')->sum('amount'),
-        ];
+        $filter = strtolower(trim((string) $request->input('filter', 'all')));
+        $allowedFilters = ['payable', 'receivable', 'security', 'cleared', 'overdue', 'returned', 'due7', 'due30', 'all'];
+        if (! in_array($filter, $allowedFilters, true)) {
+            $filter = 'all';
+        }
+
+        $totals = $this->buildChequeTotals(clone $query);
+        $nextDueId = $this->resolveNextDueChequeId(clone $query);
+
+        $this->applyChequeListFilter($query, $filter);
+        $this->applyChequeQuickSearch($query, $request);
+        $this->applyChequeDueSort($query);
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
         Cheques::attachClearVouchersTo($data);
 
-        return view('cheques.index', array_merge(
-            compact('data', 'totals'),
-            $this->moduleTopBarListingData($request, 'cheques')
-        ));
+        return [$data, $totals, $filter, $nextDueId];
+    }
+
+    /**
+     * Column list for cheques index table and column control modal.
+     *
+     * @return list<array{data: string, title: string}>
+     */
+    private function buildChequesIndexTableColumns(): array
+    {
+        $chequeColumns = array_flip(Schema::getColumnListing('cheques'));
+
+        $labelMap = [];
+        if (Schema::hasTable('cheque_field_category_assignments')) {
+            $labelMap = ChequeFieldCategoryAssignment::query()
+                ->orderBy('display_order')
+                ->orderBy('id')
+                ->get(['field_key', 'display_label'])
+                ->mapWithKeys(function ($assignment) {
+                    $label = trim((string) ($assignment->display_label ?? ''));
+
+                    return [
+                        (string) $assignment->field_key => $label !== ''
+                            ? $label
+                            : ChequeCustomField::humanizeFieldKey((string) $assignment->field_key),
+                    ];
+                })
+                ->all();
+        }
+
+        $preferred = [
+            'reference' => 'Reference',
+            'cheque_number' => 'Cheque No.',
+            'cheque_date' => 'Cheque Date',
+            'type' => 'Type',
+            'party' => 'Sender/Receiver',
+            'amount' => 'Amount',
+            'cleared_amount' => 'Cleared Amount',
+            'voucher_id' => 'Voucher',
+            'attachment' => 'Attachment',
+            'description' => 'Description',
+            'status' => 'Status',
+        ];
+
+        $columns = [];
+        foreach ($preferred as $key => $fallbackTitle) {
+            if ($key !== 'party' && ! isset($chequeColumns[$key])) {
+                continue;
+            }
+
+            $columns[] = [
+                'data' => $key,
+                'title' => $labelMap[$key] ?? $fallbackTitle,
+            ];
+        }
+
+        return RoleFieldAccess::filterTableColumns(array_merge($columns, [
+            ['data' => 'action', 'title' => 'Actions'],
+            ['data' => 'search', 'title' => 'Search'],
+            ['data' => 'control', 'title' => 'Control'],
+        ]), 'cheques');
+    }
+
+    /**
+     * Summary cards for the cheques list (excludes security from payable/receivable totals).
+     */
+    protected function buildChequeTotals($baseQuery): array
+    {
+        $today = now()->startOfDay();
+        $nonSecurity = (clone $baseQuery)->where(function ($q) {
+            $q->where('is_security', false)->orWhereNull('is_security');
+        });
+        $payable = (clone $nonSecurity)->where('type', 'payable');
+        $receivable = (clone $nonSecurity)->where('type', 'receiveable');
+        $openIssued = function ($q) {
+            $q->where('status', 'Issued')
+                ->where(function ($inner) {
+                    $inner->where('is_security', false)->orWhereNull('is_security');
+                })
+                ->whereNotNull('cheque_date');
+        };
+
+        $due7 = (clone $baseQuery)->where($openIssued)
+            ->where('type', 'payable')
+            ->whereDate('cheque_date', '>=', $today)
+            ->whereDate('cheque_date', '<=', $today->copy()->addDays(7));
+        $due30 = (clone $baseQuery)->where($openIssued)
+            ->where('type', 'payable')
+            ->whereDate('cheque_date', '>=', $today)
+            ->whereDate('cheque_date', '<=', $today->copy()->addDays(30));
+        $overdue = (clone $baseQuery)->where($openIssued)
+            ->whereDate('cheque_date', '<', $today);
+        $returned = (clone $baseQuery)->where('status', 'Returned');
+        $security = (clone $baseQuery)->where('is_security', true);
+
+        $pl = static function (int $n): string {
+            return $n.' cheque'.($n === 1 ? '' : 's');
+        };
+
+        return [
+            'count' => (clone $baseQuery)->count(),
+            'security_count' => (clone $security)->count(),
+            'payable_count' => (clone $payable)->count(),
+            'payable_amount' => (float) (clone $payable)->sum('amount'),
+            'receivable_count' => (clone $receivable)->count(),
+            'receivable_amount' => (float) (clone $receivable)->sum('amount'),
+            'due7_count' => (clone $due7)->count(),
+            'due7_amount' => (float) (clone $due7)->sum('amount'),
+            'due30_count' => (clone $due30)->count(),
+            'due30_amount' => (float) (clone $due30)->sum('amount'),
+            'overdue_count' => (clone $overdue)->count(),
+            'overdue_amount' => (float) (clone $overdue)->sum('amount'),
+            'returned_count' => (clone $returned)->count(),
+            'returned_amount' => (float) (clone $returned)->sum('amount'),
+            'payable_meta' => $pl((clone $payable)->count()).' (excl. security)',
+            'receivable_meta' => $pl((clone $receivable)->count()).' (excl. security)',
+            'due7_meta' => $pl((clone $due7)->count()).' · keep balance',
+            'due30_meta' => $pl((clone $due30)->count()).' due this month',
+            'overdue_meta' => $pl((clone $overdue)->count()).' (excl. security)',
+            'returned_meta' => $pl((clone $returned)->count()).' bounced',
+            'security_meta' => 'Held as security deposit',
+            'count_meta' => 'Payable + Receivable',
+        ];
+    }
+
+    protected function applyChequeListFilter($query, string $filter): void
+    {
+        $today = now()->startOfDay();
+        $nonSecurity = function ($q) {
+            $q->where('is_security', false)->orWhereNull('is_security');
+        };
+        $openIssued = function ($q) use ($nonSecurity) {
+            $q->where('status', 'Issued')->where($nonSecurity)->whereNotNull('cheque_date');
+        };
+
+        match ($filter) {
+            'payable' => $query->where('type', 'payable')->where($nonSecurity),
+            'receivable' => $query->where('type', 'receiveable')->where($nonSecurity),
+            'security' => $query->where('is_security', true),
+            'cleared' => $query->where('status', 'Cleared'),
+            'returned' => $query->where('status', 'Returned'),
+            'overdue' => $query->where($openIssued)->whereDate('cheque_date', '<', $today),
+            'due7' => $query->where($openIssued)->where('type', 'payable')
+                ->whereDate('cheque_date', '>=', $today)
+                ->whereDate('cheque_date', '<=', $today->copy()->addDays(7)),
+            'due30' => $query->where($openIssued)->where('type', 'payable')
+                ->whereDate('cheque_date', '>=', $today)
+                ->whereDate('cheque_date', '<=', $today->copy()->addDays(30)),
+            default => null,
+        };
+    }
+
+    protected function applyChequeQuickSearch($query, Request $request): void
+    {
+        $q = trim((string) $request->input('quick_search', ''));
+        if ($q === '') {
+            return;
+        }
+        $like = '%'.$q.'%';
+        $query->where(function ($inner) use ($like) {
+            $inner->where('cheque_number', 'like', $like)
+                ->orWhere('reference', 'like', $like)
+                ->orWhere('description', 'like', $like)
+                ->orWhere('status', 'like', $like)
+                ->orWhere('payee_name', 'like', $like)
+                ->orWhere('payer_name', 'like', $like)
+                ->orWhere('type', 'like', $like);
+        });
+    }
+
+    protected function applyChequeDueSort($query): void
+    {
+        $today = now()->toDateString();
+        // Open upcoming → overdue → open undated → everything else (demo dueKey order)
+        $query->orderByRaw(
+            "CASE
+                WHEN status = 'Issued' AND COALESCE(is_security, 0) = 0 AND cheque_date IS NOT NULL AND DATE(cheque_date) >= ? THEN 0
+                WHEN status = 'Issued' AND COALESCE(is_security, 0) = 0 AND cheque_date IS NOT NULL AND DATE(cheque_date) < ? THEN 1
+                WHEN status = 'Issued' AND COALESCE(is_security, 0) = 0 AND cheque_date IS NULL THEN 2
+                ELSE 3
+            END ASC",
+            [$today, $today]
+        )->orderByRaw(
+            "CASE
+                WHEN status = 'Issued' AND COALESCE(is_security, 0) = 0 AND cheque_date IS NOT NULL AND DATE(cheque_date) >= ? THEN DATE(cheque_date)
+                WHEN status = 'Issued' AND COALESCE(is_security, 0) = 0 AND cheque_date IS NOT NULL AND DATE(cheque_date) < ? THEN DATE(cheque_date)
+                ELSE NULL
+            END ASC",
+            [$today, $today]
+        )->orderByDesc('id');
+    }
+
+    protected function resolveNextDueChequeId($query): ?int
+    {
+        $today = now()->startOfDay();
+        $next = (clone $query)
+            ->where('status', 'Issued')
+            ->where(function ($q) {
+                $q->where('is_security', false)->orWhereNull('is_security');
+            })
+            ->where('type', 'payable')
+            ->whereNotNull('cheque_date')
+            ->whereDate('cheque_date', '>=', $today)
+            ->orderBy('cheque_date')
+            ->orderBy('id')
+            ->value('id');
+
+        return $next ? (int) $next : null;
     }
 
     /**

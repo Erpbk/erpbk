@@ -302,14 +302,14 @@
 
   /* Visa status column: dashed arrow connector (demo v4 flow design) */
   .exp-panel .visa-status-flow,
-  .riders-list-demo .visa-status-flow {
+  .module-list .visa-status-flow {
     position: relative;
     overflow: visible !important;
     white-space: nowrap;
   }
 
   .exp-panel .visa-status-bdg,
-  .riders-list-demo .visa-status-bdg {
+  .module-list .visa-status-bdg {
     position: relative;
     z-index: 2;
     display: inline-block;
@@ -323,7 +323,7 @@
   }
 
   .exp-panel .visa-status-flow::after,
-  .riders-list-demo .visa-status-flow::after {
+  .module-list .visa-status-flow::after {
     content: "";
     position: absolute;
     left: 50%;
@@ -336,7 +336,7 @@
   }
 
   .exp-panel .visa-status-flow::before,
-  .riders-list-demo .visa-status-flow::before {
+  .module-list .visa-status-flow::before {
     content: "";
     position: absolute;
     left: 50%;
@@ -351,30 +351,30 @@
 
   .exp-panel .visa-status-flow.is-last::after,
   .exp-panel .visa-status-flow.is-last::before,
-  .riders-list-demo .visa-status-flow.is-last::after,
-  .riders-list-demo .visa-status-flow.is-last::before {
+  .module-list .visa-status-flow.is-last::after,
+  .module-list .visa-status-flow.is-last::before {
     display: none;
   }
 
   .exp-panel .visa-status-flow.is-done::after,
-  .riders-list-demo .visa-status-flow.is-done::after {
+  .module-list .visa-status-flow.is-done::after {
     border-left: 2.5px solid #16a34a;
   }
 
   .exp-panel .visa-status-flow.is-done::before,
-  .riders-list-demo .visa-status-flow.is-done::before {
+  .module-list .visa-status-flow.is-done::before {
     border-top-color: #16a34a;
   }
 
   .exp-panel .visa-status-flow.is-done .visa-status-bdg,
-  .riders-list-demo .visa-status-flow.is-done .visa-status-bdg {
+  .module-list .visa-status-flow.is-done .visa-status-bdg {
     background: #dcfce7;
     color: #15803d;
     border-color: #86efac;
   }
 
   .exp-panel .visa-status-flow.is-done .visa-status-bdg::before,
-  .riders-list-demo .visa-status-flow.is-done .visa-status-bdg::before {
+  .module-list .visa-status-flow.is-done .visa-status-bdg::before {
     content: "✓ ";
     font-weight: 700;
   }

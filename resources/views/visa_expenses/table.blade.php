@@ -5,7 +5,7 @@ $vf = static fn (string $f): bool => field_visible('visaexpense', $f);
 $__companySlug = \App\Support\CompanyRouteContext::slug();
 $voucherEditDeleteFlags = \App\Models\VoucherType::getEditDeleteFlagsByModule('vouchers');
 @endphp
-<div class="riders-list-demo" id="visa-expenses-inline-edit-scope">
+<div class="module-list" id="visa-expenses-inline-edit-scope">
    <div class="d-flex justify-content-end mb-2 px-1">
       @can('visa_expense_entries_delete')
       <button type="button" class="btn btn-sm btn-outline-danger js-visa-expense-delete-selected" id="visaExpenseDeleteSelectedBtn" style="display:none;" onclick="deleteSelectedVisaExpenses(this)">

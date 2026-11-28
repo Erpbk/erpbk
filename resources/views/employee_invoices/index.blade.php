@@ -21,7 +21,7 @@
 @include('invoices.partials.status_badge_styles')
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
-<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
+<link rel="stylesheet" href="{{ asset('css/module-list.css') }}?v=20261030-tbox">
 <link rel="stylesheet" href="{{ asset('css/employees-demo.css') }}?v=20261102inv2">
 <style>
   .invoice-checkbox, #selectAllCheckbox { transform: scale(1.2); cursor: pointer; }
@@ -74,7 +74,7 @@
   $eiCreateUrl = safe_route('employeeInvoices.create', [], 'employeeInvoices/create');
   $eiPayCreateUrl = safe_route('payments.create', ['employee_payment' => 1], 'payments/create');
 @endphp
-<div class="riders-list-demo emp-demo" id="employeeInvoicesListDemo"
+<div class="module-list emp-demo" id="employeeInvoicesListDemo"
      data-index-url="{{ $eiIndexUrl }}"
      data-export-url="{{ $eiExportUrl }}"
      data-csrf="{{ csrf_token() }}">

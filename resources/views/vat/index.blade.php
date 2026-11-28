@@ -15,8 +15,8 @@
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
-<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
-<link rel="stylesheet" href="{{ asset('css/vat-demo.css') }}?v=20261126g">
+<link rel="stylesheet" href="{{ asset('css/module-list.css') }}?v=20261030-tbox">
+<link rel="stylesheet" href="{{ asset('css/vat-list.css') }}?v=20261126g">
 @endpush
 
 @section('content')
@@ -28,7 +28,7 @@
   ];
   $ledgerStatement = $ledgerStatement ?? null;
 @endphp
-<div class="riders-list-demo vat-demo" id="vatLedgerDemo"
+<div class="module-list vat-list" id="vatLedger"
      data-index-url="{{ route('vat.index') }}"
      data-csrf="{{ csrf_token() }}">
 

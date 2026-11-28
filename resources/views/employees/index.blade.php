@@ -27,7 +27,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
-<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
+<link rel="stylesheet" href="{{ asset('css/module-list.css') }}?v=20261030-tbox">
 <link rel="stylesheet" href="{{ asset('css/employees-demo.css') }}?v=20261102">
 @endpush
 
@@ -45,7 +45,7 @@
   $empIndexUrl = safe_route('employees.index', [], 'employees');
   $empCreateUrl = safe_route('employees.create', [], 'employees/create');
 @endphp
-<div class="riders-list-demo" id="employeesListDemo"
+<div class="module-list" id="employeesListDemo"
      data-filter-ajax="{{ $empFilterAjaxUrl }}"
      data-toggle-favorite="{{ $empToggleFavoriteUrl }}"
      data-csrf="{{ csrf_token() }}"

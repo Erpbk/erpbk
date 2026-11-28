@@ -1,7 +1,7 @@
 <script>
 (function () {
   function closestDemo(el) {
-    return el ? el.closest('.riders-list-demo') : null;
+    return el ? el.closest('.module-list') : null;
   }
 
   window.toggleVisaExpenseSelectAll = function (selectAllCheckbox) {

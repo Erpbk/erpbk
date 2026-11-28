@@ -2,7 +2,7 @@
 @section('title', 'Payment Out Sent')
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
-<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
+<link rel="stylesheet" href="{{ asset('css/module-list.css') }}?v=20261030-tbox">
 <style>
   .table-responsive { max-height: calc(100vh - 280px); }
   .card-search { max-width: 300px; min-width: 220px; }
@@ -32,7 +32,7 @@ $banks = $banks ?? \App\Models\Banks::active()->get();
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 @canany(['employees_payment_view', 'employees_payments_view', 'employees_payments_create'])
-<div class="riders-list-demo">
+<div class="module-list">
   <div class="rl-wrap">
     @include('flash::message')
 

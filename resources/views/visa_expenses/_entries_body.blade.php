@@ -1,4 +1,4 @@
-﻿@php
+@php
 $accountId = $account->rider_id;
 $categoryId = (int) ($activeRenewalCategory->id ?? 0);
 $categoryExpenseQuery = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
@@ -34,10 +34,10 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
 @endphp
 
 @include('partials.expense_panel_styles')
-<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261031-visa-tables">
+<link rel="stylesheet" href="{{ asset('css/module-list.css') }}?v=20261031-visa-tables">
 <style>
   /* Nested expense tables: keep rider-list look without locking the whole page height. */
-  .exp-panel .riders-list-demo .rl-tbox {
+  .exp-panel .module-list .rl-tbox {
     max-height: none;
     border-radius: 10px;
   }

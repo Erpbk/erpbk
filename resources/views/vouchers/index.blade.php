@@ -6,7 +6,7 @@
 @endphp
 
 @push('third_party_stylesheets')
-@include('vouchers.partials.demo_shell_styles')
+@include('vouchers.partials.list_shell_styles')
 <style>
   .filter-sidebar {
     position: fixed;
@@ -173,7 +173,7 @@
   'moduleKey' => 'voucher',
 ])
 
-<div class="vc-demo" id="vouchersDemo">
+<div class="vc-list" id="vouchersList">
   <div class="vc-wrap">
     @include('flash::message')
 
@@ -182,7 +182,7 @@
       'typeTickerStats' => $typeTickerStats ?? [],
     ])
 
-    @include('vouchers.partials.demo_toolbar', [
+    @include('vouchers.partials.list_toolbar', [
       'data' => $data ?? collect(),
       'tabCounts' => $tabCounts ?? [],
       'approvalTab' => $approvalTab ?? request('approval_tab', 'pending'),
@@ -213,7 +213,7 @@
 @endsection
 
 @section('page-script')
-@include('vouchers.partials.demo_scripts')
+@include('vouchers.partials.list_scripts')
 <script type="text/javascript">
 (function checkJQuery() {
   if (typeof jQuery === 'undefined') {
